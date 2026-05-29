@@ -186,9 +186,8 @@ export function PersonDossier({ personId }: PersonDossierProps) {
           )}
 
           <PersonRelationships
-            key={`${personId}-${editMode ? 'edit' : 'view'}`}
             personId={personId}
-            canEdit={mode === 'edit' && editMode}
+            canEdit={mode === 'edit'}
             onNavigate={openDossier}
           />
 

@@ -122,8 +122,6 @@ export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRel
       return partner || getChildren(project, u).length > 0 || formatMarriageDates(u);
     });
 
-  if (!canEdit && !hasAnyLinks) return null;
-
   const defaultPartnerGender = () => {
     if (person.gender === 'male') return 'female' as const;
     if (person.gender === 'female') return 'male' as const;
@@ -250,6 +248,18 @@ export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRel
   return (
     <section className="dossier-relationships">
       <h3 className="dossier-relationships__heading">Связи</h3>
+
+      {!canEdit && (
+        <p className="relationship-view-hint">
+          Для добавления, привязки или удаления связей переключитесь в режим «Редактировать» в шапке приложения.
+        </p>
+      )}
+
+      {canEdit && !hasAnyLinks && (
+        <p className="relationship-edit-hint">
+          Добавьте родителей, партнёра или детей — создайте новую персону или привяжите существующую через поиск.
+        </p>
+      )}
 
       <div className="relationship-group">
         <div className="relationship-group__title">Родители</div>
