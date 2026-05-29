@@ -260,12 +260,88 @@ function compactRedundantParentUnions(
   if (removed.size === 0) return project;
 
   const persons = { ...project.persons };
-  persons[childId] = {
-    ...child,
-    parentUnionIds: child.parentUnionIds.filter((id) => !removed.has(id)),
-  };
+  const parentUnionIds = child.parentUnionIds.filter((id) => !removed.has(id));
+  if (!parentUnionIds.includes(primaryUnionId)) parentUnionIds.push(primaryUnionId);
+  persons[childId] = { ...child, parentUnionIds };
 
   return cleanupRemovedUnions({ ...project, persons, unions }, unions, removed);
+}
+
+function sanitizeChildParentUnionIds(
+  persons: Record<string, Person>,
+  unions: Record<string, Union>,
+  childId: string,
+): void {
+  const child = persons[childId];
+  if (!child) return;
+  const parentUnionIds = child.parentUnionIds.filter((uid) => {
+    const u = unions[uid];
+    return u && u.childIds.includes(childId);
+  });
+  if (parentUnionIds.length !== child.parentUnionIds.length) {
+    persons[childId] = { ...child, parentUnionIds };
+  }
+}
+
+/** When both spouses are already parents, store the child in their marriage union. */
+function mergeMarriedParentsForChild(project: Project, childId: string): Project {
+  const child = project.persons[childId];
+  if (!child) return project;
+
+  const parents = getParents(project, child);
+  const parentIds = new Set(parents.map((p) => p.id));
+  if (parentIds.size < 2) return project;
+
+  for (const parent of parents) {
+    for (const marriageId of parent.unionIds) {
+      const marriage = project.unions[marriageId];
+      if (!marriage || marriage.partnerIds.length < 2) continue;
+      if (!marriage.partnerIds.every((id) => parentIds.has(id))) continue;
+
+      const unions = { ...project.unions };
+      const persons = { ...project.persons };
+      const marriageUnion = {
+        ...marriage,
+        childIds: marriage.childIds.includes(childId)
+          ? marriage.childIds
+          : [...marriage.childIds, childId],
+      };
+      unions[marriageId] = marriageUnion;
+
+      const removed = new Set<string>();
+      for (const uid of child.parentUnionIds) {
+        if (uid === marriageId) continue;
+        const u = unions[uid];
+        if (!u || !u.childIds.includes(childId)) continue;
+        if (!u.partnerIds.every((id) => marriageUnion.partnerIds.includes(id))) continue;
+
+        const newChildIds = u.childIds.filter((id) => id !== childId);
+        if (shouldRemoveUnion(u.partnerIds, newChildIds)) {
+          delete unions[uid];
+          removed.add(uid);
+        } else {
+          unions[uid] = { ...u, childIds: newChildIds };
+        }
+      }
+
+      const parentUnionIds = child.parentUnionIds.filter((id) => !removed.has(id));
+      if (!parentUnionIds.includes(marriageId)) parentUnionIds.push(marriageId);
+      persons[childId] = { ...child, parentUnionIds };
+
+      for (const pid of marriageUnion.partnerIds) {
+        const partner = persons[pid] ?? project.persons[pid];
+        if (partner && !partner.unionIds.includes(marriageId)) {
+          persons[pid] = { ...partner, unionIds: [...partner.unionIds, marriageId] };
+        }
+      }
+
+      return touchProjectMeta(
+        cleanupRemovedUnions({ ...project, persons, unions }, unions, removed),
+      );
+    }
+  }
+
+  return project;
 }
 
 function pickFallbackCenter(project: Project): ProjectCenter {
@@ -369,6 +445,12 @@ function resolveParentChildUnion(
   });
   if (existingWithParent) return existingWithParent;
 
+  const existingOnParent = parent.unionIds.find((id) => {
+    const u = unions[id];
+    return u?.partnerIds.includes(parentId) && u.childIds.includes(childId);
+  });
+  if (existingOnParent) return existingOnParent;
+
   if (preferMarriageUnion) {
     const marriageUnion = parent.unionIds.find((id) => {
       const u = unions[id];
@@ -399,6 +481,7 @@ function applyParentChildLink(
 
   const unions = { ...project.unions };
   const persons = { ...project.persons };
+  sanitizeChildParentUnionIds(persons, unions, childId);
 
   let uid = resolveParentChildUnion(project, unions, childId, parentId, options);
   if (!uid) {
@@ -417,6 +500,7 @@ function applyParentChildLink(
   if (!childPerson.parentUnionIds.includes(uid)) {
     persons[childId] = { ...childPerson, parentUnionIds: [...childPerson.parentUnionIds, uid] };
   }
+  sanitizeChildParentUnionIds(persons, unions, childId);
 
   const linkedUnion = unions[uid]!;
   for (const partnerId of linkedUnion.partnerIds) {
@@ -435,7 +519,9 @@ function applyParentChildLink(
 }
 
 export function linkParent(project: Project, childId: string, parentId: string, unionId?: string): Project {
-  return applyParentChildLink(project, childId, parentId, { unionId, preferMarriageUnion: true });
+  let next = applyParentChildLink(project, childId, parentId, { unionId, preferMarriageUnion: false });
+  next = mergeMarriedParentsForChild(next, childId);
+  return next;
 }
 
 export function linkChild(project: Project, parentId: string, childId: string, unionId?: string): Project {

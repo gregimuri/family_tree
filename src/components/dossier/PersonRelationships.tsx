@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { Project, Union } from '../../types';
+import type { Union } from '../../types';
 import {
   formatMarriageDates,
   formatPersonName,
@@ -16,7 +16,6 @@ import './PersonRelationships.css';
 
 interface PersonRelationshipsProps {
   personId: string;
-  project: Project;
   canEdit: boolean;
   onNavigate: (id: string) => void;
 }
@@ -91,8 +90,9 @@ const LINK_TITLES: Record<LinkKind, string> = {
   child: 'Привязать ребёнка',
 };
 
-export function PersonRelationships({ personId, project, canEdit, onNavigate }: PersonRelationshipsProps) {
-  const person = project.persons[personId];
+export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRelationshipsProps) {
+  const project = useProjectStore((s) => s.project);
+  const person = project?.persons[personId];
   const addPerson = useProjectStore((s) => s.addPerson);
   const linkParent = useProjectStore((s) => s.linkParent);
   const unlinkParent = useProjectStore((s) => s.unlinkParent);
@@ -106,11 +106,11 @@ export function PersonRelationships({ personId, project, canEdit, onNavigate }: 
   const [pendingLink, setPendingLink] = useState<PendingLink | null>(null);
 
   const excludeIds = useMemo(() => {
-    if (!pendingLink) return [personId];
+    if (!pendingLink || !project) return [personId];
     return getExcludedIdsForLink(project, personId, pendingLink.kind);
   }, [pendingLink, project, personId]);
 
-  if (!person) return null;
+  if (!project || !person) return null;
 
   const parents = getParents(project, person);
   const unions = getUnions(project, person);

@@ -332,6 +332,7 @@ describe('relationships', () => {
     const child = createEmptyPerson();
     project = { ...project, persons: { ...project.persons, [child.id]: child } };
     project = linkParent(project, child.id, p1);
+    project = linkParent(project, child.id, spouseId);
     const parentIds = getParentsFromProject(project, child.id).map((p) => p.id).sort();
     expect(parentIds).toEqual([p1, spouseId].sort());
   });
@@ -348,7 +349,7 @@ describe('relationships', () => {
     expect(getAllChildren(project, parent).some((c) => c.id === child.id)).toBe(true);
   });
 
-  it('linkParent is bidirectional and adds child to marriage union when parent is married', () => {
+  it('linkParent is bidirectional and adds child to marriage union when both parents linked', () => {
     let project = createEmptyProject();
     const [parentId, spouseId] = Object.keys(project.persons);
     const marriageUnionId = project.persons[parentId].unionIds[0];
@@ -356,6 +357,9 @@ describe('relationships', () => {
     project = { ...project, persons: { ...project.persons, [child.id]: child } };
 
     project = linkParent(project, child.id, parentId);
+    expect(getParents(project, project.persons[child.id]).map((p) => p.id)).toEqual([parentId]);
+
+    project = linkParent(project, child.id, spouseId);
 
     expect(project.unions[marriageUnionId].childIds).toContain(child.id);
     expect(getParents(project, project.persons[child.id]).map((p) => p.id).sort()).toEqual(
@@ -371,6 +375,7 @@ describe('relationships', () => {
     const child = createEmptyPerson({ givenName: 'Ребёнок' });
     project = { ...project, persons: { ...project.persons, [child.id]: child } };
     project = linkParent(project, child.id, parentId);
+    project = linkParent(project, child.id, spouseId);
 
     project = unlinkParent(project, child.id, parentId);
 
@@ -388,14 +393,44 @@ describe('relationships', () => {
     const child = createEmptyPerson({ givenName: 'Ребёнок' });
     project = { ...project, persons: { ...project.persons, [child.id]: child } };
     project = linkParent(project, child.id, parentId);
+    project = linkParent(project, child.id, spouseId);
 
     project = unlinkParent(project, child.id, parentId);
+    project = unlinkParent(project, child.id, spouseId);
     project = linkParent(project, child.id, parentId);
+    project = linkParent(project, child.id, spouseId);
 
     expect(project.unions[marriageUnionId].childIds).toContain(child.id);
     expect(getParents(project, project.persons[child.id]).map((p) => p.id).sort()).toEqual(
       [parentId, spouseId].sort(),
     );
+  });
+
+  it('after unlinking both parents, linking father then mother restores full family', () => {
+    let project = createEmptyProject();
+    const [fatherId, motherId] = Object.keys(project.persons);
+    const marriageUnionId = project.persons[fatherId].unionIds[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+    project = linkParent(project, child.id, fatherId);
+
+    project = unlinkParent(project, child.id, fatherId);
+    project = unlinkParent(project, child.id, motherId);
+
+    project = linkParent(project, child.id, fatherId);
+    expect(getParents(project, project.persons[child.id]).map((p) => p.id)).toEqual([fatherId]);
+
+    project = linkParent(project, child.id, motherId);
+
+    expect(project.unions[marriageUnionId].childIds).toContain(child.id);
+    expect(getParents(project, project.persons[child.id]).map((p) => p.id).sort()).toEqual(
+      [fatherId, motherId].sort(),
+    );
+    expect(getAllChildren(project, project.persons[motherId]).some((c) => c.id === child.id)).toBe(true);
+    expect(getAllChildren(project, project.persons[fatherId]).some((c) => c.id === child.id)).toBe(true);
+    for (const uid of project.persons[child.id].parentUnionIds) {
+      expect(project.unions[uid]?.childIds).toContain(child.id);
+    }
   });
 });
 
