@@ -54,6 +54,14 @@ export function snapTopLeftToGrid(value: number, gridSize: number): number {
   return Math.round(value / gridSize) * gridSize;
 }
 
+/** Привязка точки к пересечению линий сетки (углам клеток). */
+export function snapToGridCorner(x: number, y: number, gridSize: number): { x: number; y: number } {
+  return {
+    x: snapTopLeftToGrid(x, gridSize),
+    y: snapTopLeftToGrid(y, gridSize),
+  };
+}
+
 export function snapCardCenterToGridCorners(
   centerX: number,
   centerY: number,

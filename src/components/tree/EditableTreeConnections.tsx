@@ -1,7 +1,7 @@
 import { useMemo, type PointerEvent as ReactPointerEvent } from 'react';
 import type { LayoutEdge, Project } from '../../types';
 import { branchPath, coupleBondPath, edgePath } from '../../layout/edge-router';
-import { CARD_GRID_CELL, snapTopLeftToGrid } from '../../layout/card-dimensions';
+import { CARD_GRID_CELL, snapToGridCorner } from '../../layout/card-dimensions';
 import { TreeConnections } from './TreeConnections';
 
 interface EditableTreeConnectionsProps {
@@ -56,9 +56,8 @@ export function EditableTreeConnections({
       const pt = screenToLayout(ev.clientX, ev.clientY);
       if (!pt) return;
       const grid = CARD_GRID_CELL;
-      const x = snapTopLeftToGrid(pt.x, grid) + grid / 2;
-      const y = snapTopLeftToGrid(pt.y, grid) + grid / 2;
-      const next = initialPoints.map((p, i) => (i === pointIndex ? { x, y } : { ...p }));
+      const snapped = snapToGridCorner(pt.x, pt.y, grid);
+      const next = initialPoints.map((p, i) => (i === pointIndex ? snapped : { ...p }));
       onUpdateRoute(edgeId, next);
     };
 

@@ -9,6 +9,7 @@ import {
   getCardDimensions,
   personShowsCardPhoto,
   snapCardCenterToGridCorners,
+  snapToGridCorner,
   snapTopLeftToGrid,
 } from '../layout/card-dimensions';
 
@@ -40,5 +41,10 @@ describe('card dimensions', () => {
     const snapped = snapCardCenterToGridCorners(65, 125, CARD_W, CARD_H_FULL, CARD_GRID_CELL);
     expect(snapped.x).toBe(60);
     expect(snapped.y).toBe(120);
+  });
+
+  it('snaps arbitrary points to grid corners', () => {
+    expect(snapToGridCorner(23, 31, CARD_GRID_CELL)).toEqual({ x: 20, y: 40 });
+    expect(snapToGridCorner(29, 29, CARD_GRID_CELL)).toEqual({ x: 20, y: 20 });
   });
 });

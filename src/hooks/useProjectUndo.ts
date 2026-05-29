@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useProjectStore } from '../store/project-store';
+import { isModifierShortcut, isPhysicalKey } from '../utils/keyboard-shortcut';
 
 function isTextInputTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -17,16 +18,15 @@ export function useProjectUndo(enabled: boolean) {
 
     const handler = (event: KeyboardEvent) => {
       if (isTextInputTarget(event.target)) return;
-      if (!event.ctrlKey && !event.metaKey) return;
+      if (!isModifierShortcut(event)) return;
 
-      const key = event.key.toLowerCase();
-      if (key === 'z' && !event.shiftKey) {
+      if (isPhysicalKey(event, 'KeyZ') && !event.shiftKey) {
         if (!canUndo) return;
         event.preventDefault();
         undo();
         return;
       }
-      if (key === 'y' || (key === 'z' && event.shiftKey)) {
+      if (isPhysicalKey(event, 'KeyY') || (isPhysicalKey(event, 'KeyZ') && event.shiftKey)) {
         if (!canRedo) return;
         event.preventDefault();
         redo();

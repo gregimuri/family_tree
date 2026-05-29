@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { isModifierShortcut, isPhysicalKey } from '../utils/keyboard-shortcut';
 
 interface UseKeyboardNavOptions {
   transformRef: React.RefObject<ReactZoomPanPinchRef | null>;
@@ -18,12 +19,12 @@ export function useKeyboardNav({ transformRef, enabled = true }: UseKeyboardNavO
       const ref = transformRef.current;
       if (!ref) return;
 
-      if (e.ctrlKey && (e.key === '+' || e.key === '=')) {
+      if (isModifierShortcut(e) && (e.key === '+' || e.key === '=' || isPhysicalKey(e, 'Equal'))) {
         e.preventDefault();
         ref.zoomIn(0.15, 0);
         return;
       }
-      if (e.ctrlKey && e.key === '-') {
+      if (isModifierShortcut(e) && (e.key === '-' || isPhysicalKey(e, 'Minus'))) {
         e.preventDefault();
         ref.zoomOut(0.15, 0);
         return;
@@ -31,31 +32,24 @@ export function useKeyboardNav({ transformRef, enabled = true }: UseKeyboardNavO
 
       const { positionX, positionY, scale } = ref.state;
 
-      switch (e.key) {
-        case 'ArrowUp':
-        case 'w':
-        case 'W':
-          e.preventDefault();
-          ref.setTransform(positionX, positionY + step, scale, 0);
-          break;
-        case 'ArrowDown':
-        case 's':
-        case 'S':
-          e.preventDefault();
-          ref.setTransform(positionX, positionY - step, scale, 0);
-          break;
-        case 'ArrowLeft':
-        case 'a':
-        case 'A':
-          e.preventDefault();
-          ref.setTransform(positionX + step, positionY, scale, 0);
-          break;
-        case 'ArrowRight':
-        case 'd':
-        case 'D':
-          e.preventDefault();
-          ref.setTransform(positionX - step, positionY, scale, 0);
-          break;
+      if (isPhysicalKey(e, 'ArrowUp') || isPhysicalKey(e, 'KeyW')) {
+        e.preventDefault();
+        ref.setTransform(positionX, positionY + step, scale, 0);
+        return;
+      }
+      if (isPhysicalKey(e, 'ArrowDown') || isPhysicalKey(e, 'KeyS')) {
+        e.preventDefault();
+        ref.setTransform(positionX, positionY - step, scale, 0);
+        return;
+      }
+      if (isPhysicalKey(e, 'ArrowLeft') || isPhysicalKey(e, 'KeyA')) {
+        e.preventDefault();
+        ref.setTransform(positionX + step, positionY, scale, 0);
+        return;
+      }
+      if (isPhysicalKey(e, 'ArrowRight') || isPhysicalKey(e, 'KeyD')) {
+        e.preventDefault();
+        ref.setTransform(positionX - step, positionY, scale, 0);
       }
     };
 
