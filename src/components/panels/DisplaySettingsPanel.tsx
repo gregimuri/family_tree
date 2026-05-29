@@ -18,11 +18,18 @@ function InfinityInput({
       <input
         type="number"
         className="infinity-input__field"
-        min={1}
+        min={0}
         max={20}
         disabled={isInf}
         value={isInf ? 3 : value}
-        onChange={(e) => onChange(+e.target.value || 1)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === '') {
+            onChange(0);
+            return;
+          }
+          onChange(Math.max(0, Number.parseInt(raw, 10) || 0));
+        }}
       />
       <button
         type="button"
@@ -67,10 +74,12 @@ export function DisplaySettingsPanel() {
         <label>
           Поколения вверх
           <InfinityInput value={s.generationsUp} onChange={(v) => update({ generationsUp: v })} />
+          <small className="hint">0 — не показывать родителей и предков</small>
         </label>
         <label>
           Поколения вниз
           <InfinityInput value={s.generationsDown} onChange={(v) => update({ generationsDown: v })} />
+          <small className="hint">0 — не показывать детей и потомков</small>
         </label>
         <label>
           Боковые ветви (поколение)
@@ -97,14 +106,10 @@ export function DisplaySettingsPanel() {
           <select
             value={s.cardSizeMode}
             onChange={(e) => update({ cardSizeMode: e.target.value as ViewSettings['cardSizeMode'] })}
-            disabled={s.sideBranchesAt >= 3}
           >
             <option value="uniform">Одинаковый</option>
             <option value="diminish">Уменьшаемый</option>
           </select>
-          {s.sideBranchesAt >= 3 && (
-            <small className="hint">При боковых ветвях ≥3 только уменьшаемый</small>
-          )}
         </label>
         <label className="checkbox-label">
           <input

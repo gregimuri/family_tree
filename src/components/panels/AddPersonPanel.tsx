@@ -6,8 +6,10 @@ import { CollapsiblePanel } from './CollapsiblePanel';
 import { Icons } from '../ui/Icons';
 
 export function AddPersonPanel() {
+  const project = useProjectStore((s) => s.project);
   const mode = useProjectStore((s) => s.mode);
   const addPerson = useProjectStore((s) => s.addPerson);
+  const placeNewPersonNear = useProjectStore((s) => s.placeNewPersonNear);
   const addPersonOpen = useUiStore((s) => s.addPersonOpen);
   const toggleAddPerson = useUiStore((s) => s.toggleAddPerson);
 
@@ -19,7 +21,12 @@ export function AddPersonPanel() {
   if (mode !== 'edit') return null;
 
   const handleAdd = () => {
-    addPerson({ surname, givenName, patronymic, gender });
+    const person = addPerson({ surname, givenName, patronymic, gender });
+    const anchorId =
+      project?.center.type === 'person'
+        ? project.center.id
+        : Object.keys(project?.persons ?? {})[0];
+    if (anchorId) placeNewPersonNear(person.id, anchorId);
     setSurname('');
     setGivenName('');
     setPatronymic('');

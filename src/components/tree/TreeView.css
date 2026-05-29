@@ -39,11 +39,18 @@
   box-shadow: var(--shadow-md);
 }
 
-.tree-svg.manual-grid {
+.tree-view--manual-layout .tree-transform-wrapper {
   background-image:
-    linear-gradient(rgba(45, 106, 79, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(45, 106, 79, 0.08) 1px, transparent 1px);
+    linear-gradient(rgba(45, 106, 79, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 106, 79, 0.1) 1px, transparent 1px);
   background-size: 28px 28px;
+  background-position: center;
+}
+
+.tree-view--manual-layout.tree-view--dragging .tree-transform-wrapper {
+  background-image:
+    linear-gradient(rgba(45, 106, 79, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 106, 79, 0.22) 1px, transparent 1px);
 }
 
 .card-name {

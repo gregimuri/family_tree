@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { StartScreen } from '../components/start-screen/StartScreen';
 import { TreeView } from '../components/tree/TreeView';
 import { useProjectStore } from '../store/project-store';
 import { useUiStore } from '../store/ui-store';
-import { saveProjectFile } from '../services/project-io/zip-project';
 import { Icons } from '../components/ui/Icons';
 import './App.css';
 
@@ -20,23 +19,36 @@ function TreeRoute({ edit }: { edit: boolean }) {
 
   return (
     <div className="app-shell">
-      <AppHeader edit={edit} />
+      <AppHeader />
       <TreeView />
     </div>
   );
 }
 
-function AppHeader({ edit }: { edit: boolean }) {
+function AppHeader() {
+  const navigate = useNavigate();
   const project = useProjectStore((s) => s.project);
   const mode = useProjectStore((s) => s.mode);
   const setMode = useProjectStore((s) => s.setMode);
-  const mediaBlobs = useProjectStore((s) => s.mediaBlobs);
+  const setProjectName = useProjectStore((s) => s.setProjectName);
+  const saveProject = useProjectStore((s) => s.saveProject);
+  const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const dirty = useProjectStore((s) => s.dirty);
   const toggleAddPerson = useUiStore((s) => s.toggleAddPerson);
 
   const personCount = project ? Object.keys(project.persons).length : 0;
   const unionCount = project ? Object.keys(project.unions).length : 0;
-  const isEditing = edit || mode === 'edit';
+  const isEditing = mode === 'edit';
+
+  const enterViewMode = () => {
+    setMode('view');
+    navigate('/tree');
+  };
+
+  const enterEditMode = () => {
+    setMode('edit');
+    navigate('/edit');
+  };
 
   return (
     <header className="app-header">
@@ -47,10 +59,20 @@ function AppHeader({ edit }: { edit: boolean }) {
 
       <div className="app-title-block">
         <Icons.Tree size={20} className="app-title-icon" />
-        <span className="app-title">
-          {project?.meta.name}
-          {dirty && <span className="dirty-dot" title="Есть несохранённые изменения" />}
-        </span>
+        {isEditing ? (
+          <input
+            className="app-title-input"
+            value={project?.meta.name ?? ''}
+            onChange={(e) => setProjectName(e.target.value)}
+            aria-label="Название проекта"
+          />
+        ) : (
+          <span className="app-title">
+            {project?.meta.name}
+            {dirty && <span className="dirty-dot" title="Есть несохранённые изменения" />}
+          </span>
+        )}
+        {isEditing && dirty && <span className="dirty-dot" title="Есть несохранённые изменения" />}
         <span className="app-stats">
           {personCount} персон · {unionCount} семей
         </span>
@@ -66,25 +88,22 @@ function AppHeader({ edit }: { edit: boolean }) {
         {isEditing ? (
           <>
             <span className="mode-badge edit">Редактирование</span>
-            <button type="button" className="btn" onClick={() => setMode('view')}>
+            <button type="button" className="btn" onClick={enterViewMode}>
               <Icons.Eye size={16} />
               Просмотр
             </button>
-            <button
-              type="button"
-              className="btn primary"
-              onClick={() => {
-                if (project) void saveProjectFile(project, mediaBlobs);
-              }}
-            >
+            <button type="button" className="btn primary" onClick={() => void saveProject()}>
               <Icons.Save size={16} />
               Сохранить
+            </button>
+            <button type="button" className="btn" onClick={() => void saveProjectAs()}>
+              Сохранить как
             </button>
           </>
         ) : (
           <>
             <span className="mode-badge view">Просмотр</span>
-            <button type="button" className="btn primary" onClick={() => setMode('edit')}>
+            <button type="button" className="btn primary" onClick={enterEditMode}>
               <Icons.Edit size={16} />
               Редактировать
             </button>

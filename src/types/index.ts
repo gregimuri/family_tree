@@ -17,6 +17,8 @@ export interface DateValue {
   month?: number;
   year?: number;
   text?: string;
+  /** Julian (old style) calendar */
+  julian?: boolean;
 }
 
 export interface Place {

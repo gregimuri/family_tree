@@ -1,11 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyProject } from '../models/defaults';
-import { removePersonFromProject } from '../models/person-utils';
-import { getCenterFocusPoint } from '../layout/center-focus';
+import { createEmptyProject, createEmptyPerson } from '../models/defaults';
+import {
+  dateToText,
+  formatLifeDates,
+  getAllChildren,
+  getExcludedIdsForLink,
+  getParents,
+  linkChild,
+  linkParent,
+  removePersonFromProject,
+} from '../models/person-utils';
+import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
 import { buildLayout } from '../layout';
+import { buildGraph } from '../layout/graph-builder';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
+import { computeExportViewport } from '../services/export/image-export';
 import { validateViewSettings, canUseUniformCards } from '../models/validation';
+import { formatPlaceText, placeHasValue } from '../components/dossier/DossierFields';
 import { createId } from '../utils/create-id';
 
 describe('gedcom parsing', () => {
@@ -19,7 +31,12 @@ describe('gedcom parsing', () => {
   it('parses GEDCOM dates', () => {
     expect(parseGedcomDate('4 APR 1917')).toEqual({ day: 4, month: 4, year: 1917 });
     expect(parseGedcomDate('ABT 1951')?.year).toBe(1951);
-    expect(parseGedcomDate('@#DJULIAN@ 1 JUL 1897')).toEqual({ day: 1, month: 7, year: 1897 });
+    expect(parseGedcomDate('@#DJULIAN@ 1 JUL 1897')).toEqual({
+      day: 1,
+      month: 7,
+      year: 1897,
+      julian: true,
+    });
     expect(parseGedcomDate('2016')?.year).toBe(2016);
   });
 });
@@ -187,17 +204,175 @@ describe('gedcom', () => {
 });
 
 describe('validation', () => {
-  it('forces diminish when side branches >= 3', () => {
+  it('keeps uniform card size regardless of side branches', () => {
     const project = createEmptyProject();
     const next = validateViewSettings({
       ...project.viewSettings,
       sideBranchesAt: 3,
       cardSizeMode: 'uniform',
     });
-    expect(next.cardSizeMode).toBe('diminish');
-    expect(canUseUniformCards(3)).toBe(false);
+    expect(next.cardSizeMode).toBe('uniform');
+    expect(canUseUniformCards()).toBe(true);
+  });
+
+  it('allows zero generations up and down', () => {
+    const project = createEmptyProject();
+    const next = validateViewSettings({
+      ...project.viewSettings,
+      generationsUp: 0,
+      generationsDown: 0,
+    });
+    expect(next.generationsUp).toBe(0);
+    expect(next.generationsDown).toBe(0);
   });
 });
+
+describe('graph generations', () => {
+  it('hides children when generationsDown is 0', () => {
+    const project = createEmptyProject();
+    const unionId = Object.keys(project.unions)[0];
+    const childId = createId();
+    project.persons[childId] = createEmptyPerson({
+      id: childId,
+      givenName: 'Ребёнок',
+      parentUnionIds: [unionId],
+    });
+    project.unions[unionId] = {
+      ...project.unions[unionId],
+      childIds: [childId],
+    };
+    project.viewSettings = { ...project.viewSettings, generationsDown: 0 };
+    const graph = buildGraph(project, project.viewSettings);
+    expect(graph.personToNode.has(childId)).toBe(false);
+  });
+
+  it('hides parents when generationsUp is 0', () => {
+    const project = createEmptyProject();
+    const parentId = createId();
+    const [childId] = Object.keys(project.persons);
+    const parentUnionId = createId();
+    project.persons[parentId] = createEmptyPerson({ id: parentId, givenName: 'Родитель' });
+    project.unions[parentUnionId] = {
+      id: parentUnionId,
+      partnerIds: [parentId],
+      childIds: [childId],
+    };
+    project.persons[childId] = {
+      ...project.persons[childId],
+      parentUnionIds: [parentUnionId],
+    };
+    project.center = { type: 'person', id: childId };
+    project.viewSettings = { ...project.viewSettings, generationsUp: 0, generationsDown: 0 };
+    const graph = buildGraph(project, project.viewSettings);
+    expect(graph.personToNode.has(parentId)).toBe(false);
+    expect(graph.personToNode.has(childId)).toBe(true);
+  });
+});
+
+describe('link eligibility', () => {
+  it('excludes descendants when linking parent', () => {
+    const project = createEmptyProject();
+    const unionId = Object.keys(project.unions)[0];
+    const childId = createId();
+    project.persons[childId] = createEmptyPerson({
+      id: childId,
+      parentUnionIds: [unionId],
+    });
+    project.unions[unionId] = {
+      ...project.unions[unionId],
+      childIds: [childId],
+    };
+    const [parentId] = Object.keys(project.persons).filter((id) => id !== childId);
+    const excluded = new Set(getExcludedIdsForLink(project, parentId, 'parent'));
+    expect(excluded.has(childId)).toBe(true);
+  });
+});
+
+describe('dossier places', () => {
+  it('shows place details when name is empty', () => {
+    expect(formatPlaceText({ name: '', details: 'район X' })).toBe('район X');
+    expect(placeHasValue({ name: '', details: 'район X' })).toBe(true);
+  });
+});
+
+describe('dates', () => {
+  it('shows text-only dates in years mode', () => {
+    const person = createEmptyPerson({
+      birth: { date: { text: 'ок. 1951' } },
+      death: { date: { text: 'после 2000' } },
+    });
+    expect(formatLifeDates(person, 'years')).toBe('ок. 1951–после 2000');
+  });
+
+  it('appends old-style suffix for julian dates', () => {
+    expect(dateToText({ year: 1897, month: 7, day: 1, julian: true })).toBe('01.07.1897 ст.');
+    expect(dateToText({ text: 'ок. 1875', julian: true })).toBe('ок. 1875 ст.');
+  });
+});
+
+describe('relationships', () => {
+  it('links child to single parent without partner', () => {
+    let project = createEmptyProject();
+    const parentId = Object.keys(project.persons)[0];
+    const child = createEmptyPerson();
+    project = {
+      ...project,
+      persons: { ...project.persons, [child.id]: child },
+    };
+    project = linkChild(project, parentId, child.id);
+    expect(project.unions[Object.keys(project.unions).find((id) => project.unions[id].childIds.includes(child.id))!].partnerIds).toEqual([parentId]);
+    expect(project.persons[child.id].parentUnionIds.length).toBe(1);
+  });
+
+  it('links parent to child', () => {
+    let project = createEmptyProject();
+    const [p1, spouseId] = Object.keys(project.persons);
+    const child = createEmptyPerson();
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+    project = linkParent(project, child.id, p1);
+    const parentIds = getParentsFromProject(project, child.id).map((p) => p.id).sort();
+    expect(parentIds).toEqual([p1, spouseId].sort());
+  });
+
+  it('linkChild is bidirectional: child sees parent and parent sees child', () => {
+    let project = createEmptyProject();
+    const parentId = Object.keys(project.persons)[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+    project = linkChild(project, parentId, child.id);
+
+    const parent = project.persons[parentId];
+    expect(getParents(project, project.persons[child.id]).some((p) => p.id === parentId)).toBe(true);
+    expect(getAllChildren(project, parent).some((c) => c.id === child.id)).toBe(true);
+  });
+
+  it('linkParent is bidirectional and adds child to marriage union when parent is married', () => {
+    let project = createEmptyProject();
+    const [parentId, spouseId] = Object.keys(project.persons);
+    const marriageUnionId = project.persons[parentId].unionIds[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+
+    project = linkParent(project, child.id, parentId);
+
+    expect(project.unions[marriageUnionId].childIds).toContain(child.id);
+    expect(getParents(project, project.persons[child.id]).map((p) => p.id).sort()).toEqual(
+      [parentId, spouseId].sort(),
+    );
+    expect(getAllChildren(project, project.persons[spouseId]).some((c) => c.id === child.id)).toBe(true);
+  });
+});
+
+function getParentsFromProject(project: ReturnType<typeof createEmptyProject>, childId: string) {
+  const child = project.persons[childId];
+  const parents = [];
+  for (const uid of child.parentUnionIds) {
+    for (const pid of project.unions[uid]?.partnerIds ?? []) {
+      if (project.persons[pid]) parents.push(project.persons[pid]);
+    }
+  }
+  return parents;
+}
 
 describe('delete person', () => {
   it('removes person and cleans up empty unions', () => {
@@ -301,5 +476,35 @@ describe('delete person', () => {
     for (let i = 1; i < sorted.length; i++) {
       expect(sorted[i].x).toBeGreaterThanOrEqual(sorted[i - 1].x + sorted[i - 1].width - 1);
     }
+  });
+
+  it('avoids vertical overlap between adjacent generations with uniform cards', () => {
+    const project = createEmptyProject();
+    const layout = buildLayout(project);
+    const byLayer = new Map<number, typeof layout.nodes>();
+    for (const node of layout.nodes) {
+      const list = byLayer.get(node.layer) ?? [];
+      list.push(node);
+      byLayer.set(node.layer, list);
+    }
+    const layers = [...byLayer.keys()].sort((a, b) => a - b);
+    for (let i = 1; i < layers.length; i++) {
+      const upper = byLayer.get(layers[i - 1])!;
+      const lower = byLayer.get(layers[i])!;
+      const upperBottom = Math.max(...upper.map((n) => n.y + n.height));
+      const lowerTop = Math.min(...lower.map((n) => n.y));
+      expect(lowerTop).toBeGreaterThanOrEqual(upperBottom - 1);
+    }
+  });
+
+  it('export viewport fits tree content, not full symmetric canvas', () => {
+    const project = createEmptyProject();
+    const layout = buildLayout(project);
+    const frame = getSymmetricTreeFrame(project, layout, 80)!;
+    const viewport = computeExportViewport(frame, layout);
+    expect(viewport.width).toBeLessThan(frame.svgW);
+    expect(viewport.height).toBeLessThan(frame.svgH);
+    expect(viewport.width).toBeGreaterThan(200);
+    expect(viewport.height).toBeGreaterThan(200);
   });
 });

@@ -1,0 +1,132 @@
+.dossier-relationships {
+  margin: 0 0 24px;
+  padding: 16px;
+  background: var(--color-bg-muted, #f5f5f4);
+  border: 1px solid var(--color-border, #e7e5e4);
+  border-radius: var(--radius-md, 12px);
+}
+
+.dossier-relationships__heading {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.relationship-group {
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border, #e7e5e4);
+}
+
+.relationship-group:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.relationship-group--footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.relationship-group__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.relationship-subgroup {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin-bottom: 10px;
+  align-items: start;
+}
+
+.relationship-subgroup__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding-top: 4px;
+}
+
+.relationship-subgroup__body {
+  min-width: 0;
+}
+
+.relationship-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 4px;
+}
+
+.relationship-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px 2px 0;
+  background: var(--color-bg-elevated, #fff);
+  border: 1px solid var(--color-border, #e7e5e4);
+  border-radius: 999px;
+}
+
+.relationship-chip .link-person {
+  margin: 0;
+  padding: 2px 4px 2px 8px;
+}
+
+.relationship-chip__unlink {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 6px;
+  border-radius: 999px;
+}
+
+.relationship-chip__unlink:hover {
+  background: #fecaca;
+  color: #b91c1c;
+}
+
+.relationship-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.relationship-empty {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.relationship-marriage-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.person-search-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.person-search-list-label {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}

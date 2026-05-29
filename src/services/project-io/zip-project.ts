@@ -51,11 +51,33 @@ export function downloadBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-export async function saveProjectFile(
+export async function saveProjectToHandle(
+  project: Project,
+  mediaBlobs: Map<string, Blob>,
+  handle: FileSystemFileHandle,
+): Promise<boolean> {
+  try {
+    const blob = await projectToZip(project, mediaBlobs);
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return true;
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') return false;
+    throw e;
+  }
+}
+
+export interface SaveAsResult {
+  handle: FileSystemFileHandle | null;
+  name: string;
+}
+
+export async function saveProjectAs(
   project: Project,
   mediaBlobs: Map<string, Blob>,
   suggestedName?: string,
-): Promise<void> {
+): Promise<SaveAsResult | null> {
   const blob = await projectToZip(project, mediaBlobs);
   const name = suggestedName ?? `${project.meta.name || 'project'}.drevo`;
 
@@ -73,15 +95,33 @@ export async function saveProjectFile(
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
-      return;
+      const savedName = (await handle.getFile()).name;
+      return { handle, name: savedName };
     } catch (e) {
-      if ((e as Error).name === 'AbortError') return;
+      if ((e as Error).name === 'AbortError') return null;
     }
   }
   downloadBlob(blob, name);
+  return { handle: null, name };
 }
 
-export async function openProjectFile(): Promise<{ file: File; project: Project; mediaBlobs: Map<string, Blob> } | null> {
+/** @deprecated use saveProject / saveProjectAs from store */
+export async function saveProjectFile(
+  project: Project,
+  mediaBlobs: Map<string, Blob>,
+  suggestedName?: string,
+): Promise<void> {
+  await saveProjectAs(project, mediaBlobs, suggestedName);
+}
+
+export interface OpenProjectResult {
+  file: File;
+  project: Project;
+  mediaBlobs: Map<string, Blob>;
+  handle: FileSystemFileHandle | null;
+}
+
+export async function openProjectFile(): Promise<OpenProjectResult | null> {
   if ('showOpenFilePicker' in window) {
     try {
       const [handle] = await window.showOpenFilePicker({
@@ -95,7 +135,7 @@ export async function openProjectFile(): Promise<{ file: File; project: Project;
       });
       const file = await handle.getFile();
       const { project, mediaBlobs } = await zipToProject(file);
-      return { file, project, mediaBlobs };
+      return { file, project, mediaBlobs, handle };
     } catch (e) {
       if ((e as Error).name === 'AbortError') return null;
     }
@@ -111,7 +151,7 @@ export async function openProjectFile(): Promise<{ file: File; project: Project;
         return;
       }
       const { project, mediaBlobs } = await zipToProject(file);
-      resolve({ file, project, mediaBlobs });
+      resolve({ file, project, mediaBlobs, handle: null });
     };
     input.click();
   });

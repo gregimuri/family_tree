@@ -1,5 +1,6 @@
-import type { DateValue, Gender, LocationDisplaySource, Place } from '../../types';
+import type { DateValue, Gender, LocationDisplaySource, Person, Place } from '../../types';
 import { dateToText } from '../../models/person-utils';
+import { convertDateCalendar } from '../../utils/julian-calendar';
 
 interface DateFieldProps {
   value?: DateValue;
@@ -7,11 +8,22 @@ interface DateFieldProps {
   label?: string;
 }
 
+function normalizeDateValue(value?: DateValue): DateValue | undefined {
+  if (!value) return undefined;
+  if (value.text?.trim()) {
+    return { text: value.text.trim(), julian: value.julian };
+  }
+  const next = { ...value };
+  delete next.text;
+  if (!next.year && !next.month && !next.day) return undefined;
+  return next;
+}
+
 export function DateField({ value, onChange, label }: DateFieldProps) {
   const update = (patch: Partial<DateValue>) => {
     const next = { ...value, ...patch };
     if (next.text?.trim()) {
-      onChange({ text: next.text.trim() });
+      onChange({ text: next.text, julian: next.julian });
       return;
     }
     delete next.text;
@@ -23,6 +35,14 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
   };
 
   const clear = () => onChange(undefined);
+
+  const toggleJulian = (checked: boolean) => {
+    if (!value) {
+      onChange({ julian: checked });
+      return;
+    }
+    onChange(convertDateCalendar(value, checked));
+  };
 
   return (
     <div className="dossier-field date-field">
@@ -63,13 +83,30 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
         value={value?.text ?? ''}
         onChange={(e) => {
           const text = e.target.value;
-          if (!text.trim()) {
-            onChange(value?.year || value?.month || value?.day ? { ...value, text: undefined } : undefined);
+          if (!text) {
+            onChange(
+              value?.year || value?.month || value?.day
+                ? { day: value.day, month: value.month, year: value.year, julian: value.julian }
+                : value?.julian
+                  ? { julian: value.julian }
+                  : undefined,
+            );
             return;
           }
-          onChange({ text: text.trim() });
+          onChange({ text, julian: value?.julian });
+        }}
+        onBlur={() => {
+          if (value?.text) onChange(normalizeDateValue(value));
         }}
       />
+      <label className="dossier-checkbox date-julian">
+        <input
+          type="checkbox"
+          checked={!!value?.julian}
+          onChange={(e) => toggleJulian(e.target.checked)}
+        />
+        По старому стилю
+      </label>
     </div>
   );
 }
@@ -152,4 +189,37 @@ export function LocationSourceSelect({ value, onChange }: LocationSourceSelectPr
       ))}
     </select>
   );
+}
+
+function hasPlace(p?: Place): boolean {
+  return !!(p?.name?.trim() || p?.details?.trim());
+}
+
+export function placeHasValue(p?: Place): boolean {
+  return hasPlace(p);
+}
+
+export function formatPlaceText(p?: Place): string | null {
+  if (!hasPlace(p)) return null;
+  const name = p?.name?.trim();
+  const details = p?.details?.trim();
+  if (name && details) return `${name} (${details})`;
+  return name || details || null;
+}
+
+export function getPlaceForLocationSource(person: Person, source: LocationDisplaySource): Place | undefined {
+  switch (source) {
+    case 'birth':
+      return person.birth?.place;
+    case 'death':
+      return person.death?.place;
+    case 'burial':
+      return person.burial;
+    case 'current':
+      return person.currentResidence;
+    case 'longestResidence':
+      return person.longestResidence;
+    default:
+      return undefined;
+  }
 }

@@ -60,6 +60,25 @@ export function searchPersons(project: Project, query: string): SearchResult[] {
   return results.sort((a, b) => b.score - a.score);
 }
 
+export function browsePersons(
+  project: Project,
+  excludeIds: Set<string>,
+  limit = 30,
+): SearchResult[] {
+  return Object.values(project.persons)
+    .filter((p) => !excludeIds.has(p.id))
+    .sort((a, b) => formatPersonName(a).localeCompare(formatPersonName(b), 'ru'))
+    .slice(0, limit)
+    .map((person) => ({
+      personId: person.id,
+      score: 0,
+      label: formatPersonName(person, true),
+      snippet: [dateToText(person.birth?.date), dateToText(person.death?.date), getPersonLocation(person)?.name]
+        .filter(Boolean)
+        .join(' · '),
+    }));
+}
+
 export function findPersonById(project: Project, id: string): Person | undefined {
   return project.persons[id];
 }

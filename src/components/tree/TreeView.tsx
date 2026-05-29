@@ -10,6 +10,7 @@ import { useTreeWheel } from '../../hooks/useTreeWheel';
 import { useCenterTreeView, resetTreeView } from '../../hooks/useCenterTreeView';
 import { useScreenToLayout } from '../../hooks/useScreenToLayout';
 import { PersonCardWithMedia } from './PersonCard';
+import { ManualLayoutGrid } from './ManualLayoutGrid';
 import { TreeConnections } from './TreeConnections';
 import { SearchPanel } from '../panels/SearchPanel';
 import { DisplaySettingsPanel } from '../panels/DisplaySettingsPanel';
@@ -20,8 +21,13 @@ import { PersonDossier } from '../dossier/PersonDossier';
 import { MediaViewer } from '../media/MediaViewer';
 import { Icons } from '../ui/Icons';
 import './TreeView.css';
+import { MANUAL_GRID_SIZE } from './ManualLayoutGrid';
 
 const TREE_PAD = 80;
+
+function snapToGrid(value: number): number {
+  return Math.round(value / MANUAL_GRID_SIZE) * MANUAL_GRID_SIZE;
+}
 
 export function TreeView() {
   const project = useProjectStore((s) => s.project);
@@ -45,10 +51,16 @@ export function TreeView() {
   const layoutGroupRef = useRef<SVGGElement>(null);
   const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({});
 
-  const layout = useMemo(() => {
+  const treeLayout = useMemo(() => {
     if (!project) return null;
-    return buildLayout(project);
+    const built = buildLayout(project);
+    const treeFrame = getSymmetricTreeFrame(project, built, TREE_PAD);
+    if (!treeFrame) return null;
+    return { layout: built, frame: treeFrame };
   }, [project]);
+
+  const layout = treeLayout?.layout ?? null;
+  const frame = treeLayout?.frame ?? null;
 
   const screenToLayout = useScreenToLayout(svgRef, layoutGroupRef);
 
@@ -69,7 +81,7 @@ export function TreeView() {
 
   const handleDragEnd = useCallback(
     (personId: string, centerX: number, centerY: number) => {
-      setManualPosition(personId, centerX, centerY);
+      setManualPosition(personId, snapToGrid(centerX), snapToGrid(centerY));
       setDragPositions((prev) => {
         const next = { ...prev };
         delete next[personId];
@@ -81,18 +93,19 @@ export function TreeView() {
 
   useKeyboardNav({ transformRef, enabled: !manualLayoutMode });
   const onTreeInit = useTreeWheel(transformRef);
-  useCenterTreeView({ transformRef, project, layout, enabled: !manualLayoutMode });
+  useCenterTreeView({ transformRef, project, layout, frame, enabled: !manualLayoutMode });
 
-  if (!project || !layout) return null;
+  if (!project || !layout || !frame) return null;
 
   const theme = project.viewSettings.theme;
-  const pad = TREE_PAD;
-  const frame = getSymmetricTreeFrame(project, layout, pad)!;
   const { svgW, svgH, offsetX, offsetY } = frame;
   const manualCount = Object.keys(project.manualLayout ?? {}).length;
+  const isDragging = Object.keys(dragPositions).length > 0;
 
   return (
-    <div className={`tree-view ${fullscreen ? 'fullscreen' : ''} theme-${theme}`}>
+    <div
+      className={`tree-view ${fullscreen ? 'fullscreen' : ''} theme-${theme}${manualLayoutMode ? ' tree-view--manual-layout' : ''}${isDragging ? ' tree-view--dragging' : ''}`}
+    >
       <div className="tree-panel-dock tree-panel-dock--left">
         <SearchPanel />
         <AddPersonPanel />
@@ -118,8 +131,15 @@ export function TreeView() {
             </button>
           )}
           {manualCount > 0 && (
-            <button type="button" className="btn small" onClick={() => clearManualLayout()}>
-              Сбросить все
+            <button
+              type="button"
+              className="btn small"
+              onClick={() => {
+                clearManualLayout();
+                resetTreeView(transformRef, frame, layout);
+              }}
+            >
+              Авторасположение
             </button>
           )}
         </div>
@@ -158,10 +178,10 @@ export function TreeView() {
       <TransformWrapper
         ref={transformRef}
         initialScale={1}
-        minScale={0.15}
-        maxScale={3}
+        minScale={0.12}
+        maxScale={2.5}
         limitToBounds={false}
-        centerOnInit
+        centerOnInit={false}
         smooth={false}
         panning={{
           velocityDisabled: true,
@@ -190,7 +210,7 @@ export function TreeView() {
               id="tree-export-root"
               width={svgW}
               height={svgH}
-              className={`tree-svg ${manualLayoutMode ? 'manual-grid' : ''}`}
+              className="tree-svg"
               onClick={handleBackgroundClick}
             >
               <defs>
@@ -224,7 +244,17 @@ export function TreeView() {
                 strokeWidth={theme === 'forest' ? 6 : 2}
               />
               <g ref={layoutGroupRef} transform={`translate(${offsetX}, ${offsetY})`}>
-                <TreeConnections edges={layout.edges} theme={theme} />
+                <ManualLayoutGrid
+                  layout={layout}
+                  active={manualLayoutMode}
+                  dragging={isDragging}
+                />
+                <TreeConnections
+                  edges={layout.edges}
+                  theme={theme}
+                  project={project}
+                  showMarriageYears={project.viewSettings.cardFields.showMarriageYears}
+                />
                 {layout.nodes.map((node) => {
                   if (node.kind === 'person' && node.personId) {
                     const person = project.persons[node.personId];
@@ -270,11 +300,18 @@ export function TreeView() {
       <ZoomControls
         onZoomIn={() => transformRef.current?.zoomIn()}
         onZoomOut={() => transformRef.current?.zoomOut()}
-        onReset={() => resetTreeView(transformRef)}
+        onReset={() => resetTreeView(transformRef, frame, layout)}
       />
 
-      {exportOpen && <ExportDialog onClose={() => setExportOpen(false)} svgRef={svgRef} />}
-      {dossierPersonId && <PersonDossier personId={dossierPersonId} />}
+      {exportOpen && (
+        <ExportDialog
+          onClose={() => setExportOpen(false)}
+          svgRef={svgRef}
+          layout={layout}
+          frame={frame}
+        />
+      )}
+      {dossierPersonId && <PersonDossier key={dossierPersonId} personId={dossierPersonId} />}
       {mediaViewerId && <MediaViewer mediaId={mediaViewerId} />}
     </div>
   );

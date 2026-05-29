@@ -33,7 +33,7 @@ export function StartScreen() {
   const handleOpen = async () => {
     const result = await openProjectFile();
     if (!result) return;
-    loadProject(result.project, createId(), result.mediaBlobs, 'view');
+    loadProject(result.project, createId(), result.mediaBlobs, 'view', result.handle, result.file.name);
     openTree(false);
   };
 

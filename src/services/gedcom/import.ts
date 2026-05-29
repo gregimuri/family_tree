@@ -54,21 +54,25 @@ export function parseGedcomName(value: string): { givenName: string; surname: st
 export function parseGedcomDate(value?: string): DateValue | undefined {
   if (!value?.trim()) return undefined;
   const raw = value.trim();
-  if (raw === '?' || /^unknown$/i.test(raw)) return { text: raw };
+  const julian = /@#DJULIAN@/i.test(raw);
+
+  const withJulian = (d: DateValue): DateValue => (julian ? { ...d, julian: true } : d);
+
+  if (raw === '?' || /^unknown$/i.test(raw)) return withJulian({ text: raw });
 
   const dmy = raw.match(/^(\d{1,2})[\s/.-](\d{1,2})[\s/.-](\d{4})$/);
-  if (dmy) return { day: +dmy[1], month: +dmy[2], year: +dmy[3] };
+  if (dmy) return withJulian({ day: +dmy[1], month: +dmy[2], year: +dmy[3] });
 
   let ged = raw.replace(/@#[^@]+@\s*/g, ' ').replace(/\s+/g, ' ').trim();
 
   const betRange = ged.match(/\bBET(?:WEEN)?\s+(\d{4})\s+AND\s+(\d{4})\b/i);
-  if (betRange) return { year: +betRange[1], text: raw };
+  if (betRange) return withJulian({ year: +betRange[1], text: raw });
 
   const fromTo = ged.match(/\bFROM\s+(\d{4})\s+TO\s+(\d{4})\b/i);
-  if (fromTo) return { year: +fromTo[1], text: raw };
+  if (fromTo) return withJulian({ year: +fromTo[1], text: raw });
 
   const yearRange = ged.match(/\b(\d{4})\s*[-–—]\s*(\d{4})\b/);
-  if (yearRange) return { year: +yearRange[1], text: raw };
+  if (yearRange) return withJulian({ year: +yearRange[1], text: raw });
 
   ged = ged.replace(/\b(ABT|ABOUT|BEF|AFT|CAL|EST|FROM|TO|BET|AND|BETWEEN)\b/gi, ' ').replace(/\s+/g, ' ').trim();
 
@@ -78,27 +82,27 @@ export function parseGedcomDate(value?: string): DateValue | undefined {
     if (month) {
       const result: DateValue = { day: +dayMonYear[1], month, year: +dayMonYear[3] };
       if (/ABT|BEF|AFT|CAL|EST|FROM|TO|BET/i.test(raw)) result.text = raw;
-      return result;
+      return withJulian(result);
     }
   }
 
   const monYear = ged.match(/^([A-Z]{3})\s+(\d{4})$/i);
   if (monYear) {
     const month = MONTHS[monYear[1].toUpperCase()];
-    if (month) return { month, year: +monYear[2], text: raw };
+    if (month) return withJulian({ month, year: +monYear[2], text: raw });
   }
 
   const yearOnly = ged.match(/^(\d{4})$/);
   if (yearOnly) {
     const result: DateValue = { year: +yearOnly[1] };
     if (raw !== yearOnly[1]) result.text = raw;
-    return result;
+    return withJulian(result);
   }
 
   const anyYear = raw.match(/\b(\d{4})\b/);
-  if (anyYear) return { year: +anyYear[1], text: raw };
+  if (anyYear) return withJulian({ year: +anyYear[1], text: raw });
 
-  return { text: raw };
+  return withJulian({ text: raw });
 }
 
 interface GedLine {

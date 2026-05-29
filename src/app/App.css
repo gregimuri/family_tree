@@ -58,6 +58,18 @@
   gap: 6px;
 }
 
+.app-title-input {
+  font: inherit;
+  font-weight: 600;
+  font-size: 15px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  min-width: 120px;
+  max-width: 280px;
+  background: var(--color-bg);
+}
+
 .dirty-dot {
   width: 8px;
   height: 8px;

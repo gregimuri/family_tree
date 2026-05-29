@@ -25,7 +25,7 @@ export function ZoomControls({ onZoomIn, onZoomOut, onReset }: ZoomControlsProps
         <button type="button" className="zoom-btn" title="Уменьшить (Ctrl −)" onClick={onZoomOut}>
           <Icons.ZoomOut size={18} />
         </button>
-        <button type="button" className="zoom-btn" title="Сбросить масштаб и центрировать" onClick={onReset}>
+        <button type="button" className="zoom-btn" title="Вписать всё дерево в экран" onClick={onReset}>
           <Icons.Target size={18} />
         </button>
       </div>

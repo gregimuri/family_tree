@@ -1,8 +1,21 @@
 import type { Project } from '../../types';
-import { dateToText } from '../../models/person-utils';
+import type { DateValue } from '../../types';
 
-function fmtDate(d?: { year?: number; month?: number; day?: number; text?: string }): string {
-  return dateToText(d) || '';
+function fmtDate(d?: DateValue): string {
+  if (!d) return '';
+  const prefix = d.julian ? '@#DJULIAN@ ' : '';
+  if (d.text) return prefix + d.text.replace(/\s*ст\.\s*$/i, '');
+  const { day, month, year } = d;
+  if (day && month && year) return `${prefix}${day} ${monthName(month)} ${year}`;
+  if (month && year) return `${prefix}${monthName(month)} ${year}`;
+  if (year) return `${prefix}${year}`;
+  return '';
+}
+
+const MONTH_NAMES = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+function monthName(m: number): string {
+  return MONTH_NAMES[m - 1] ?? String(m);
 }
 
 export function exportGedcom(project: Project): string {

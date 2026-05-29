@@ -25,10 +25,38 @@ export function applyManualLayout(
   };
 }
 
-export function buildLayout(project: Project, _manualMode = false): LayoutResult {
+export function buildLayout(project: Project): LayoutResult {
   const graph = buildGraph(project, project.viewSettings);
-  const layout = computeLayout(graph, project);
+  let layout = computeLayout(graph, project);
+  layout = repositionOrphanNodes(layout, project);
   return applyManualLayout(layout, project, graph);
+}
+
+function repositionOrphanNodes(layout: LayoutResult, project: Project): LayoutResult {
+  const linked = new Set<string>();
+  for (const p of Object.values(project.persons)) {
+    if (p.unionIds.length > 0 || p.parentUnionIds.length > 0) linked.add(p.id);
+  }
+
+  const orphans = layout.nodes.filter((n) => n.personId && !linked.has(n.personId));
+  if (orphans.length === 0) return layout;
+
+  let x = layout.bounds.maxX + 64;
+  const y = layout.bounds.minY;
+  const orphanIds = new Set(orphans.map((n) => n.personId!));
+
+  const nodes = layout.nodes.map((n) => {
+    if (!n.personId || !orphanIds.has(n.personId)) return n;
+    const placed = { ...n, x, y };
+    x += n.width + 48;
+    return placed;
+  });
+
+  return {
+    ...layout,
+    nodes,
+    bounds: computeBounds(nodes),
+  };
 }
 
 /** @deprecated use applyManualLayout */

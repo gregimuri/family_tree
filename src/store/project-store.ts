@@ -11,13 +11,25 @@ import type {
 } from '../types';
 import { createEmptyPerson, createEmptyProject, defaultViewSettings } from '../models/defaults';
 import { createId } from '../utils/create-id';
-import { removePersonFromProject, touchProjectMeta } from '../models/person-utils';
+import {
+  linkChild as linkChildInProject,
+  linkParent as linkParentInProject,
+  linkPartner as linkPartnerInProject,
+  removePersonFromProject,
+  touchProjectMeta,
+  unlinkChild as unlinkChildInProject,
+  unlinkParent as unlinkParentInProject,
+  unlinkPartner as unlinkPartnerInProject,
+} from '../models/person-utils';
 import { addRecent, saveProjectToDb } from '../services/project-io/db';
+import { saveProjectToHandle, saveProjectAs } from '../services/project-io/zip-project';
 
 interface ProjectState {
   project: Project | null;
   mode: AppMode;
   blobKey: string | null;
+  fileHandle: FileSystemFileHandle | null;
+  fileName: string | null;
   mediaBlobs: Map<string, Blob>;
   mediaUrls: Map<string, string>;
   dirty: boolean;
@@ -27,9 +39,17 @@ interface ProjectState {
   manualLayoutMode: boolean;
 
   newProject: (name?: string, edit?: boolean) => void;
-  loadProject: (project: Project, blobKey: string, mediaBlobs?: Map<string, Blob>, mode?: AppMode) => void;
+  loadProject: (
+    project: Project,
+    blobKey: string,
+    mediaBlobs?: Map<string, Blob>,
+    mode?: AppMode,
+    fileHandle?: FileSystemFileHandle | null,
+    fileName?: string | null,
+  ) => void;
   setMode: (mode: AppMode) => void;
   updateProject: (updater: (p: Project) => Project) => void;
+  setProjectName: (name: string) => void;
   setViewSettings: (settings: ViewSettings) => void;
   setCenter: (center: ProjectCenter) => void;
   setSelection: (selection: SelectionTarget) => void;
@@ -44,12 +64,21 @@ interface ProjectState {
   deletePerson: (personId: string) => void;
   addUnion: (union: Union) => void;
   updateUnion: (union: Union) => void;
+  linkParent: (childId: string, parentId: string) => void;
+  unlinkParent: (childId: string, parentId: string) => void;
+  linkPartner: (personAId: string, personBId: string) => void;
+  unlinkPartner: (personAId: string, personBId: string) => void;
+  linkChild: (parentId: string, childId: string, unionId?: string) => void;
+  unlinkChild: (unionId: string, childId: string) => void;
+  placeNewPersonNear: (newPersonId: string, nearPersonId: string) => void;
   addMedia: (item: MediaItem, blob: Blob) => void;
   replaceMediaBlob: (filename: string, blob: Blob) => void;
   updateMedia: (item: MediaItem) => void;
   deleteMedia: (mediaId: string) => void;
   getMediaUrl: (filename: string) => string | undefined;
   autosave: () => Promise<void>;
+  saveProject: () => Promise<boolean>;
+  saveProjectAs: () => Promise<boolean>;
   setManualPosition: (personId: string, x: number, y: number) => void;
   clearManualPosition: (personId: string) => void;
   clearManualLayout: () => void;
@@ -72,6 +101,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   project: null,
   mode: 'view',
   blobKey: null,
+  fileHandle: null,
+  fileName: null,
   mediaBlobs: new Map(),
   mediaUrls: new Map(),
   dirty: false,
@@ -86,6 +117,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({
       project,
       blobKey,
+      fileHandle: null,
+      fileName: null,
       mode: edit ? 'edit' : 'view',
       mediaBlobs: new Map(),
       mediaUrls: new Map(),
@@ -97,7 +130,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     scheduleAutosave(get);
   },
 
-  loadProject: (project, blobKey, mediaBlobs = new Map(), mode = 'view') => {
+  loadProject: (project, blobKey, mediaBlobs = new Map(), mode = 'view', fileHandle = null, fileName = null) => {
     const state = get();
     revokeUrls(state.mediaUrls);
     const mediaUrls = new Map<string, string>();
@@ -107,6 +140,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({
       project,
       blobKey,
+      fileHandle: fileHandle ?? null,
+      fileName: fileName ?? (fileHandle ? project.meta.name + '.drevo' : null),
       mode,
       mediaBlobs,
       mediaUrls,
@@ -131,6 +166,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!current) return;
     set({ project: touchProjectMeta(updater(current)), dirty: true });
     scheduleAutosave(get);
+  },
+
+  setProjectName: (name) => {
+    get().updateProject((p) => ({ ...p, meta: { ...p.meta, name } }));
   },
 
   setViewSettings: (settings) => {
@@ -196,6 +235,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     get().updateProject((p) => ({ ...p, unions: { ...p.unions, [union.id]: union } }));
   },
 
+  linkParent: (childId, parentId) => {
+    get().updateProject((p) => linkParentInProject(p, childId, parentId));
+  },
+
+  unlinkParent: (childId, parentId) => {
+    get().updateProject((p) => unlinkParentInProject(p, childId, parentId));
+  },
+
+  linkPartner: (personAId, personBId) => {
+    get().updateProject((p) => linkPartnerInProject(p, personAId, personBId));
+  },
+
+  unlinkPartner: (personAId, personBId) => {
+    get().updateProject((p) => unlinkPartnerInProject(p, personAId, personBId));
+  },
+
+  linkChild: (parentId, childId, unionId) => {
+    get().updateProject((p) => linkChildInProject(p, parentId, childId, unionId));
+  },
+
+  unlinkChild: (unionId, childId) => {
+    get().updateProject((p) => unlinkChildInProject(p, unionId, childId));
+  },
+
+  placeNewPersonNear: (newPersonId, nearPersonId) => {
+    void nearPersonId;
+    get().setCenter({ type: 'person', id: newPersonId });
+    get().setSelection({ type: 'person', id: newPersonId });
+  },
+
   addMedia: (item, blob) => {
     const state = get();
     const mediaBlobs = new Map(state.mediaBlobs);
@@ -254,6 +323,33 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!project || !blobKey) return;
     await saveProjectToDb(blobKey, project);
     set({ dirty: false });
+  },
+
+  saveProject: async () => {
+    const { project, mediaBlobs, fileHandle, fileName } = get();
+    if (!project) return false;
+    if (fileHandle) {
+      const ok = await saveProjectToHandle(project, mediaBlobs, fileHandle);
+      if (ok) set({ dirty: false });
+      return ok;
+    }
+    const result = await saveProjectAs(project, mediaBlobs, fileName ?? undefined);
+    if (result) {
+      set({ fileHandle: result.handle, fileName: result.name, dirty: false });
+      return true;
+    }
+    return false;
+  },
+
+  saveProjectAs: async () => {
+    const { project, mediaBlobs, fileName } = get();
+    if (!project) return false;
+    const result = await saveProjectAs(project, mediaBlobs, fileName ?? undefined);
+    if (result) {
+      set({ fileHandle: result.handle, fileName: result.name, dirty: false });
+      return true;
+    }
+    return false;
   },
 
   setManualPosition: (personId, x, y) => {

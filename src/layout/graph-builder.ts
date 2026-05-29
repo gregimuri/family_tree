@@ -40,7 +40,8 @@ const CARD_W = 148;
 const CARD_H = 208;
 const FAMILY_W = 200;
 const FAMILY_H = 110;
-const LAYER_GAP = 156;
+/** Расстояние между центрами поколений: не меньше высоты карточки + зазор для линий */
+const LAYER_GAP = CARD_H + 48;
 const NODE_GAP = 48;
 const COUPLE_GAP = 10;
 
@@ -49,6 +50,14 @@ export { CARD_W, CARD_H, FAMILY_W, FAMILY_H, LAYER_GAP, NODE_GAP, COUPLE_GAP };
 function shouldIncludePerson(person: Person, settings: ViewSettings): boolean {
   if (settings.showDiedBefore18) return true;
   return !diedBefore18(person);
+}
+
+function isLinkedToFamilyTree(person: Person, project: Project): boolean {
+  if (person.parentUnionIds.length > 0 || person.unionIds.length > 0) return true;
+  for (const union of Object.values(project.unions)) {
+    if (union.partnerIds.includes(person.id) || union.childIds.includes(person.id)) return true;
+  }
+  return false;
 }
 
 function sortPartners(project: Project, partnerIds: string[]): string[] {
@@ -64,7 +73,6 @@ function sortPartners(project: Project, partnerIds: string[]): string[] {
 export function buildGraph(
   project: Project,
   settings: ViewSettings,
-  _manualMode = false,
 ): GraphResult {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -213,7 +221,9 @@ export function buildGraph(
               if (sid) {
                 for (const pn of sibParentNodes) linkParentChild(pn, sid);
               }
-              expandDescendants(sibId, parentLayer, settings.sideBranchDepth, true, 1);
+              if (settings.generationsDown > 0) {
+                expandDescendants(sibId, parentLayer, settings.sideBranchDepth, true, 1);
+              }
             }
           }
         }
@@ -265,14 +275,23 @@ export function buildGraph(
     const union = project.unions[startUnionId];
     if (union) {
       for (const pid of union.partnerIds) {
-        expandAncestors(pid, 0, false);
-        expandDescendants(pid, 0, settings.generationsDown, false, 0);
+        if (settings.generationsUp > 0) expandAncestors(pid, 0, false);
+        if (settings.generationsDown > 0) expandDescendants(pid, 0, settings.generationsDown, false, 0);
       }
     }
   } else if (startPersonId) {
     addPerson(startPersonId, 0, false, 0);
-    expandAncestors(startPersonId, 0, false);
-    expandDescendants(startPersonId, 0, settings.generationsDown, false, 0);
+    if (settings.generationsUp > 0) expandAncestors(startPersonId, 0, false);
+    if (settings.generationsDown > 0) expandDescendants(startPersonId, 0, settings.generationsDown, false, 0);
+  }
+
+  for (const personId of Object.keys(project.persons)) {
+    if (personToNode.has(personId)) continue;
+    const person = project.persons[personId];
+    if (!person || !shouldIncludePerson(person, settings)) continue;
+    if (person.parentUnionIds.length > 0 || person.unionIds.length > 0) continue;
+    if (isLinkedToFamilyTree(person, project)) continue;
+    addPerson(personId, 0, true, 99);
   }
 
   return { nodes, edges, personToNode };

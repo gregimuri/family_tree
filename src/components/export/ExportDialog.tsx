@@ -1,26 +1,34 @@
 import { useState } from 'react';
 import type { RefObject } from 'react';
-import { exportTreeElement, PRESET_SIZES, type ExportImageFormat } from '../../services/export/image-export';
+import type { LayoutResult } from '../../types';
+import type { TreeFrame } from '../../layout/center-focus';
+import {
+  exportTreeElement,
+  PRESET_SIZES,
+  type ExportImageFormat,
+  type ExportSizeMode,
+} from '../../services/export/image-export';
 import { downloadGedcom } from '../../services/gedcom/export';
 import { useProjectStore } from '../../store/project-store';
-import { saveProjectFile } from '../../services/project-io/zip-project';
 import './ExportDialog.css';
 
 interface ExportDialogProps {
   onClose: () => void;
   svgRef: RefObject<SVGSVGElement | null>;
+  layout: LayoutResult;
+  frame: TreeFrame;
 }
 
-export function ExportDialog({ onClose, svgRef }: ExportDialogProps) {
+export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogProps) {
   const project = useProjectStore((s) => s.project);
-  const mediaBlobs = useProjectStore((s) => s.mediaBlobs);
+  const saveProject = useProjectStore((s) => s.saveProject);
+  const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const [format, setFormat] = useState<ExportImageFormat>('png');
+  const [sizeMode, setSizeMode] = useState<ExportSizeMode>('tree');
   const [preset, setPreset] = useState('A4');
   const [widthMm, setWidthMm] = useState(210);
   const [heightMm, setHeightMm] = useState(297);
   const [busy, setBusy] = useState(false);
-
-  if (!project) return null;
 
   const applyPreset = (label: string) => {
     setPreset(label);
@@ -36,7 +44,15 @@ export function ExportDialog({ onClose, svgRef }: ExportDialogProps) {
     if (!el) return;
     setBusy(true);
     try {
-      await exportTreeElement(el, { format, widthMm, heightMm });
+      await exportTreeElement(
+        { svg: el, layout, frame },
+        {
+          format,
+          sizeMode,
+          widthMm: sizeMode === 'fixed' ? widthMm : undefined,
+          heightMm: sizeMode === 'fixed' ? heightMm : undefined,
+        },
+      );
     } finally {
       setBusy(false);
     }
@@ -58,26 +74,37 @@ export function ExportDialog({ onClose, svgRef }: ExportDialogProps) {
             </select>
           </label>
           <label>
-            Размер
-            <select value={preset} onChange={(e) => applyPreset(e.target.value)}>
-              {PRESET_SIZES.map((s) => (
-                <option key={s.label} value={s.label}>
-                  {s.label}
-                </option>
-              ))}
-              <option value="custom">Свой размер</option>
+            Размер холста
+            <select value={sizeMode} onChange={(e) => setSizeMode(e.target.value as ExportSizeMode)}>
+              <option value="tree">По размеру дерева</option>
+              <option value="fixed">Фиксированный лист</option>
             </select>
           </label>
-          {preset === 'custom' && (
+          {sizeMode === 'fixed' && (
             <>
               <label>
-                Ширина (мм)
-                <input type="number" value={widthMm} onChange={(e) => setWidthMm(+e.target.value)} />
+                Формат листа
+                <select value={preset} onChange={(e) => applyPreset(e.target.value)}>
+                  {PRESET_SIZES.map((s) => (
+                    <option key={s.label} value={s.label}>
+                      {s.label}
+                    </option>
+                  ))}
+                  <option value="custom">Свой размер</option>
+                </select>
               </label>
-              <label>
-                Высота (мм)
-                <input type="number" value={heightMm} onChange={(e) => setHeightMm(+e.target.value)} />
-              </label>
+              {preset === 'custom' && (
+                <>
+                  <label>
+                    Ширина (мм)
+                    <input type="number" value={widthMm} onChange={(e) => setWidthMm(+e.target.value)} />
+                  </label>
+                  <label>
+                    Высота (мм)
+                    <input type="number" value={heightMm} onChange={(e) => setHeightMm(+e.target.value)} />
+                  </label>
+                </>
+              )}
             </>
           )}
           <button type="button" className="btn primary" disabled={busy} onClick={exportImage}>
@@ -87,14 +114,13 @@ export function ExportDialog({ onClose, svgRef }: ExportDialogProps) {
 
         <fieldset>
           <legend>Проект</legend>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => void saveProjectFile(project, mediaBlobs)}
-          >
+          <button type="button" className="btn" onClick={() => void saveProject()}>
             Сохранить .drevo
           </button>
-          <button type="button" className="btn" onClick={() => downloadGedcom(project)}>
+          <button type="button" className="btn" onClick={() => void saveProjectAs()}>
+            Сохранить как…
+          </button>
+          <button type="button" className="btn" onClick={() => project && downloadGedcom(project)}>
             Экспорт GEDCOM
           </button>
         </fieldset>

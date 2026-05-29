@@ -19,7 +19,7 @@ export const defaultViewSettings = (): ViewSettings => ({
   generationsDown: 3,
   sideBranchesAt: 2,
   sideBranchDepth: 1,
-  cardSizeMode: 'diminish',
+  cardSizeMode: 'uniform',
   showDiedBefore18: true,
   theme: 'clean',
   cardFields: defaultCardFields(),
