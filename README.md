@@ -356,6 +356,9 @@ project.drevo (zip)
 | `npm run preview` | Просмотр собранной версии |
 | `npm test` | Запуск автотестов (Vitest) |
 | `npm run lint` | Проверка кода ESLint |
+| `npm run install:hooks` | Установить git hook: убрать `Co-authored-by: Cursor` из коммитов |
+
+После клонирования репозитория рекомендуется один раз выполнить `npm run install:hooks`.
 
 ---
 

@@ -9,7 +9,8 @@
     "build:pages": "tsc -b && vite build --mode pages",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "install:hooks": "powershell -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1"
   },
   "dependencies": {
     "dexie": "^4.4.3",
