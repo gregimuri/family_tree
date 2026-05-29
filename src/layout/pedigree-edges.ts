@@ -1,5 +1,12 @@
 import type { LayoutEdge, LayoutNode, Project } from '../types';
-import type { GraphResult } from './graph-builder';
+import type { GraphPersonNode, GraphResult } from './graph-builder';
+
+function getGraphPerson(graph: GraphResult, personId: string): GraphPersonNode | undefined {
+  const nodeId = graph.personToNode.get(personId);
+  if (!nodeId) return undefined;
+  const node = graph.nodes.find((n) => n.id === nodeId);
+  return node?.kind === 'person' ? node : undefined;
+}
 
 function sortPartners(nodes: LayoutNode[], project: Project): LayoutNode[] {
   return [...nodes].sort((a, b) => {
@@ -48,6 +55,63 @@ export function pickPartnersForUnion(
     }
   }
   return best;
+}
+
+function splitChildrenForConnector(
+  partners: LayoutNode[],
+  children: LayoutNode[],
+  graph: GraphResult,
+): { mainLine: LayoutNode[]; sideBranch: LayoutNode[] } {
+  if (children.length === 0) return { mainLine: [], sideBranch: [] };
+
+  const parentLayer = Math.min(...partners.map((p) => p.layer));
+  const mainLine: LayoutNode[] = [];
+  const sideBranch: LayoutNode[] = [];
+
+  for (const child of children) {
+    const gp = child.personId ? getGraphPerson(graph, child.personId) : undefined;
+    if (gp?.isSideBranch || child.layer !== parentLayer + 1) {
+      sideBranch.push(child);
+    } else {
+      mainLine.push(child);
+    }
+  }
+
+  return { mainLine, sideBranch };
+}
+
+function buildBranchChildConnector(
+  unionId: string,
+  partners: LayoutNode[],
+  child: LayoutNode,
+  project: Project,
+): LayoutEdge[] {
+  if (partners.length === 0) return [];
+
+  const sortedPartners = sortPartners(partners, project);
+  const childCx = child.x + child.width / 2;
+  const nearest = sortedPartners.reduce((best, partner) => {
+    const bestCx = best.x + best.width / 2;
+    const partnerCx = partner.x + partner.width / 2;
+    return Math.abs(partnerCx - childCx) < Math.abs(bestCx - childCx) ? partner : best;
+  });
+  const partnerCx = nearest.x + nearest.width / 2;
+  const startY = nearest.y + nearest.height;
+  const forkY = startY + (child.y - startY) * 0.45;
+
+  return [
+    {
+      id: `fam-branch-${unionId}-${child.personId}`,
+      from: nearest.id,
+      to: child.id,
+      points: [
+        { x: partnerCx, y: startY },
+        { x: partnerCx, y: forkY },
+        { x: childCx, y: forkY },
+        { x: childCx, y: child.y },
+      ],
+    },
+  ];
 }
 
 function buildFamilyConnector(
@@ -152,7 +216,14 @@ export function buildPedigreeEdges(
       .filter((n): n is LayoutNode => Boolean(n));
 
     if (partners.length === 0 || children.length === 0) continue;
-    edges.push(...buildFamilyConnector(unionId, partners, children, project));
+
+    const { mainLine, sideBranch } = splitChildrenForConnector(partners, children, graph);
+    if (mainLine.length > 0) {
+      edges.push(...buildFamilyConnector(unionId, partners, mainLine, project));
+    }
+    for (const child of sideBranch) {
+      edges.push(...buildBranchChildConnector(unionId, partners, child, project));
+    }
   }
 
   return edges;

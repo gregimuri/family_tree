@@ -221,6 +221,19 @@ function placeUnitAt(
     const s1 = getCardScale(n1.layer, n1.isSideBranch, n1.branchDepth, settings.cardSizeMode);
     const w0 = CARD_W * s0;
     const w1 = CARD_W * s1;
+    const existing0 = positions.get(n0.id);
+    const existing1 = positions.get(n1.id);
+
+    if (existing0 !== undefined && existing1 === undefined) {
+      positions.set(n1.id, existing0 + w0 / 2 + COUPLE_GAP + w1 / 2);
+      return Math.max(startX + w0 + COUPLE_GAP + w1, existing0 + w0 / 2 + COUPLE_GAP + w1);
+    }
+
+    if (existing1 !== undefined && existing0 === undefined) {
+      positions.set(n0.id, existing1 - w0 / 2 - COUPLE_GAP - w1 / 2);
+      return Math.max(startX + w0 + COUPLE_GAP + w1, existing1 + w1 / 2 + COUPLE_GAP + w0);
+    }
+
     const px0 = startX + w0 / 2;
     const px1 = startX + w0 + COUPLE_GAP + w1 / 2;
     positions.set(n0.id, px0);

@@ -70,6 +70,7 @@ export function TreeView() {
 
   const makeCenter = () => {
     if (!selection) return;
+    setDragPositions({});
     if (selection.type === 'person') {
       setCenter({ type: 'person', id: selection.id });
     } else {

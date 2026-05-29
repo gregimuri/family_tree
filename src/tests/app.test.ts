@@ -20,7 +20,7 @@ import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-foc
 import { buildLayout } from '../layout';
 import { buildGraph } from '../layout/graph-builder';
 import { pickPartnersForUnion } from '../layout/pedigree-edges';
-import type { LayoutNode } from '../types';
+import type { LayoutEdge, LayoutNode } from '../types';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
 import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
@@ -51,6 +51,23 @@ describe('gedcom parsing', () => {
 });
 
 describe('layout', () => {
+  function maxHorizontalEdgeSpan(edges: LayoutEdge[]): number {
+    if (edges.length === 0) return 0;
+    return (
+      Math.max(...edges.flatMap((e) => e.points.map((p) => p.x))) -
+      Math.min(...edges.flatMap((e) => e.points.map((p) => p.x)))
+    );
+  }
+
+  function maxBusSpan(edges: LayoutEdge[]): number {
+    return edges
+      .filter((e) => e.id.startsWith('fam-bus-'))
+      .reduce((max, edge) => {
+        const xs = edge.points.map((p) => p.x);
+        return Math.max(max, Math.max(...xs) - Math.min(...xs));
+      }, 0);
+  }
+
   it('builds layout for default project', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
@@ -231,10 +248,83 @@ describe('layout', () => {
     const uncle = layout.nodes.find((n) => n.personId === 'PU')!;
     const father = layout.nodes.find((n) => n.personId === 'F')!;
     expect(Math.abs(uncle.y - father.y)).toBeLessThan(500);
-    const maxEdgeSpan = Math.max(
-      ...layout.edges.flatMap((e) => e.points.map((p) => p.x)),
-    ) - Math.min(...layout.edges.flatMap((e) => e.points.map((p) => p.x)));
+    const maxEdgeSpan = maxHorizontalEdgeSpan(layout.edges);
     expect(maxEdgeSpan).toBeLessThan(2000);
+  });
+
+  it('recentering on collateral with default side-branch settings avoids long buses', () => {
+    const ged = `0 HEAD
+0 @C@ INDI
+1 NAME Child /Ivanov/
+1 SEX M
+0 @F@ INDI
+1 NAME Father /Ivanov/
+1 SEX M
+0 @M@ INDI
+1 NAME Mother /Ivanova/
+1 SEX F
+0 @PU@ INDI
+1 NAME Uncle /Ivanov/
+1 SEX M
+0 @FC@ FAM
+1 HUSB @F@
+1 WIFE @M@
+1 CHIL @C@
+0 @FF@ FAM
+1 HUSB @F@
+1 WIFE @M@
+1 CHIL @PU@
+0 TRLR`;
+    let project = importGedcom(ged, 'RecenterDefault');
+    project.center = { type: 'person', id: 'C' };
+    project.viewSettings = {
+      ...project.viewSettings,
+      generationsUp: 3,
+      generationsDown: 1,
+    };
+    buildLayout(project);
+
+    project = { ...project, center: { type: 'person', id: 'PU' }, manualLayout: undefined };
+    const layout = buildLayout(project);
+    expect(maxBusSpan(layout.edges)).toBeLessThan(400);
+    expect(maxHorizontalEdgeSpan(layout.edges)).toBeLessThan(1200);
+  });
+
+  it('keeps remarriage partners close on the same layer', () => {
+    const ged = `0 HEAD
+0 @P@ INDI
+1 NAME Peter /Ivanov/
+1 SEX M
+0 @A@ INDI
+1 NAME Anna /Ivanova/
+1 SEX F
+0 @B@ INDI
+1 NAME Bella /Belova/
+1 SEX F
+0 @C1@ INDI
+1 NAME Child1 /Ivanov/
+1 SEX M
+0 @C2@ INDI
+1 NAME Child2 /Ivanov/
+1 SEX M
+0 @F1@ FAM
+1 HUSB @P@
+1 WIFE @A@
+1 CHIL @C1@
+0 @F2@ FAM
+1 HUSB @P@
+1 WIFE @B@
+1 CHIL @C2@
+0 TRLR`;
+    const project = importGedcom(ged, 'Remarriage');
+    project.center = { type: 'person', id: 'P' };
+    const layout = buildLayout(project);
+    const p = layout.nodes.find((n) => n.personId === 'P')!;
+    const a = layout.nodes.find((n) => n.personId === 'A')!;
+    const b = layout.nodes.find((n) => n.personId === 'B')!;
+    expect(Math.abs(p.x + p.width / 2 - (a.x + a.width / 2))).toBeLessThan(300);
+    expect(Math.abs(p.x + p.width / 2 - (b.x + b.width / 2))).toBeLessThan(450);
+    expect(maxHorizontalEdgeSpan(layout.edges)).toBeLessThan(1200);
   });
 
   it('places maternal collateral left and paternal collateral right', () => {
