@@ -3,6 +3,10 @@ import type { GraphNode, GraphResult } from './graph-builder';
 import { getCardDimensions } from './card-dimensions';
 import { LAYER_GAP, getCardScale } from './graph-builder';
 import { getCenterFocusPoint } from './center-focus';
+import {
+  computeNuclearLayoutNodes,
+  mergeNuclearAndPedigreeNodes,
+} from './nuclear-tree-adapter';
 import { routeCoupleBond } from './edge-router';
 import { buildPedigreeEdges } from './pedigree-edges';
 import { nodeSize, runPedigreeLayout } from './pedigree-layout';
@@ -108,10 +112,7 @@ export function buildLayoutEdges(
 
 export { computeBounds };
 
-export function computeLayout(
-  graph: GraphResult,
-  project: Project,
-): LayoutResult {
+function computePedigreeLayout(graph: GraphResult, project: Project): LayoutResult {
   const settings = project.viewSettings;
   const layers = new Map<number, GraphNode[]>();
   const nodeById = new Map<string, GraphPersonNode>();
@@ -157,10 +158,25 @@ export function computeLayout(
     }
   }
 
-  const layout: LayoutResult = {
+  return {
     nodes: layoutNodes,
     edges: buildLayoutEdges(project, layoutNodes, graph),
     bounds: computeBounds(layoutNodes),
+  };
+}
+
+export function computeLayout(
+  graph: GraphResult,
+  project: Project,
+): LayoutResult {
+  const pedigree = computePedigreeLayout(graph, project);
+  const nuclearNodes = computeNuclearLayoutNodes(project, graph);
+  const mergedNodes = mergeNuclearAndPedigreeNodes(nuclearNodes, pedigree.nodes, graph);
+
+  const layout: LayoutResult = {
+    nodes: mergedNodes,
+    edges: buildLayoutEdges(project, mergedNodes, graph),
+    bounds: computeBounds(mergedNodes),
   };
 
   return normalizeLayoutToFocus(project, layout);

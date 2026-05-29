@@ -74,3 +74,7 @@ export function mergeManualLayout(layout: LayoutResult, project: Project): Layou
   });
   return { ...layout, nodes, bounds: computeBounds(nodes) };
 }
+
+export { computeNuclearTreeLayout } from './nuclear-tree-layout';
+export type { LayoutPerson as NuclearLayoutPerson, LayoutOptions as NuclearLayoutOptions } from './nuclear-tree-layout';
+export { personToLayoutPerson, resolveLayoutRootId, computeNuclearLayoutNodes } from './nuclear-tree-adapter';

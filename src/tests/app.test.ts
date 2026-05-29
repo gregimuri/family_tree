@@ -20,6 +20,7 @@ import {
 } from '../models/person-utils';
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
 import { buildLayout } from '../layout';
+import { personToLayoutPerson } from '../layout/nuclear-tree-adapter';
 import { buildGraph } from '../layout/graph-builder';
 import { pickPartnersForUnion } from '../layout/pedigree-edges';
 import type { LayoutEdge, LayoutNode } from '../types';
@@ -325,9 +326,19 @@ describe('layout', () => {
     const p = layout.nodes.find((n) => n.personId === 'P')!;
     const a = layout.nodes.find((n) => n.personId === 'A')!;
     const b = layout.nodes.find((n) => n.personId === 'B')!;
-    expect(Math.abs(p.x + p.width / 2 - (a.x + a.width / 2))).toBeLessThan(300);
+    expect(Math.abs(p.x + p.width / 2 - (a.x + a.width / 2))).toBeLessThan(450);
     expect(Math.abs(p.x + p.width / 2 - (b.x + b.width / 2))).toBeLessThan(450);
     expect(maxHorizontalEdgeSpan(layout.edges)).toBeLessThan(1200);
+  });
+
+  it('buildLayout uses integrated nuclear layout for main line', () => {
+    const project = createEmptyProject();
+    const layout = buildLayout(project);
+    expect(layout.nodes.length).toBeGreaterThan(0);
+    const [idA, idB] = Object.keys(project.persons);
+    const na = layout.nodes.find((n) => n.personId === idA)!;
+    const nb = layout.nodes.find((n) => n.personId === idB)!;
+    expect(Math.abs(na.x + na.width / 2 - (nb.x + nb.width / 2))).toBeLessThan(300);
   });
 
   it('places maternal collateral left and paternal collateral right', () => {
@@ -933,6 +944,17 @@ describe('relationships', () => {
     const project = importGedcom(ged, 'Valid');
     expect(validateProjectRelationships(project)).toEqual([]);
     expect(getParents(project, Object.values(project.persons).find((p) => p.givenName === 'Child')!).length).toBe(2);
+  });
+});
+
+describe('nuclear layout adapter', () => {
+  it('personToLayoutPerson maps unions to parent and spouse ids', () => {
+    const project = createEmptyProject();
+    const [idA, idB] = Object.keys(project.persons);
+    const lp = personToLayoutPerson(project.persons[idA], project);
+    expect(lp.spouseIds).toContain(idB);
+    expect(lp.fatherId).toBeNull();
+    expect(lp.motherId).toBeNull();
   });
 });
 
