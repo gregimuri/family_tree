@@ -8,8 +8,12 @@ import {
   getParents,
   linkChild,
   linkParent,
+  linkPartner,
+  unlinkChild,
   unlinkParent,
+  unlinkPartner,
   removePersonFromProject,
+  validateProjectRelationships,
 } from '../models/person-utils';
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
 import { buildLayout } from '../layout';
@@ -431,6 +435,80 @@ describe('relationships', () => {
     for (const uid of project.persons[child.id].parentUnionIds) {
       expect(project.unions[uid]?.childIds).toContain(child.id);
     }
+  });
+
+  it('validateProjectRelationships passes for default project', () => {
+    expect(validateProjectRelationships(createEmptyProject())).toEqual([]);
+  });
+
+  it('relationship operations stay bidirectional', () => {
+    let project = createEmptyProject();
+    const [parentId, spouseId] = Object.keys(project.persons);
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+
+    project = linkChild(project, parentId, child.id);
+    expect(validateProjectRelationships(project)).toEqual([]);
+
+    project = linkParent(project, child.id, spouseId);
+    expect(validateProjectRelationships(project)).toEqual([]);
+
+    project = unlinkParent(project, child.id, parentId);
+    expect(validateProjectRelationships(project)).toEqual([]);
+
+    project = linkParent(project, child.id, parentId);
+    expect(validateProjectRelationships(project)).toEqual([]);
+
+    project = unlinkPartner(project, parentId, spouseId);
+    expect(validateProjectRelationships(project)).toEqual([]);
+    expect(getParents(project, project.persons[child.id]).map((p) => p.id).sort()).toEqual(
+      [parentId, spouseId].sort(),
+    );
+    expect(getAllChildren(project, project.persons[parentId]).some((c) => c.id === child.id)).toBe(true);
+    expect(getAllChildren(project, project.persons[spouseId]).some((c) => c.id === child.id)).toBe(true);
+  });
+
+  it('unlinkPartner with children migrates to single-parent unions', () => {
+    let project = createEmptyProject();
+    const [parentId, spouseId] = Object.keys(project.persons);
+    const marriageUnionId = project.persons[parentId].unionIds[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+    project = linkParent(project, child.id, parentId);
+    project = linkParent(project, child.id, spouseId);
+
+    project = unlinkPartner(project, parentId, spouseId);
+
+    expect(project.unions[marriageUnionId]).toBeUndefined();
+    expect(validateProjectRelationships(project)).toEqual([]);
+    expect(getParents(project, project.persons[child.id]).map((p) => p.id).sort()).toEqual(
+      [parentId, spouseId].sort(),
+    );
+  });
+
+  it('linkPartner and unlinkChild stay bidirectional', () => {
+    let project = createEmptyProject();
+    const parentId = Object.keys(project.persons)[0];
+    const partner = createEmptyPerson({ givenName: 'Партнёр' });
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = {
+      ...project,
+      persons: { ...project.persons, [partner.id]: partner, [child.id]: child },
+    };
+
+    project = linkPartner(project, parentId, partner.id);
+    expect(validateProjectRelationships(project)).toEqual([]);
+
+    project = linkChild(project, parentId, child.id);
+    expect(validateProjectRelationships(project)).toEqual([]);
+
+    const unionId = project.persons[parentId].unionIds.find(
+      (uid) => project.unions[uid].childIds.includes(child.id),
+    )!;
+    project = unlinkChild(project, unionId, child.id);
+    expect(validateProjectRelationships(project)).toEqual([]);
+    expect(getAllChildren(project, project.persons[parentId]).some((c) => c.id === child.id)).toBe(false);
+    expect(getParents(project, project.persons[child.id]).length).toBe(0);
   });
 });
 

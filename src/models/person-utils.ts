@@ -525,7 +525,9 @@ export function linkParent(project: Project, childId: string, parentId: string, 
 }
 
 export function linkChild(project: Project, parentId: string, childId: string, unionId?: string): Project {
-  return applyParentChildLink(project, childId, parentId, { unionId, preferMarriageUnion: false });
+  let next = applyParentChildLink(project, childId, parentId, { unionId, preferMarriageUnion: false });
+  next = mergeMarriedParentsForChild(next, childId);
+  return next;
 }
 
 export function unlinkParent(project: Project, childId: string, parentId: string): Project {
@@ -597,34 +599,51 @@ export function unlinkPartner(project: Project, personAId: string, personBId: st
   if (!a || !b) return project;
 
   const unions = { ...project.unions };
-  const persons = { ...project.persons };
   const removedUnionIds = new Set<string>();
+  const childMigration: { formerPartners: string[]; childIds: string[] }[] = [];
 
   for (const unionId of a.unionIds) {
     if (!b.unionIds.includes(unionId)) continue;
     const union = unions[unionId];
     if (!union) continue;
 
-    const partnerIds = union.partnerIds.filter((id) => id !== personAId && id !== personBId);
+    const remainingPartners = union.partnerIds.filter((id) => id !== personAId && id !== personBId);
     const childIds = union.childIds;
 
-    if (shouldRemoveUnion(partnerIds, childIds)) {
+    if (remainingPartners.length === 0 && childIds.length > 0) {
+      childMigration.push({
+        formerPartners: union.partnerIds.filter((id) => id === personAId || id === personBId),
+        childIds: [...childIds],
+      });
+      delete unions[unionId];
+      removedUnionIds.add(unionId);
+      continue;
+    }
+
+    if (shouldRemoveUnion(remainingPartners, childIds)) {
       delete unions[unionId];
       removedUnionIds.add(unionId);
     } else {
-      unions[unionId] = { ...union, partnerIds };
+      unions[unionId] = { ...union, partnerIds: remainingPartners };
     }
   }
 
-  for (const [id, p] of Object.entries(persons)) {
-    const unionIds = p.unionIds.filter((uid) => !removedUnionIds.has(uid));
-    const parentUnionIds = p.parentUnionIds.filter((uid) => !removedUnionIds.has(uid));
-    if (unionIds.length !== p.unionIds.length || parentUnionIds.length !== p.parentUnionIds.length) {
-      persons[id] = { ...p, unionIds, parentUnionIds };
+  let result = cleanupRemovedUnions({ ...project, unions }, unions, removedUnionIds);
+
+  for (const { formerPartners, childIds } of childMigration) {
+    for (const childId of childIds) {
+      for (const parentId of formerPartners) {
+        if (!result.persons[parentId] || !result.persons[childId]) continue;
+        result = applyParentChildLink(result, childId, parentId, { preferMarriageUnion: false });
+      }
+    }
+    result = touchProjectMeta(result);
+    for (const childId of childIds) {
+      result = mergeMarriedParentsForChild(result, childId);
     }
   }
 
-  return touchProjectMeta({ ...project, persons, unions });
+  return touchProjectMeta(result);
 }
 
 export function unlinkChild(project: Project, unionId: string, childId: string): Project {
@@ -679,4 +698,76 @@ export function formatMarriageDates(union: Union): string {
   const end = dateToText(union.marriageEnd);
   if (!start && !end) return '';
   return `${start || '—'} – ${end || 'н.в.'}`;
+}
+
+/** Verify union ↔ person references are symmetric. */
+export function validateProjectRelationships(project: Project): string[] {
+  const errors: string[] = [];
+  const { persons, unions } = project;
+
+  for (const [unionId, union] of Object.entries(unions)) {
+    for (const partnerId of union.partnerIds) {
+      const partner = persons[partnerId];
+      if (!partner) {
+        errors.push(`Союз ${unionId}: партнёр ${partnerId} не найден`);
+        continue;
+      }
+      if (!partner.unionIds.includes(unionId)) {
+        errors.push(`Союз ${unionId}: у партнёра ${partnerId} нет unionIds`);
+      }
+    }
+
+    for (const childId of union.childIds) {
+      const child = persons[childId];
+      if (!child) {
+        errors.push(`Союз ${unionId}: ребёнок ${childId} не найден`);
+        continue;
+      }
+      if (!child.parentUnionIds.includes(unionId)) {
+        errors.push(`Союз ${unionId}: у ребёнка ${childId} нет parentUnionIds`);
+      }
+    }
+
+    if (union.partnerIds.length === 0 && union.childIds.length > 0) {
+      errors.push(`Союз ${unionId}: есть дети, но нет партнёров`);
+    }
+  }
+
+  for (const [personId, person] of Object.entries(persons)) {
+    for (const unionId of person.unionIds) {
+      const union = unions[unionId];
+      if (!union) {
+        errors.push(`Персона ${personId}: ссылка на несуществующий союз ${unionId}`);
+        continue;
+      }
+      if (!union.partnerIds.includes(personId)) {
+        errors.push(`Персона ${personId}: unionIds содержит ${unionId}, но персона не партнёр`);
+      }
+    }
+
+    for (const unionId of person.parentUnionIds) {
+      const union = unions[unionId];
+      if (!union) {
+        errors.push(`Персона ${personId}: ссылка на несуществующий parentUnion ${unionId}`);
+        continue;
+      }
+      if (!union.childIds.includes(personId)) {
+        errors.push(`Персона ${personId}: parentUnionIds содержит ${unionId}, но персона не ребёнок`);
+      }
+    }
+
+    for (const parent of getParents(project, person)) {
+      if (!getAllChildren(project, parent).some((c) => c.id === personId)) {
+        errors.push(`Персона ${personId}: родитель ${parent.id} не видит ребёнка`);
+      }
+    }
+
+    for (const child of getAllChildren(project, person)) {
+      if (!getParents(project, child).some((p) => p.id === personId)) {
+        errors.push(`Персона ${personId}: ребёнок ${child.id} не видит родителя`);
+      }
+    }
+  }
+
+  return errors;
 }
