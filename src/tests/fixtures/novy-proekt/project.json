@@ -2,12 +2,12 @@
   "version": 1,
   "meta": {
     "name": "Новый проект",
-    "createdAt": "2026-05-29T20:07:49.706Z",
-    "modifiedAt": "2026-05-29T20:08:31.897Z"
+    "createdAt": "2026-05-29T20:17:07.586Z",
+    "modifiedAt": "2026-05-29T20:18:14.866Z"
   },
   "persons": {
-    "63c1b808-93fd-4479-b390-fcc9d3ce8beb": {
-      "id": "63c1b808-93fd-4479-b390-fcc9d3ce8beb",
+    "92312a00-8c2a-42ea-8078-1b5d6507302b": {
+      "id": "92312a00-8c2a-42ea-8078-1b5d6507302b",
       "gender": "male",
       "surname": "Иванов",
       "givenName": "Иван",
@@ -15,10 +15,10 @@
       "nicknamePriority": false,
       "biography": "",
       "parentUnionIds": [
-        "9f8fbadf-de8d-4e28-a452-1b46d20fc92a"
+        "189eb191-368b-4f3a-a3a7-82d193d6b232"
       ],
       "unionIds": [
-        "30703e99-d6c0-451d-96e4-4315da17a10c"
+        "325a9de7-6a3a-4351-8131-fcb5c80545d4"
       ],
       "mediaIds": [],
       "cardLocationSource": "birth",
@@ -31,8 +31,8 @@
         }
       }
     },
-    "de1b21fe-fce3-4780-a770-6ab75e0a51db": {
-      "id": "de1b21fe-fce3-4780-a770-6ab75e0a51db",
+    "2cf738cd-bf1e-4ccf-b0d6-96d978901502": {
+      "id": "2cf738cd-bf1e-4ccf-b0d6-96d978901502",
       "gender": "female",
       "surname": "Иванова",
       "givenName": "Мария",
@@ -40,10 +40,10 @@
       "nicknamePriority": false,
       "biography": "",
       "parentUnionIds": [
-        "caa8a524-35f2-4381-9808-831f6fa2f0bc"
+        "51260b7b-3657-4f17-93a7-fa6cdd3f77fa"
       ],
       "unionIds": [
-        "30703e99-d6c0-451d-96e4-4315da17a10c"
+        "325a9de7-6a3a-4351-8131-fcb5c80545d4"
       ],
       "mediaIds": [],
       "cardLocationSource": "birth",
@@ -56,8 +56,8 @@
         }
       }
     },
-    "83ab0bcf-2d59-48a5-a282-20d24b3e210b": {
-      "id": "83ab0bcf-2d59-48a5-a282-20d24b3e210b",
+    "a5a08cef-6502-42a8-9f09-3e54857eea11": {
+      "id": "a5a08cef-6502-42a8-9f09-3e54857eea11",
       "gender": "unknown",
       "surname": "",
       "givenName": "",
@@ -66,13 +66,13 @@
       "biography": "",
       "parentUnionIds": [],
       "unionIds": [
-        "9f8fbadf-de8d-4e28-a452-1b46d20fc92a"
+        "51260b7b-3657-4f17-93a7-fa6cdd3f77fa"
       ],
       "mediaIds": [],
       "cardLocationSource": "birth"
     },
-    "105895bb-7fc8-4ea7-9349-e1b76a3fe9b7": {
-      "id": "105895bb-7fc8-4ea7-9349-e1b76a3fe9b7",
+    "ee40c199-540c-4721-9777-78c322dba2e6": {
+      "id": "ee40c199-540c-4721-9777-78c322dba2e6",
       "gender": "unknown",
       "surname": "",
       "givenName": "",
@@ -81,58 +81,13 @@
       "biography": "",
       "parentUnionIds": [],
       "unionIds": [
-        "9f8fbadf-de8d-4e28-a452-1b46d20fc92a"
+        "51260b7b-3657-4f17-93a7-fa6cdd3f77fa"
       ],
       "mediaIds": [],
       "cardLocationSource": "birth"
     },
-    "eda28143-08bf-4814-a6b1-cb20cf1db5fa": {
-      "id": "eda28143-08bf-4814-a6b1-cb20cf1db5fa",
-      "gender": "unknown",
-      "surname": "",
-      "givenName": "",
-      "patronymic": "",
-      "nicknamePriority": false,
-      "biography": "",
-      "parentUnionIds": [
-        "30703e99-d6c0-451d-96e4-4315da17a10c"
-      ],
-      "unionIds": [],
-      "mediaIds": [],
-      "cardLocationSource": "birth"
-    },
-    "22819f66-4d71-4574-b360-ada7ebc0e2c3": {
-      "id": "22819f66-4d71-4574-b360-ada7ebc0e2c3",
-      "gender": "unknown",
-      "surname": "",
-      "givenName": "",
-      "patronymic": "",
-      "nicknamePriority": false,
-      "biography": "",
-      "parentUnionIds": [
-        "30703e99-d6c0-451d-96e4-4315da17a10c"
-      ],
-      "unionIds": [],
-      "mediaIds": [],
-      "cardLocationSource": "birth"
-    },
-    "3da0c876-32fd-4643-b3a0-9b0b69a0a57f": {
-      "id": "3da0c876-32fd-4643-b3a0-9b0b69a0a57f",
-      "gender": "unknown",
-      "surname": "",
-      "givenName": "",
-      "patronymic": "",
-      "nicknamePriority": false,
-      "biography": "",
-      "parentUnionIds": [
-        "30703e99-d6c0-451d-96e4-4315da17a10c"
-      ],
-      "unionIds": [],
-      "mediaIds": [],
-      "cardLocationSource": "birth"
-    },
-    "fce0025a-7dbf-4161-bff9-65e3079372f0": {
-      "id": "fce0025a-7dbf-4161-bff9-65e3079372f0",
+    "fff5aafa-d35d-471c-8e2b-ed0a5a27d7d7": {
+      "id": "fff5aafa-d35d-471c-8e2b-ed0a5a27d7d7",
       "gender": "unknown",
       "surname": "",
       "givenName": "",
@@ -141,13 +96,13 @@
       "biography": "",
       "parentUnionIds": [],
       "unionIds": [
-        "caa8a524-35f2-4381-9808-831f6fa2f0bc"
+        "189eb191-368b-4f3a-a3a7-82d193d6b232"
       ],
       "mediaIds": [],
       "cardLocationSource": "birth"
     },
-    "0d106469-d4f2-4427-a160-cd6023a21b20": {
-      "id": "0d106469-d4f2-4427-a160-cd6023a21b20",
+    "75515b3e-7ba5-420a-8169-f29c5a5cfd66": {
+      "id": "75515b3e-7ba5-420a-8169-f29c5a5cfd66",
       "gender": "unknown",
       "surname": "",
       "givenName": "",
@@ -156,13 +111,13 @@
       "biography": "",
       "parentUnionIds": [],
       "unionIds": [
-        "caa8a524-35f2-4381-9808-831f6fa2f0bc"
+        "189eb191-368b-4f3a-a3a7-82d193d6b232"
       ],
       "mediaIds": [],
       "cardLocationSource": "birth"
     },
-    "6f1ed5f2-2c20-4da9-866d-e4b020ed077e": {
-      "id": "6f1ed5f2-2c20-4da9-866d-e4b020ed077e",
+    "bef57a98-ef26-44a2-b230-6bc86dc17bca": {
+      "id": "bef57a98-ef26-44a2-b230-6bc86dc17bca",
       "gender": "unknown",
       "surname": "",
       "givenName": "",
@@ -170,14 +125,16 @@
       "nicknamePriority": false,
       "biography": "",
       "parentUnionIds": [
-        "caa8a524-35f2-4381-9808-831f6fa2f0bc"
+        "51260b7b-3657-4f17-93a7-fa6cdd3f77fa"
       ],
-      "unionIds": [],
+      "unionIds": [
+        "dd9e10f0-593c-4246-bcbc-610aa6ca0694"
+      ],
       "mediaIds": [],
       "cardLocationSource": "birth"
     },
-    "fc118401-0e0a-480e-bbf8-673cbf1fae3a": {
-      "id": "fc118401-0e0a-480e-bbf8-673cbf1fae3a",
+    "4eef35b8-50f5-4433-ad1e-36590d1a211b": {
+      "id": "4eef35b8-50f5-4433-ad1e-36590d1a211b",
       "gender": "unknown",
       "surname": "",
       "givenName": "",
@@ -185,50 +142,94 @@
       "nicknamePriority": false,
       "biography": "",
       "parentUnionIds": [
-        "caa8a524-35f2-4381-9808-831f6fa2f0bc"
+        "51260b7b-3657-4f17-93a7-fa6cdd3f77fa"
       ],
-      "unionIds": [],
+      "unionIds": [
+        "6f96161b-b6b1-45fd-96ab-7152e700e765"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "a195a179-0984-4685-a8a2-235a1e2fabfd": {
+      "id": "a195a179-0984-4685-a8a2-235a1e2fabfd",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [],
+      "unionIds": [
+        "6f96161b-b6b1-45fd-96ab-7152e700e765"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "e6e84c65-c5e1-4801-97f1-0b63f73da74d": {
+      "id": "e6e84c65-c5e1-4801-97f1-0b63f73da74d",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [],
+      "unionIds": [
+        "dd9e10f0-593c-4246-bcbc-610aa6ca0694"
+      ],
       "mediaIds": [],
       "cardLocationSource": "birth"
     }
   },
   "unions": {
-    "30703e99-d6c0-451d-96e4-4315da17a10c": {
-      "id": "30703e99-d6c0-451d-96e4-4315da17a10c",
+    "325a9de7-6a3a-4351-8131-fcb5c80545d4": {
+      "id": "325a9de7-6a3a-4351-8131-fcb5c80545d4",
       "partnerIds": [
-        "63c1b808-93fd-4479-b390-fcc9d3ce8beb",
-        "de1b21fe-fce3-4780-a770-6ab75e0a51db"
+        "92312a00-8c2a-42ea-8078-1b5d6507302b",
+        "2cf738cd-bf1e-4ccf-b0d6-96d978901502"
       ],
-      "childIds": [
-        "eda28143-08bf-4814-a6b1-cb20cf1db5fa",
-        "22819f66-4d71-4574-b360-ada7ebc0e2c3",
-        "3da0c876-32fd-4643-b3a0-9b0b69a0a57f"
-      ],
+      "childIds": [],
       "marriageStart": {
         "year": 2005
       }
     },
-    "9f8fbadf-de8d-4e28-a452-1b46d20fc92a": {
-      "id": "9f8fbadf-de8d-4e28-a452-1b46d20fc92a",
+    "51260b7b-3657-4f17-93a7-fa6cdd3f77fa": {
+      "id": "51260b7b-3657-4f17-93a7-fa6cdd3f77fa",
       "partnerIds": [
-        "83ab0bcf-2d59-48a5-a282-20d24b3e210b",
-        "105895bb-7fc8-4ea7-9349-e1b76a3fe9b7"
+        "a5a08cef-6502-42a8-9f09-3e54857eea11",
+        "ee40c199-540c-4721-9777-78c322dba2e6"
       ],
       "childIds": [
-        "63c1b808-93fd-4479-b390-fcc9d3ce8beb"
+        "2cf738cd-bf1e-4ccf-b0d6-96d978901502",
+        "bef57a98-ef26-44a2-b230-6bc86dc17bca",
+        "4eef35b8-50f5-4433-ad1e-36590d1a211b"
       ]
     },
-    "caa8a524-35f2-4381-9808-831f6fa2f0bc": {
-      "id": "caa8a524-35f2-4381-9808-831f6fa2f0bc",
+    "189eb191-368b-4f3a-a3a7-82d193d6b232": {
+      "id": "189eb191-368b-4f3a-a3a7-82d193d6b232",
       "partnerIds": [
-        "fce0025a-7dbf-4161-bff9-65e3079372f0",
-        "0d106469-d4f2-4427-a160-cd6023a21b20"
+        "fff5aafa-d35d-471c-8e2b-ed0a5a27d7d7",
+        "75515b3e-7ba5-420a-8169-f29c5a5cfd66"
       ],
       "childIds": [
-        "de1b21fe-fce3-4780-a770-6ab75e0a51db",
-        "6f1ed5f2-2c20-4da9-866d-e4b020ed077e",
-        "fc118401-0e0a-480e-bbf8-673cbf1fae3a"
+        "92312a00-8c2a-42ea-8078-1b5d6507302b"
       ]
+    },
+    "6f96161b-b6b1-45fd-96ab-7152e700e765": {
+      "id": "6f96161b-b6b1-45fd-96ab-7152e700e765",
+      "partnerIds": [
+        "4eef35b8-50f5-4433-ad1e-36590d1a211b",
+        "a195a179-0984-4685-a8a2-235a1e2fabfd"
+      ],
+      "childIds": []
+    },
+    "dd9e10f0-593c-4246-bcbc-610aa6ca0694": {
+      "id": "dd9e10f0-593c-4246-bcbc-610aa6ca0694",
+      "partnerIds": [
+        "bef57a98-ef26-44a2-b230-6bc86dc17bca",
+        "e6e84c65-c5e1-4801-97f1-0b63f73da74d"
+      ],
+      "childIds": []
     }
   },
   "media": {},
@@ -254,6 +255,6 @@
   },
   "center": {
     "type": "person",
-    "id": "fce0025a-7dbf-4161-bff9-65e3079372f0"
+    "id": "ee40c199-540c-4721-9777-78c322dba2e6"
   }
 }

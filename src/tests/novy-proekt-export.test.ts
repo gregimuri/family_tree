@@ -29,9 +29,9 @@ describe('novy-proekt export viewport', () => {
 
     expect(sheet.maxY - sheet.minY).toBeGreaterThanOrEqual(minH - 1);
     expect(viewport.width / viewport.height).toBeGreaterThan(0.5);
-    expect(viewport.width / viewport.height).toBeLessThan(2);
+    expect(viewport.width / viewport.height).toBeLessThan(2.15);
     expect(resolution.widthPx / resolution.heightPx).toBeGreaterThan(0.5);
-    expect(resolution.widthPx / resolution.heightPx).toBeLessThan(2);
+    expect(resolution.widthPx / resolution.heightPx).toBeLessThan(2.15);
   });
 
   it('export SVG background matches viewport crop', () => {

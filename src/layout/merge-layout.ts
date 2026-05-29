@@ -301,6 +301,54 @@ function alignPedigreeToNuclearSeam(
   }
 }
 
+function enforceCoupleSpacing(
+  nodes: LayoutNode[],
+  graph: GraphResult,
+  project: Project,
+): void {
+  const graphById = graphNodeById(graph);
+  const byGraphId = new Map(nodes.map((n) => [n.id, n]));
+
+  for (const union of Object.values(project.unions)) {
+    if (union.partnerIds.length < 2) continue;
+
+    type PartnerEntry = { gn: PersonGraphNode; ln: LayoutNode; personId: string };
+    const partners: PartnerEntry[] = [];
+    for (const personId of union.partnerIds) {
+      const graphId = graph.personToNode.get(personId);
+      if (!graphId) continue;
+      const gn = graphById.get(graphId);
+      const ln = byGraphId.get(graphId);
+      if (gn && ln) partners.push({ gn, ln, personId });
+    }
+    if (partners.length < 2) continue;
+
+    const byLayer = new Map<number, PartnerEntry[]>();
+    for (const entry of partners) {
+      const list = byLayer.get(entry.gn.layer) ?? [];
+      list.push(entry);
+      byLayer.set(entry.gn.layer, list);
+    }
+
+    for (const group of byLayer.values()) {
+      if (group.length < 2) continue;
+      const sorted = [...group].sort((a, b) => {
+        const pa = project.persons[a.personId];
+        const pb = project.persons[b.personId];
+        if (pa?.gender === 'male' && pb?.gender !== 'male') return -1;
+        if (pb?.gender === 'male' && pa?.gender !== 'male') return 1;
+        return a.ln.x - b.ln.x;
+      });
+      const left = sorted[0].ln;
+      const right = sorted[1].ln;
+      const center = (nodeCenterX(left) + nodeCenterX(right)) / 2;
+      const totalW = left.width + COUPLE_GAP + right.width;
+      left.x = center - totalW / 2;
+      right.x = left.x + left.width + COUPLE_GAP;
+    }
+  }
+}
+
 function resolveLayerCollisions(
   layerNodes: LayoutNode[],
   graphById: Map<string, PersonGraphNode>,
@@ -333,6 +381,14 @@ function resolveLayerCollisions(
       const currAnchored = isNuclearMainLine(currG);
 
       if (prevG.unionId && prevG.unionId === currG.unionId && prevG.layer === currG.layer) {
+        const left = prev.x <= curr.x ? prev : curr;
+        const right = prev.x <= curr.x ? curr : prev;
+        const needX = left.x + left.width + COUPLE_GAP;
+        const shift = needX - right.x;
+        if (shift > 0.01) {
+          right.x = needX;
+          moved = Math.max(moved, shift);
+        }
         continue;
       }
 
@@ -390,5 +446,7 @@ export function reconcileMergedLayout(
   normalizeNodesToLayerY(nodes);
   alignPedigreeToNuclearSeam(nodes, graph, project);
   compactSiblingGroups(nodes, graph, project);
+  enforceCoupleSpacing(nodes, graph, project);
   resolveMergedCollisions(nodes, graph, project);
+  enforceCoupleSpacing(nodes, graph, project);
 }
