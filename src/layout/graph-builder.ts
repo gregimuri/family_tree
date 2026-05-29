@@ -76,6 +76,41 @@ function sortPartners(project: Project, partnerIds: string[]): string[] {
   });
 }
 
+function isStrictDescendant(descendantId: string, ancestorId: string, project: Project): boolean {
+  const queue = [ancestorId];
+  const seen = new Set<string>();
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (id === descendantId) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const person = project.persons[id];
+    if (!person) continue;
+    for (const unionId of person.unionIds) {
+      const union = project.unions[unionId];
+      if (!union) continue;
+      for (const childId of union.childIds) queue.push(childId);
+    }
+  }
+  return false;
+}
+
+/** Продолжение основной линии вниз: прямые дети центра, предки/потомки центра. */
+function childContinuesMainLine(
+  childId: string,
+  parentId: string,
+  startPersonId: string | null,
+  useFamilyCenter: boolean,
+  project: Project,
+): boolean {
+  if (useFamilyCenter || !startPersonId) return true;
+  if (parentId === startPersonId) return true;
+  if (childId === startPersonId) return true;
+  if (isStrictDescendant(childId, startPersonId, project)) return true;
+  if (isStrictDescendant(startPersonId, childId, project)) return true;
+  return false;
+}
+
 export function buildGraph(
   project: Project,
   settings: ViewSettings,
@@ -285,12 +320,31 @@ export function buildGraph(
 
       children.forEach((child, idx) => {
         if (!shouldIncludePerson(child, settings)) return;
-        const cn = addPerson(child.id, childLayer, branchSide, branchDepth, undefined, idx, unionId);
+
+        let childSide = branchSide;
+        let childDepth = branchDepth;
+        const onMainLine =
+          isSide ||
+          childContinuesMainLine(child.id, personId, startPersonId, useFamilyCenter, project);
+        if (!isSide && !onMainLine) {
+          childSide = collateralSideForParent(personId);
+          childDepth = 1;
+        }
+
+        const cn = addPerson(
+          child.id,
+          childLayer,
+          childSide,
+          childDepth,
+          undefined,
+          idx,
+          unionId,
+        );
         if (cn) {
           for (const pn of partnerNodes) linkParentChild(pn, cn);
         }
-        if (isSide) {
-          expandDescendants(child.id, childLayer, depthLeft, branchSide, branchDepth + 1);
+        if (childSide !== 'main') {
+          expandDescendants(child.id, childLayer, depthLeft, childSide, childDepth + 1);
         } else {
           expandDescendants(child.id, childLayer, settings.generationsDown, 'main', 0);
         }

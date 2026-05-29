@@ -79,6 +79,111 @@ function collectSideBranchDescendants(
   return seen;
 }
 
+function collectDownstreamGraphIds(
+  seedIds: string[],
+  graph: GraphResult,
+  graphById: Map<string, PersonGraphNode>,
+): Set<string> {
+  const down = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    const from = graphById.get(edge.from);
+    const to = graphById.get(edge.to);
+    if (!from || !to || from.layer >= to.layer) continue;
+    const list = down.get(edge.from) ?? [];
+    list.push(edge.to);
+    down.set(edge.from, list);
+  }
+
+  const seen = new Set<string>();
+  const queue = [...seedIds];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    for (const child of down.get(id) ?? []) queue.push(child);
+  }
+  return seen;
+}
+
+function shiftLayoutNodes(
+  graphIds: Iterable<string>,
+  delta: number,
+  byGraphId: Map<string, LayoutNode>,
+): void {
+  if (Math.abs(delta) < 0.01) return;
+  for (const id of graphIds) {
+    const node = byGraphId.get(id);
+    if (node) node.x += delta;
+  }
+}
+
+/** Дети одного union на одном слое — в плотный ряд под родителями (без «разъезда» nuclear-блоков). */
+function compactSiblingGroups(
+  nodes: LayoutNode[],
+  graph: GraphResult,
+  project: Project,
+): void {
+  const graphById = graphNodeById(graph);
+  const byGraphId = new Map(nodes.map((n) => [n.id, n]));
+
+  for (const union of Object.values(project.unions)) {
+    if (union.childIds.length < 2) continue;
+
+    type ChildEntry = { gn: PersonGraphNode; ln: LayoutNode };
+    const childEntries: ChildEntry[] = [];
+    for (const personId of union.childIds) {
+      const graphId = graph.personToNode.get(personId);
+      if (!graphId) continue;
+      const gn = graphById.get(graphId);
+      const ln = byGraphId.get(graphId);
+      if (gn && ln) childEntries.push({ gn, ln });
+    }
+
+    const byLayer = new Map<number, ChildEntry[]>();
+    for (const entry of childEntries) {
+      const list = byLayer.get(entry.gn.layer) ?? [];
+      list.push(entry);
+      byLayer.set(entry.gn.layer, list);
+    }
+
+    for (const [layer, group] of byLayer) {
+      if (group.length < 2) continue;
+
+      const sorted = [...group].sort((a, b) => a.ln.x - b.ln.x);
+      const totalWidth =
+        sorted.reduce((sum, entry) => sum + entry.ln.width, 0) +
+        SIBLING_GAP * (sorted.length - 1);
+
+      const parentNodes = union.partnerIds
+        .map((personId) => {
+          const graphId = graph.personToNode.get(personId);
+          if (!graphId) return null;
+          const gn = graphById.get(graphId);
+          const ln = byGraphId.get(graphId);
+          if (!gn || !ln || gn.layer !== layer - 1) return null;
+          return ln;
+        })
+        .filter((n): n is LayoutNode => Boolean(n));
+
+      const anchorCenter =
+        parentNodes.length > 0
+          ? parentNodes.reduce((sum, n) => sum + nodeCenterX(n), 0) / parentNodes.length
+          : sorted.reduce((sum, entry) => sum + nodeCenterX(entry.ln), 0) / sorted.length;
+
+      let cursor = anchorCenter - totalWidth / 2;
+      for (const entry of sorted) {
+        const delta = cursor - entry.ln.x;
+        if (Math.abs(delta) > 0.5) {
+          const moveIds = collectDownstreamGraphIds([entry.gn.id], graph, graphById);
+          moveIds.add(entry.gn.id);
+          shiftLayoutNodes(moveIds, delta, byGraphId);
+        }
+        cursor += entry.ln.width + SIBLING_GAP;
+      }
+    }
+  }
+}
+
 function minGapBetween(left: PersonGraphNode, right: PersonGraphNode): number {
   if (left.unionId && left.unionId === right.unionId && left.layer === right.layer) {
     return COUPLE_GAP;
@@ -284,5 +389,6 @@ export function reconcileMergedLayout(
   if (nodes.length === 0) return;
   normalizeNodesToLayerY(nodes);
   alignPedigreeToNuclearSeam(nodes, graph, project);
+  compactSiblingGroups(nodes, graph, project);
   resolveMergedCollisions(nodes, graph, project);
 }
