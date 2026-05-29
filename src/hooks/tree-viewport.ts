@@ -1,13 +1,19 @@
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import type { LayoutResult, Project } from '../types';
+import type { LayoutResult } from '../types';
 import { getTreeSheetBounds } from '../layout/content-bounds';
+import { TREE_VIEW_PAD } from '../layout/tree-sheet';
 import { CARD_H_TEXT, CARD_W } from '../layout/card-dimensions';
 import type { TreeFrame } from '../layout/center-focus';
+
+export { TREE_SHEET_PAD, TREE_VIEW_PAD } from '../layout/tree-sheet';
 
 export const TREE_FIT_PADDING = 0.9;
 export const TREE_MIN_SCALE = 0.12;
 export const TREE_MAX_SCALE = 2.5;
-export const TREE_CONTENT_PAD = 56;
+/** @deprecated use TREE_VIEW_PAD */
+export const TREE_CONTENT_PAD = TREE_VIEW_PAD;
+
+export type TreeFitMode = 'focus' | 'content';
 
 export interface ViewportRect {
   x: number;
@@ -29,6 +35,8 @@ export interface FitViewportInput {
   padding?: number;
   minScale?: number;
   maxScale?: number;
+  /** Точка на листе, которую нужно поместить в центр экрана. По умолчанию — центр contentRect. */
+  pivot?: { x: number; y: number };
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -41,8 +49,8 @@ function clamp(value: number, min: number, max: number): number {
 export function getTreeContentRect(
   frame: TreeFrame,
   layout: LayoutResult,
-  pad = TREE_CONTENT_PAD,
-  bounds = layout.bounds,
+  pad = TREE_VIEW_PAD,
+  bounds = getTreeSheetBounds(layout),
 ): ViewportRect {
   const { minX, minY, maxX, maxY } = bounds;
   const width = Math.max(maxX - minX, CARD_W);
@@ -83,12 +91,12 @@ export function computeFitTransform(input: FitViewportInput): ViewportTransform 
   const scaleY = (wrapperHeight / contentRect.height) * padding;
   const scale = clamp(Math.min(scaleX, scaleY), minScale, maxScale);
 
-  const centerX = contentRect.x + contentRect.width / 2;
-  const centerY = contentRect.y + contentRect.height / 2;
+  const pivotX = input.pivot?.x ?? contentRect.x + contentRect.width / 2;
+  const pivotY = input.pivot?.y ?? contentRect.y + contentRect.height / 2;
 
   return {
-    positionX: wrapperWidth / 2 - centerX * scale,
-    positionY: wrapperHeight / 2 - centerY * scale,
+    positionX: wrapperWidth / 2 - pivotX * scale,
+    positionY: wrapperHeight / 2 - pivotY * scale,
     scale,
   };
 }
@@ -106,17 +114,20 @@ export function fitTreeToViewport(
   frame: TreeFrame,
   layout: LayoutResult,
   animationTime = 0,
-  _project?: Project | null,
+  mode: TreeFitMode = 'focus',
 ): boolean {
   const wrapper = ref.instance.wrapperComponent;
   if (!wrapper) return false;
 
   const bounds = getTreeSheetBounds(layout);
-  const contentRect = getTreeContentRect(frame, layout, TREE_CONTENT_PAD, bounds);
+  const contentRect = getTreeContentRect(frame, layout, TREE_VIEW_PAD, bounds);
+  const pivot =
+    mode === 'focus' ? { x: frame.focusSvgX, y: frame.focusSvgY } : undefined;
   const transform = computeFitTransform({
     wrapperWidth: wrapper.clientWidth,
     wrapperHeight: wrapper.clientHeight,
     contentRect,
+    pivot,
   });
 
   if (!transform) return false;
@@ -138,7 +149,7 @@ export function buildViewportKey(
   sideBranchDepth: number,
   cardSizeMode: string,
 ): string {
-  const b = layout.bounds;
+  const b = getTreeSheetBounds(layout);
   return [
     centerType,
     centerId,

@@ -1,6 +1,7 @@
 import type { LayoutEdge, LayoutNode, LayoutResult, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
 import { getCardDimensions } from './card-dimensions';
+import { getTreeSheetBounds } from './content-bounds';
 import { LAYER_GAP, getCardScale } from './graph-builder';
 import { getCenterFocusPoint } from './center-focus';
 import {
@@ -29,12 +30,7 @@ function normalizeLayoutToFocus(project: Project, layout: LayoutResult): LayoutR
   return {
     nodes,
     edges,
-    bounds: {
-      minX: layout.bounds.minX + dx,
-      minY: layout.bounds.minY + dy,
-      maxX: layout.bounds.maxX + dx,
-      maxY: layout.bounds.maxY + dy,
-    },
+    bounds: getTreeSheetBounds({ nodes, edges, bounds: layout.bounds }),
   };
 }
 

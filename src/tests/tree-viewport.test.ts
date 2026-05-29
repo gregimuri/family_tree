@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createEmptyProject, createEmptyPerson } from '../models/defaults';
 import { buildLayout } from '../layout';
 import { getSymmetricTreeFrame } from '../layout/center-focus';
+import { TREE_SHEET_PAD } from '../layout/tree-sheet';
 import { getTreeSheetBounds } from '../layout/content-bounds';
 import {
   computeFitTransform,
@@ -13,7 +14,7 @@ describe('tree viewport', () => {
   it('content rect covers sheet bounds inside svg frame', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
-    const frame = getSymmetricTreeFrame(project, layout, 80)!;
+    const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
     const sheet = getTreeSheetBounds(layout);
     const rect = getTreeContentRect(frame, layout, TREE_CONTENT_PAD, sheet);
 
@@ -28,7 +29,7 @@ describe('tree viewport', () => {
   it('content rect is smaller than full svg canvas', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
-    const frame = getSymmetricTreeFrame(project, layout, 80)!;
+    const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
     const rect = getTreeContentRect(frame, layout);
 
     expect(rect.width).toBeLessThan(frame.svgW);
@@ -67,7 +68,7 @@ describe('tree viewport', () => {
   it('uses padding around cards', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
-    const frame = getSymmetricTreeFrame(project, layout, 80)!;
+    const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
     const sheet = getTreeSheetBounds(layout);
     const tight = getTreeContentRect(frame, layout, 0, sheet);
     const padded = getTreeContentRect(frame, layout, TREE_CONTENT_PAD, sheet);
@@ -84,7 +85,7 @@ describe('tree viewport', () => {
     project.persons[orphanB.id] = orphanB;
 
     const layout = buildLayout(project);
-    const frame = getSymmetricTreeFrame(project, layout, 80)!;
+    const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
     const sheet = getTreeSheetBounds(layout);
     const contentRect = getTreeContentRect(frame, layout, TREE_CONTENT_PAD, sheet);
 

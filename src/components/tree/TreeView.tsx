@@ -3,6 +3,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { buildLayout } from '../../layout';
 import { getSymmetricTreeFrame } from '../../layout/center-focus';
+import { TREE_SHEET_PAD, TREE_SHEET_STROKE_PAD } from '../../layout/tree-sheet';
 import { useProjectStore } from '../../store/project-store';
 import { useUiStore } from '../../store/ui-store';
 import { useKeyboardNav } from '../../hooks/useKeyboardNav';
@@ -22,8 +23,6 @@ import { MediaViewer } from '../media/MediaViewer';
 import { Icons } from '../ui/Icons';
 import './TreeView.css';
 import { snapCardCenterToGridCorners } from '../../layout/card-dimensions';
-
-const TREE_PAD = 80;
 
 export function TreeView() {
   const project = useProjectStore((s) => s.project);
@@ -55,7 +54,7 @@ export function TreeView() {
   const treeLayout = useMemo(() => {
     if (!project) return null;
     const built = buildLayout(project);
-    const treeFrame = getSymmetricTreeFrame(project, built, TREE_PAD);
+    const treeFrame = getSymmetricTreeFrame(project, built, TREE_SHEET_PAD);
     if (!treeFrame) return null;
     return { layout: built, frame: treeFrame };
   }, [project]);
@@ -162,7 +161,7 @@ export function TreeView() {
               onClick={() => {
                 clearManualLayout();
                 setSelectedEdgeId(null);
-                resetTreeView(transformRef, frame, layout, project);
+                resetTreeView(transformRef, frame, layout);
               }}
             >
               Авторасположение
@@ -252,6 +251,7 @@ export function TreeView() {
               width={svgW}
               height={svgH}
               className="tree-svg"
+              overflow="visible"
               onClick={handleBackgroundClick}
             >
               <defs>
@@ -277,8 +277,10 @@ export function TreeView() {
                 )}
               </defs>
               <rect
-                width={svgW}
-                height={svgH}
+                x={TREE_SHEET_STROKE_PAD}
+                y={TREE_SHEET_STROKE_PAD}
+                width={svgW - TREE_SHEET_STROKE_PAD * 2}
+                height={svgH - TREE_SHEET_STROKE_PAD * 2}
                 rx={theme === 'forest' ? 12 : 8}
                 fill="url(#tree-bg)"
                 stroke={theme === 'forest' ? '#7f1d1d' : '#d4cfc4'}
@@ -346,7 +348,7 @@ export function TreeView() {
       <ZoomControls
         onZoomIn={() => transformRef.current?.zoomIn()}
         onZoomOut={() => transformRef.current?.zoomOut()}
-        onReset={() => resetTreeView(transformRef, frame, layout, project)}
+        onReset={() => resetTreeView(transformRef, frame, layout)}
       />
 
       {exportOpen && (

@@ -5,6 +5,7 @@ import type { TreeFrame } from '../layout/center-focus';
 import {
   buildViewportKey,
   fitTreeToViewport,
+  type TreeFitMode,
 } from './tree-viewport';
 
 export {
@@ -14,6 +15,7 @@ export {
   fitTreeToViewport,
   getTreeContentRect,
   computeFitTransform,
+  type TreeFitMode,
 } from './tree-viewport';
 
 interface UseCenterTreeViewOptions {
@@ -31,14 +33,14 @@ function scheduleFit(
   frame: TreeFrame,
   layout: LayoutResult,
   animationTime: number,
-  project?: Project | null,
+  mode: TreeFitMode = 'focus',
 ): () => void {
   let raf = 0;
   let attempts = 0;
 
   const tick = () => {
     if (
-      fitTreeToViewport(ref, frame, layout, animationTime, project) ||
+      fitTreeToViewport(ref, frame, layout, animationTime, mode) ||
       attempts >= MAX_FIT_ATTEMPTS
     ) {
       return;
@@ -61,15 +63,13 @@ export function useCenterTreeView({
   const viewportKeyRef = useRef('');
   const layoutRef = useRef(layout);
   const frameRef = useRef(frame);
-  const projectRef = useRef(project);
   const enabledRef = useRef(enabled);
 
   useLayoutEffect(() => {
     layoutRef.current = layout;
     frameRef.current = frame;
-    projectRef.current = project;
     enabledRef.current = enabled;
-  }, [layout, frame, project, enabled]);
+  }, [layout, frame, enabled]);
 
   useEffect(() => {
     if (enabled) viewportKeyRef.current = '';
@@ -97,7 +97,7 @@ export function useCenterTreeView({
 
     const ref = transformRef.current;
     if (!ref) return;
-    return scheduleFit(ref, frame, layout, 250, project);
+    return scheduleFit(ref, frame, layout, 250, 'focus');
   }, [enabled, project, layout, frame, transformRef]);
 
   useEffect(() => {
@@ -116,9 +116,8 @@ export function useCenterTreeView({
         const liveRef = transformRef.current;
         const liveLayout = layoutRef.current;
         const liveFrame = frameRef.current;
-        const liveProject = projectRef.current;
         if (!liveRef || !liveLayout || !liveFrame || !enabledRef.current) return;
-        cancelRaf = scheduleFit(liveRef, liveFrame, liveLayout, 120, liveProject);
+        cancelRaf = scheduleFit(liveRef, liveFrame, liveLayout, 120, 'focus');
       }, 80);
     };
 
@@ -145,14 +144,13 @@ export function useCenterTreeView({
   }, [enabled, transformRef, layout, frame]);
 }
 
-/** Вписать дерево в область просмотра (кнопка «показать всё»). */
+/** Вписать всё дерево в область просмотра (кнопка «показать всё»). */
 export function resetTreeView(
   transformRef: React.RefObject<ReactZoomPanPinchRef | null>,
   frame: TreeFrame | null,
   layout: LayoutResult | null,
-  project?: Project | null,
 ) {
   const ref = transformRef.current;
   if (!ref || !frame || !layout) return;
-  scheduleFit(ref, frame, layout, 200, project);
+  scheduleFit(ref, frame, layout, 200, 'content');
 }

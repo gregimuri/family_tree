@@ -1,5 +1,6 @@
 import type { LayoutResult, Project } from '../types';
 import { getTreeSheetBounds } from './content-bounds';
+import { TREE_SHEET_STROKE_PAD } from './tree-sheet';
 
 export interface LayoutFocusPoint {
   x: number;
@@ -72,8 +73,8 @@ export function getSymmetricTreeFrame(
   const halfW = Math.max(leftSpan, rightSpan, 1);
   const halfH = Math.max(topSpan, bottomSpan, 1);
 
-  const svgW = halfW * 2 + pad * 2;
-  const svgH = halfH * 2 + pad * 2;
+  const svgW = halfW * 2 + pad * 2 + TREE_SHEET_STROKE_PAD * 2;
+  const svgH = halfH * 2 + pad * 2 + TREE_SHEET_STROKE_PAD * 2;
   const focusSvgX = svgW / 2;
   const focusSvgY = svgH / 2;
 
