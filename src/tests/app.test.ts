@@ -16,7 +16,7 @@ import { buildLayout } from '../layout';
 import { buildGraph } from '../layout/graph-builder';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
-import { computeExportViewport } from '../services/export/image-export';
+import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
 import { validateViewSettings, canUseUniformCards } from '../models/validation';
 import { formatPlaceText, placeHasValue } from '../components/dossier/DossierFields';
 import { countExternalMediaInProject, isExternalMediaUrl } from '../utils/media-url';
@@ -610,5 +610,26 @@ describe('delete person', () => {
     expect(viewport.height).toBeLessThan(frame.svgH);
     expect(viewport.width).toBeGreaterThan(200);
     expect(viewport.height).toBeGreaterThan(200);
+  });
+
+  it('fixed page export uses meet fit inside sheet bounds', () => {
+    const project = createEmptyProject();
+    const layout = buildLayout(project);
+    const frame = getSymmetricTreeFrame(project, layout, 80)!;
+    const viewport = computeExportViewport(frame, layout);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    svg.appendChild(rect);
+
+    configureSvgForFixedPage(svg, viewport, 794, 1123);
+
+    expect(svg.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
+    expect(svg.getAttribute('viewBox')).toBe(
+      `${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`,
+    );
+    expect(svg.getAttribute('width')).toBe('794');
+    expect(svg.getAttribute('height')).toBe('1123');
+    expect(rect.getAttribute('width')).toBe(String(viewport.width));
+    expect(rect.getAttribute('height')).toBe(String(viewport.height));
   });
 });

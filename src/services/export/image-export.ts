@@ -247,6 +247,27 @@ export function computeExportViewport(
   return getTreeContentRect(frame, layout, pad);
 }
 
+/** Fit tree content inside a fixed page without cropping (letterboxing). */
+export function configureSvgForFixedPage(
+  svg: SVGSVGElement,
+  viewport: { x: number; y: number; width: number; height: number },
+  widthPx: number,
+  heightPx: number,
+): void {
+  svg.setAttribute('viewBox', `${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`);
+  svg.setAttribute('width', String(widthPx));
+  svg.setAttribute('height', String(heightPx));
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  const bgRect = svg.querySelector('rect');
+  if (bgRect) {
+    bgRect.setAttribute('x', String(viewport.x));
+    bgRect.setAttribute('y', String(viewport.y));
+    bgRect.setAttribute('width', String(viewport.width));
+    bgRect.setAttribute('height', String(viewport.height));
+  }
+}
+
 export async function exportTreeElement(
   source: TreeExportSource,
   options: ExportOptions,
@@ -262,17 +283,15 @@ export async function exportTreeElement(
   const prepared = prepareSvgClone(svg);
   await rasterizePersonCards(svg, prepared);
 
+  const viewport = computeExportViewport(frame, layout);
   let widthPx: number;
   let heightPx: number;
 
   if (sizeMode === 'fixed' && options.widthMm && options.heightMm) {
     widthPx = Math.round(options.widthMm * MM_TO_PX);
     heightPx = Math.round(options.heightMm * MM_TO_PX);
-    prepared.setAttribute('width', String(widthPx));
-    prepared.setAttribute('height', String(heightPx));
-    prepared.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    configureSvgForFixedPage(prepared, viewport, widthPx, heightPx);
   } else {
-    const viewport = computeExportViewport(frame, layout);
     prepared.setAttribute(
       'viewBox',
       `${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`,
