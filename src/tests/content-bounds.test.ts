@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createEmptyProject } from '../models/defaults';
 import { buildLayout } from '../layout';
 import { getTreeSheetBounds } from '../layout/content-bounds';
+import { LAYER_GAP } from '../layout/graph-builder';
 import { CARD_H_TEXT, CARD_W } from '../layout/card-dimensions';
 
 describe('tree sheet bounds', () => {
@@ -17,5 +18,14 @@ describe('tree sheet bounds', () => {
     expect(sheet.maxY).toBeGreaterThanOrEqual(nodeBounds.maxY);
     expect(sheet.maxX - sheet.minX).toBeGreaterThanOrEqual(CARD_W);
     expect(sheet.maxY - sheet.minY).toBeGreaterThanOrEqual(CARD_H_TEXT);
+  });
+
+  it('spans at least one layer gap per generation', () => {
+    const project = createEmptyProject();
+    const layout = buildLayout(project);
+    const sheet = getTreeSheetBounds(layout);
+    const layers = layout.nodes.map((n) => n.layer);
+    const spread = Math.max(...layers) - Math.min(...layers);
+    expect(sheet.maxY - sheet.minY).toBeGreaterThanOrEqual(spread * LAYER_GAP + CARD_H_TEXT - 1);
   });
 });

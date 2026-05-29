@@ -309,17 +309,23 @@ export function computeExportViewport(
   return getTreeContentRect(frame, layout, pad, getTreeSheetBounds(layout));
 }
 
-/** Fit tree content inside a fixed page without cropping (letterboxing). */
-export function configureSvgForFixedPage(
+/** Обрезка SVG под экспорт: viewBox, размер растра и фон листа совпадают. */
+export function configureSvgForExport(
   svg: SVGSVGElement,
   viewport: { x: number; y: number; width: number; height: number },
   widthPx: number,
   heightPx: number,
+  options: { letterbox?: boolean } = {},
 ): void {
   svg.setAttribute('viewBox', `${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`);
   svg.setAttribute('width', String(widthPx));
   svg.setAttribute('height', String(heightPx));
-  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  if (options.letterbox) {
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  } else {
+    svg.removeAttribute('preserveAspectRatio');
+  }
 
   const bgRect = svg.querySelector('rect');
   if (bgRect) {
@@ -328,6 +334,16 @@ export function configureSvgForFixedPage(
     bgRect.setAttribute('width', String(viewport.width));
     bgRect.setAttribute('height', String(viewport.height));
   }
+}
+
+/** @deprecated use configureSvgForExport */
+export function configureSvgForFixedPage(
+  svg: SVGSVGElement,
+  viewport: { x: number; y: number; width: number; height: number },
+  widthPx: number,
+  heightPx: number,
+): void {
+  configureSvgForExport(svg, viewport, widthPx, heightPx, { letterbox: true });
 }
 
 export async function exportTreeElement(
@@ -352,16 +368,9 @@ export async function exportTreeElement(
   const prepared = prepareSvgClone(svg);
   await rasterizePersonCards(svg, prepared, cardRasterRatio);
 
-  if (sizeMode === 'fixed' && options.widthMm && options.heightMm) {
-    configureSvgForFixedPage(prepared, viewport, widthPx, heightPx);
-  } else {
-    prepared.setAttribute(
-      'viewBox',
-      `${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`,
-    );
-    prepared.setAttribute('width', String(widthPx));
-    prepared.setAttribute('height', String(heightPx));
-  }
+  configureSvgForExport(prepared, viewport, widthPx, heightPx, {
+    letterbox: sizeMode === 'fixed',
+  });
 
   const rasterFormat = format === 'jpeg' ? 'jpeg' : 'png';
   const jpegQuality = resolution.dpi >= 300 ? 0.98 : 0.95;
