@@ -19,7 +19,6 @@ import {
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
 import { buildLayout } from '../layout';
 import { buildGraph } from '../layout/graph-builder';
-import { buildGraph } from '../layout/graph-builder';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
 import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
@@ -640,7 +639,7 @@ describe('relationships', () => {
 
   it('blocks parent-child cycles', () => {
     let project = createEmptyProject();
-    const [parentId, spouseId] = Object.keys(project.persons);
+    const [parentId] = Object.keys(project.persons);
     const child = createEmptyPerson({ givenName: 'Ребёнок' });
     project = { ...project, persons: { ...project.persons, [child.id]: child } };
     project = linkParent(project, child.id, parentId);
@@ -652,7 +651,7 @@ describe('relationships', () => {
 
   it('repairProjectRelationships fixes stale references', () => {
     let project = createEmptyProject();
-    const [parentId, spouseId] = Object.keys(project.persons);
+    const [parentId] = Object.keys(project.persons);
     const unionId = project.persons[parentId].unionIds[0];
     project = {
       ...project,
