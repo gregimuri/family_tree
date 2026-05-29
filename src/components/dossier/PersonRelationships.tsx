@@ -95,7 +95,7 @@ const LINK_TITLES: Record<LinkKind, string> = {
 export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRelationshipsProps) {
   const project = useProjectStore((s) => s.project);
   const person = project?.persons[personId];
-  const addPerson = useProjectStore((s) => s.addPerson);
+  const addPersonWithLink = useProjectStore((s) => s.addPersonWithLink);
   const linkParent = useProjectStore((s) => s.linkParent);
   const unlinkParent = useProjectStore((s) => s.unlinkParent);
   const linkPartner = useProjectStore((s) => s.linkPartner);
@@ -103,7 +103,6 @@ export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRel
   const linkChild = useProjectStore((s) => s.linkChild);
   const unlinkChild = useProjectStore((s) => s.unlinkChild);
   const updateUnion = useProjectStore((s) => s.updateUnion);
-  const placeNewPersonNear = useProjectStore((s) => s.placeNewPersonNear);
 
   const [pendingLink, setPendingLink] = useState<PendingLink | null>(null);
 
@@ -142,11 +141,7 @@ export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRel
   const createAndLink = (kind: LinkKind, unionId?: string) => {
     const gender =
       kind === 'partner' ? defaultPartnerGender() : kind === 'parent' ? defaultParentGender() : 'unknown';
-    const newPerson = addPerson({ gender });
-    placeNewPersonNear(newPerson.id, personId);
-    if (kind === 'parent') linkParent(personId, newPerson.id);
-    else if (kind === 'partner') linkPartner(personId, newPerson.id);
-    else linkChild(personId, newPerson.id, unionId);
+    addPersonWithLink({ gender }, { kind, personId, unionId });
   };
 
   const handleLinkSelect = (targetId: string) => {

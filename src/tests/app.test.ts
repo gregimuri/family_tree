@@ -14,6 +14,7 @@ import {
   unlinkPartner,
   removePersonFromProject,
   repairProjectRelationships,
+  finalizeRelationshipChanges,
   validateProjectRelationships,
 } from '../models/person-utils';
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
@@ -613,6 +614,23 @@ describe('relationships', () => {
     const parent = project.persons[parentId];
     expect(getParents(project, project.persons[child.id]).some((p) => p.id === parentId)).toBe(true);
     expect(getAllChildren(project, parent).some((c) => c.id === child.id)).toBe(true);
+  });
+
+  it('two isolated persons see parent-child link from both sides', () => {
+    let project = createEmptyProject();
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    const parent = createEmptyPerson({ givenName: 'Родитель', gender: 'male' });
+    project = {
+      ...project,
+      persons: { [child.id]: child, [parent.id]: parent },
+      unions: {},
+    };
+
+    project = finalizeRelationshipChanges(linkParent(project, child.id, parent.id));
+
+    expect(getParents(project, project.persons[child.id]).map((p) => p.id)).toEqual([parent.id]);
+    expect(getAllChildren(project, project.persons[parent.id]).map((c) => c.id)).toEqual([child.id]);
+    expect(validateProjectRelationships(project)).toEqual([]);
   });
 
   it('linkParent is bidirectional and adds child to marriage union when both parents linked', () => {

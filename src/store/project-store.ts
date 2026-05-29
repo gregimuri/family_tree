@@ -12,14 +12,17 @@ import type {
 import { createEmptyPerson, createEmptyProject, defaultViewSettings } from '../models/defaults';
 import { createId } from '../utils/create-id';
 import {
+  finalizeRelationshipChanges,
   linkChild as linkChildInProject,
   linkParent as linkParentInProject,
   linkPartner as linkPartnerInProject,
   removePersonFromProject,
+  repairProjectRelationships,
   touchProjectMeta,
   unlinkChild as unlinkChildInProject,
   unlinkParent as unlinkParentInProject,
   unlinkPartner as unlinkPartnerInProject,
+  type LinkKind,
 } from '../models/person-utils';
 import { addRecent, saveProjectToDb } from '../services/project-io/db';
 import { saveProjectToHandle, saveProjectAs } from '../services/project-io/zip-project';
@@ -77,6 +80,10 @@ interface ProjectState {
   setManualLayoutMode: (enabled: boolean) => void;
 
   addPerson: (person?: Partial<Person>) => Person;
+  addPersonWithLink: (
+    partial: Partial<Person> | undefined,
+    link: { kind: LinkKind; personId: string; unionId?: string },
+  ) => Person;
   updatePerson: (person: Person) => void;
   deletePerson: (personId: string) => void;
   addUnion: (union: Union) => void;
@@ -227,8 +234,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     for (const [filename, blob] of mediaBlobs) {
       mediaUrls.set(filename, URL.createObjectURL(blob));
     }
+    const repaired = repairProjectRelationships(project);
     set({
-      project,
+      project: repaired,
       blobKey,
       fileHandle: fileHandle ?? null,
       fileName: fileName ?? (fileHandle ? project.meta.name + '.drevo' : null),
@@ -248,7 +256,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       openedAt: new Date().toISOString(),
       blobKey,
     });
-    void saveProjectToDb(blobKey, project);
+    void saveProjectToDb(blobKey, repaired);
   },
 
   setMode: (mode) => set({ mode }),
@@ -332,6 +340,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return person;
   },
 
+  addPersonWithLink: (partial, link) => {
+    const person = createEmptyPerson(partial);
+    get().updateProject(
+      (p) => {
+        let next = { ...p, persons: { ...p.persons, [person.id]: person } };
+        if (link.kind === 'parent') next = linkParentInProject(next, link.personId, person.id);
+        else if (link.kind === 'partner') next = linkPartnerInProject(next, link.personId, person.id);
+        else next = linkChildInProject(next, link.personId, person.id, link.unionId);
+        return finalizeRelationshipChanges(next);
+      },
+      { history: 'immediate' },
+    );
+    get().setSelection({ type: 'person', id: person.id });
+    return person;
+  },
+
   updatePerson: (person) => {
     get().updateProject((p) => ({
       ...p,
@@ -344,7 +368,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!state.project?.persons[personId]) return;
 
     recordHistory(get, set, 'immediate');
-    const nextProject = removePersonFromProject(state.project, personId);
+    const nextProject = finalizeRelationshipChanges(removePersonFromProject(state.project, personId));
     const removedUnionIds = new Set(
       [...state.project.persons[personId].unionIds, ...state.project.persons[personId].parentUnionIds].filter(
         (id) => !nextProject.unions[id],
@@ -371,27 +395,45 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   linkParent: (childId, parentId) => {
-    get().updateProject((p) => linkParentInProject(p, childId, parentId), { history: 'immediate' });
+    get().updateProject(
+      (p) => finalizeRelationshipChanges(linkParentInProject(p, childId, parentId)),
+      { history: 'immediate' },
+    );
   },
 
   unlinkParent: (childId, parentId) => {
-    get().updateProject((p) => unlinkParentInProject(p, childId, parentId), { history: 'immediate' });
+    get().updateProject(
+      (p) => finalizeRelationshipChanges(unlinkParentInProject(p, childId, parentId)),
+      { history: 'immediate' },
+    );
   },
 
   linkPartner: (personAId, personBId) => {
-    get().updateProject((p) => linkPartnerInProject(p, personAId, personBId), { history: 'immediate' });
+    get().updateProject(
+      (p) => finalizeRelationshipChanges(linkPartnerInProject(p, personAId, personBId)),
+      { history: 'immediate' },
+    );
   },
 
   unlinkPartner: (personAId, personBId) => {
-    get().updateProject((p) => unlinkPartnerInProject(p, personAId, personBId), { history: 'immediate' });
+    get().updateProject(
+      (p) => finalizeRelationshipChanges(unlinkPartnerInProject(p, personAId, personBId)),
+      { history: 'immediate' },
+    );
   },
 
   linkChild: (parentId, childId, unionId) => {
-    get().updateProject((p) => linkChildInProject(p, parentId, childId, unionId), { history: 'immediate' });
+    get().updateProject(
+      (p) => finalizeRelationshipChanges(linkChildInProject(p, parentId, childId, unionId)),
+      { history: 'immediate' },
+    );
   },
 
   unlinkChild: (unionId, childId) => {
-    get().updateProject((p) => unlinkChildInProject(p, unionId, childId), { history: 'immediate' });
+    get().updateProject(
+      (p) => finalizeRelationshipChanges(unlinkChildInProject(p, unionId, childId)),
+      { history: 'immediate' },
+    );
   },
 
   placeNewPersonNear: (newPersonId, nearPersonId) => {

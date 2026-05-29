@@ -596,7 +596,25 @@ export function linkParent(project: Project, childId: string, parentId: string, 
 }
 
 export function linkChild(project: Project, parentId: string, childId: string, unionId?: string): Project {
-  let next = applyParentChildLink(project, childId, parentId, { unionId, preferMarriageUnion: false });
+  let next = applyParentChildLink(project, childId, parentId, {
+    unionId,
+    preferMarriageUnion: Boolean(unionId),
+  });
+
+  const child = next.persons[childId];
+  if (child) {
+    const parents = getParents(next, child);
+    if (parents.length === 2) {
+      const [p1, p2] = parents;
+      const alreadyPartners = p1.unionIds.some(
+        (uid) => p2.unionIds.includes(uid) && next.unions[uid]?.partnerIds.length >= 2,
+      );
+      if (!alreadyPartners) {
+        next = linkPartner(next, p1.id, p2.id);
+      }
+    }
+  }
+
   next = mergeMarriedParentsForChild(next, childId);
   return next;
 }
@@ -898,4 +916,9 @@ export function repairProjectRelationships(project: Project): Project {
   }
 
   return touchProjectMeta(next);
+}
+
+/** Гарантирует двусторонние ссылки union ↔ person после любой операции со связями. */
+export function finalizeRelationshipChanges(project: Project): Project {
+  return repairProjectRelationships(project);
 }
