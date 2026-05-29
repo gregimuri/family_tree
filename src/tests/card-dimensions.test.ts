@@ -4,6 +4,7 @@ import {
   CARD_GRID_CELL,
   CARD_H_FULL,
   CARD_H_TEXT,
+  CARD_PHOTO_ASPECT,
   CARD_W,
   getCardDimensions,
   personShowsCardPhoto,
@@ -17,6 +18,7 @@ describe('card dimensions', () => {
     expect(CARD_H_FULL).toBe(CARD_GRID_CELL * 12);
     expect(CARD_H_TEXT).toBe(CARD_GRID_CELL * 4);
     expect(CARD_H_TEXT).toBe(CARD_H_FULL / 3);
+    expect(CARD_PHOTO_ASPECT).toBeCloseTo(0.75);
   });
 
   it('omits photo area when setting disabled or avatar missing', () => {

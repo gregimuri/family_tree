@@ -19,8 +19,10 @@
 
 .avatar-editor-crop {
   position: relative;
-  height: 280px;
-  margin: 16px 0;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 3 / 4;
+  margin: 16px auto;
   background: #222;
 }
 
@@ -56,11 +58,11 @@
 }
 
 .avatar-editor-archive__item {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 64px;
   padding: 0;
   border: 2px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
   cursor: pointer;
   background: var(--color-bg-muted);

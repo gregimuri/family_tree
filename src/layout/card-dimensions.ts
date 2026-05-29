@@ -3,6 +3,9 @@ import type { Person, Project, ViewSettings } from '../types';
 /** Ширина карточки (6 клеток сетки). */
 export const CARD_W = 120;
 
+/** Соотношение сторон фото на карточке (ширина : высота). */
+export const CARD_PHOTO_ASPECT = 3 / 4;
+
 /** Высота карточки с фото (12 клеток). */
 export const CARD_H_FULL = 240;
 

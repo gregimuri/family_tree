@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area } from 'react-easy-crop';
 import type { AvatarCrop, MediaItem } from '../../types';
+import { CARD_PHOTO_ASPECT } from '../../layout/card-dimensions';
 import { useProjectStore } from '../../store/project-store';
 import { createId } from '../../utils/create-id';
 import { getCroppedImageBlob } from '../../utils/crop-image';
@@ -158,7 +159,7 @@ export function AvatarEditor({ personId, onClose }: AvatarEditorProps) {
               crop={crop}
               zoom={zoom}
               rotation={rotation}
-              aspect={1}
+              aspect={CARD_PHOTO_ASPECT}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onRotationChange={setRotation}
