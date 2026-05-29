@@ -66,7 +66,7 @@ export function resolveLayoutRootId(project: Project, graph?: GraphResult): stri
 
   if (graph && center.type === 'person') {
     const centerNode = graphPersonNodes(graph).find((n) => n.personId === center.id);
-    if (centerNode && !centerNode.isSideBranch && centerNode.layer >= 1) {
+    if (centerNode && !centerNode.isSideBranch) {
       return center.id;
     }
     const layerOne = pickMainLineMaleAtLayer(graph, project, 1);
