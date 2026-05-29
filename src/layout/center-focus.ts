@@ -55,7 +55,7 @@ export function getCenterFocusPoint(project: Project, layout: LayoutResult): Lay
   };
 }
 
-/** Symmetric canvas so the tree center sits in the middle of the SVG, not in a corner. */
+/** Canvas tightly wraps content around the focus point (no mirrored empty margin). */
 export function getSymmetricTreeFrame(
   project: Project,
   layout: LayoutResult,
@@ -65,18 +65,19 @@ export function getSymmetricTreeFrame(
   if (!focus) return null;
 
   const content = getTreeSheetBounds(layout);
-  const leftSpan = focus.x - content.minX;
-  const rightSpan = content.maxX - focus.x;
-  const topSpan = focus.y - content.minY;
-  const bottomSpan = content.maxY - focus.y;
+  const leftSpan = Math.max(focus.x - content.minX, 0);
+  const rightSpan = Math.max(content.maxX - focus.x, 0);
+  const topSpan = Math.max(focus.y - content.minY, 0);
+  const bottomSpan = Math.max(content.maxY - focus.y, 0);
 
-  const halfW = Math.max(leftSpan, rightSpan, 1);
-  const halfH = Math.max(topSpan, bottomSpan, 1);
+  const innerW = Math.max(leftSpan + rightSpan, 1);
+  const innerH = Math.max(topSpan + bottomSpan, 1);
+  const inset = TREE_SHEET_STROKE_PAD;
 
-  const svgW = halfW * 2 + pad * 2 + TREE_SHEET_STROKE_PAD * 2;
-  const svgH = halfH * 2 + pad * 2 + TREE_SHEET_STROKE_PAD * 2;
-  const focusSvgX = svgW / 2;
-  const focusSvgY = svgH / 2;
+  const svgW = innerW + pad * 2 + inset * 2;
+  const svgH = innerH + pad * 2 + inset * 2;
+  const focusSvgX = inset + pad + leftSpan;
+  const focusSvgY = inset + pad + topSpan;
 
   return {
     svgW,

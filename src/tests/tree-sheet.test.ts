@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { importGedcom } from '../services/gedcom/import';
 import { createEmptyProject, createEmptyPerson } from '../models/defaults';
 import { buildLayout } from '../layout';
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
@@ -11,7 +12,7 @@ import {
 } from '../hooks/tree-viewport';
 
 describe('tree sheet layout', () => {
-  it('maps normalized focus to the center of the svg sheet', () => {
+  it('maps focus point into svg coordinates', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
     const focus = getCenterFocusPoint(project, layout)!;
@@ -19,10 +20,58 @@ describe('tree sheet layout', () => {
 
     expect(focus.x).toBeCloseTo(0, 0);
     expect(focus.y).toBeCloseTo(0, 0);
-    expect(frame.focusSvgX).toBeCloseTo(frame.svgW / 2, 5);
-    expect(frame.focusSvgY).toBeCloseTo(frame.svgH / 2, 5);
     expect(frame.offsetX + focus.x).toBeCloseTo(frame.focusSvgX, 5);
     expect(frame.offsetY + focus.y).toBeCloseTo(frame.focusSvgY, 5);
+  });
+
+  it('avoids mirrored empty margin on the shorter side of the focus', () => {
+    const ged = `0 HEAD
+0 @I1@ INDI
+1 NAME Root /Tree/
+1 SEX M
+0 @P1@ INDI
+1 NAME Parent1 /Tree/
+1 SEX M
+0 @P2@ INDI
+1 NAME Parent2 /Tree/
+1 SEX F
+0 @GP1@ INDI
+1 NAME Grand1 /Tree/
+1 SEX M
+0 @GP2@ INDI
+1 NAME Grand2 /Tree/
+1 SEX F
+0 @C1@ INDI
+1 NAME Child /Tree/
+1 SEX M
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @P2@
+1 CHIL @C1@
+0 @F2@ FAM
+1 HUSB @P1@
+1 WIFE @P2@
+1 CHIL @I1@
+0 @F3@ FAM
+1 HUSB @GP1@
+1 WIFE @GP2@
+1 CHIL @P1@
+0 TRLR`;
+    const project = importGedcom(ged, 'Asymmetric');
+    project.center = { type: 'person', id: 'I1' };
+    const layout = buildLayout(project);
+    const focus = getCenterFocusPoint(project, layout)!;
+    const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
+    const sheet = getTreeSheetBounds(layout);
+
+    const topSpan = focus.y - sheet.minY;
+    const bottomSpan = sheet.maxY - focus.y;
+    const symmetricHeight = Math.max(topSpan, bottomSpan) * 2 + TREE_SHEET_PAD * 2 + TREE_SHEET_STROKE_PAD * 2;
+    const contentHeight = sheet.maxY - sheet.minY;
+
+    expect(topSpan).toBeGreaterThan(bottomSpan);
+    expect(frame.svgH).toBeLessThan(symmetricHeight - 40);
+    expect(frame.svgH).toBeLessThan(contentHeight + TREE_SHEET_PAD * 2 + TREE_SHEET_STROKE_PAD * 2 + 20);
   });
 
   it('keeps padded content inside the background rect', () => {
