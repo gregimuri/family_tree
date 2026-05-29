@@ -7,6 +7,7 @@ import { getTreeContentRect } from '../../hooks/tree-viewport';
 export type ExportImageFormat = 'png' | 'jpeg' | 'pdf';
 export type ExportSizeMode = 'tree' | 'fixed';
 export type ExportOrientation = 'landscape' | 'portrait';
+export type ExportQuality = 'standard' | 'high' | 'print';
 
 export interface ExportOptions {
   format: ExportImageFormat;
@@ -15,6 +16,15 @@ export interface ExportOptions {
   widthMm?: number;
   heightMm?: number;
   pixelRatio?: number;
+  quality?: ExportQuality;
+}
+
+export interface ExportResolution {
+  widthPx: number;
+  heightPx: number;
+  pixelRatio: number;
+  cardRasterRatio: number;
+  dpi: number;
 }
 
 export interface TreeExportSource {
@@ -23,9 +33,49 @@ export interface TreeExportSource {
   frame: TreeFrame;
 }
 
-const MM_TO_PX = 3.78;
 const EXPORT_PAD = 32;
-const CARD_RASTER_RATIO = 2;
+const MAX_CARD_RASTER_RATIO = 6;
+
+const QUALITY_PRESETS: Record<ExportQuality, { dpi: number; pixelRatio: number }> = {
+  standard: { dpi: 150, pixelRatio: 2 },
+  high: { dpi: 200, pixelRatio: 3 },
+  print: { dpi: 300, pixelRatio: 2 },
+};
+
+export function mmToPx(mm: number, dpi: number): number {
+  return Math.round((mm / 25.4) * dpi);
+}
+
+export function resolveExportResolution(
+  options: ExportOptions,
+  viewport: { width: number; height: number },
+): ExportResolution {
+  const quality = options.quality ?? 'high';
+  const preset = QUALITY_PRESETS[quality];
+  const dpi = preset.dpi;
+  const pixelRatio = options.pixelRatio ?? preset.pixelRatio;
+
+  if (options.sizeMode === 'fixed' && options.widthMm && options.heightMm) {
+    const page = orientPageDimensions(
+      options.widthMm,
+      options.heightMm,
+      options.orientation ?? 'landscape',
+    );
+    const widthPx = mmToPx(page.widthMm, dpi);
+    const heightPx = mmToPx(page.heightMm, dpi);
+    const layoutScale = Math.max(widthPx / viewport.width, heightPx / viewport.height);
+    const cardRasterRatio = Math.min(
+      MAX_CARD_RASTER_RATIO,
+      Math.max(3, Math.ceil(layoutScale * 1.25)),
+    );
+    return { widthPx, heightPx, pixelRatio: 1, cardRasterRatio, dpi };
+  }
+
+  const widthPx = Math.round(viewport.width);
+  const heightPx = Math.round(viewport.height);
+  const cardRasterRatio = Math.min(MAX_CARD_RASTER_RATIO, Math.max(2, pixelRatio));
+  return { widthPx, heightPx, pixelRatio, cardRasterRatio, dpi };
+}
 
 const INLINE_STYLE_PROPS = [
   'background',
@@ -150,7 +200,11 @@ function prepareSvgClone(source: SVGSVGElement): SVGSVGElement {
 }
 
 /** html-to-image не рисует foreignObject в SVG — растеризуем карточки в <image>. */
-async function rasterizePersonCards(source: SVGSVGElement, clone: SVGSVGElement): Promise<void> {
+async function rasterizePersonCards(
+  source: SVGSVGElement,
+  clone: SVGSVGElement,
+  cardRasterRatio: number,
+): Promise<void> {
   const sourceCards = [...source.querySelectorAll('foreignObject .person-card-html')] as HTMLElement[];
   const cloneForeignObjects = [...clone.querySelectorAll('foreignObject')];
 
@@ -185,7 +239,7 @@ async function rasterizePersonCards(source: SVGSVGElement, clone: SVGSVGElement)
     try {
       await waitForImages(cardCopy);
       dataUrl = await toPng(cardCopy, {
-        pixelRatio: CARD_RASTER_RATIO,
+        pixelRatio: cardRasterRatio,
         cacheBust: true,
         backgroundColor: '#ffffff',
         width,
@@ -214,6 +268,7 @@ async function svgToRaster(
   pixelRatio: number,
   backgroundColor: string,
   format: 'png' | 'jpeg',
+  jpegQuality = 0.95,
 ): Promise<string> {
   svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
@@ -234,7 +289,7 @@ async function svgToRaster(
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
     return format === 'jpeg'
-      ? canvas.toDataURL('image/jpeg', 0.95)
+      ? canvas.toDataURL('image/jpeg', jpegQuality)
       : canvas.toDataURL('image/png');
   } finally {
     URL.revokeObjectURL(url);
@@ -276,37 +331,35 @@ export async function exportTreeElement(
 ): Promise<void> {
   const { format, sizeMode } = options;
   const orientation = options.orientation ?? 'landscape';
-  const pixelRatio = options.pixelRatio ?? 2;
   const { svg, layout, frame } = source;
   const backgroundColor = '#f7f3eb';
 
   await waitForImages(svg);
   await embedImages(svg);
 
-  const prepared = prepareSvgClone(svg);
-  await rasterizePersonCards(svg, prepared);
-
   const viewport = computeExportViewport(frame, layout);
-  let widthPx: number;
-  let heightPx: number;
+  const resolution = resolveExportResolution(
+    { ...options, orientation },
+    viewport,
+  );
+  const { widthPx, heightPx, pixelRatio, cardRasterRatio } = resolution;
+
+  const prepared = prepareSvgClone(svg);
+  await rasterizePersonCards(svg, prepared, cardRasterRatio);
 
   if (sizeMode === 'fixed' && options.widthMm && options.heightMm) {
-    const page = orientPageDimensions(options.widthMm, options.heightMm, orientation);
-    widthPx = Math.round(page.widthMm * MM_TO_PX);
-    heightPx = Math.round(page.heightMm * MM_TO_PX);
     configureSvgForFixedPage(prepared, viewport, widthPx, heightPx);
   } else {
     prepared.setAttribute(
       'viewBox',
       `${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`,
     );
-    prepared.setAttribute('width', String(Math.round(viewport.width)));
-    prepared.setAttribute('height', String(Math.round(viewport.height)));
-    widthPx = Math.round(viewport.width);
-    heightPx = Math.round(viewport.height);
+    prepared.setAttribute('width', String(widthPx));
+    prepared.setAttribute('height', String(heightPx));
   }
 
   const rasterFormat = format === 'jpeg' ? 'jpeg' : 'png';
+  const jpegQuality = resolution.dpi >= 300 ? 0.98 : 0.95;
   const dataUrl = await svgToRaster(
     prepared,
     widthPx,
@@ -314,6 +367,7 @@ export async function exportTreeElement(
     pixelRatio,
     backgroundColor,
     rasterFormat,
+    jpegQuality,
   );
 
   if (format === 'pdf') {

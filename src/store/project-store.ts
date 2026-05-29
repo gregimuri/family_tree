@@ -16,6 +16,7 @@ import {
   linkChild as linkChildInProject,
   linkParent as linkParentInProject,
   linkPartner as linkPartnerInProject,
+  removeMediaFromProject,
   removePersonFromProject,
   repairProjectRelationships,
   touchProjectMeta,
@@ -502,14 +503,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       mediaUrls.delete(item.filename);
       set({ mediaBlobs, mediaUrls });
     }
-    get().updateProject(
-      (p) => {
-        const media = { ...p.media };
-        delete media[mediaId];
-        return { ...p, media };
-      },
-      { history: 'skip' },
-    );
+    get().updateProject((p) => removeMediaFromProject(p, mediaId), { history: 'skip' });
+    set({ dirty: true, mediaViewerId: state.mediaViewerId === mediaId ? null : state.mediaViewerId });
+    scheduleAutosave(get);
   },
 
   getMediaUrl: (filename) => {

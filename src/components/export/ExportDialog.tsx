@@ -9,6 +9,7 @@ import {
   PRESET_SIZES,
   type ExportImageFormat,
   type ExportOrientation,
+  type ExportQuality,
   type ExportSizeMode,
 } from '../../services/export/image-export';
 import { downloadGedcom } from '../../services/gedcom/export';
@@ -28,6 +29,7 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
   const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const [format, setFormat] = useState<ExportImageFormat>('png');
   const [sizeMode, setSizeMode] = useState<ExportSizeMode>('tree');
+  const [quality, setQuality] = useState<ExportQuality>('high');
   const [orientation, setOrientation] = useState<ExportOrientation>('landscape');
   const [preset, setPreset] = useState('A4');
   const [widthMm, setWidthMm] = useState(297);
@@ -66,6 +68,7 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
         {
           format,
           sizeMode,
+          quality,
           orientation,
           widthMm: page?.widthMm,
           heightMm: page?.heightMm,
@@ -89,6 +92,14 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
               <option value="png">PNG</option>
               <option value="jpeg">JPEG</option>
               <option value="pdf">PDF</option>
+            </select>
+          </label>
+          <label>
+            Качество
+            <select value={quality} onChange={(e) => setQuality(e.target.value as ExportQuality)}>
+              <option value="standard">Стандарт (150 DPI)</option>
+              <option value="high">Высокое (200 DPI)</option>
+              <option value="print">Печать (300 DPI)</option>
             </select>
           </label>
           <label>

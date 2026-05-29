@@ -12,7 +12,9 @@ interface MediaViewerProps {
 
 export function MediaViewer({ mediaId }: MediaViewerProps) {
   const project = useProjectStore((s) => s.project);
+  const mode = useProjectStore((s) => s.mode);
   const closeMediaViewer = useProjectStore((s) => s.closeMediaViewer);
+  const deleteMedia = useProjectStore((s) => s.deleteMedia);
   const getMediaUrl = useProjectStore((s) => s.getMediaUrl);
 
   if (!project) return null;
@@ -20,6 +22,15 @@ export function MediaViewer({ mediaId }: MediaViewerProps) {
   if (!media) return null;
   const url = getMediaUrl(media.filename);
   const externalBlocked = isExternalMediaUrl(media.filename) && !project.viewSettings.allowExternalMedia;
+
+  const handleDelete = () => {
+    const label = media.description || media.filename;
+    if (!window.confirm(`Удалить «${label}» из проекта? Файл будет удалён без возможности восстановления.`)) {
+      return;
+    }
+    deleteMedia(mediaId);
+    closeMediaViewer();
+  };
 
   return (
     <div className="media-viewer-overlay" onClick={closeMediaViewer}>
@@ -32,6 +43,11 @@ export function MediaViewer({ mediaId }: MediaViewerProps) {
           <p className="muted">
             {[media.date?.year, media.place?.name].filter(Boolean).join(' · ')}
           </p>
+          {mode === 'edit' && (
+            <button type="button" className="btn small danger media-viewer-delete" onClick={handleDelete}>
+              Удалить из проекта
+            </button>
+          )}
         </header>
         {externalBlocked ? (
           <p className="media-viewer-blocked">

@@ -68,6 +68,7 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   const avatarUrl = avatarMedia ? getMediaUrl(avatarMedia.filename) : undefined;
   const mediaItems = person.mediaIds.map((id) => project.media[id]).filter(Boolean);
   const personCount = Object.keys(project.persons).length;
+  const canEditMedia = mode === 'edit';
 
   const saveField = (patch: Partial<Person>) => {
     if (editMode && draft) {
@@ -100,8 +101,19 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   };
 
   const removeMedia = (mediaId: string) => {
+    const item = project.media[mediaId];
+    const label = item?.description || item?.filename || 'файл';
+    if (!window.confirm(`Удалить «${label}» из проекта? Файл будет удалён без возможности восстановления.`)) {
+      return;
+    }
+    if (editMode && draft) {
+      setDraft({
+        ...draft,
+        mediaIds: draft.mediaIds.filter((id) => id !== mediaId),
+        avatar: draft.avatar?.mediaId === mediaId ? undefined : draft.avatar,
+      });
+    }
     deleteMedia(mediaId);
-    saveField({ mediaIds: person.mediaIds.filter((id) => id !== mediaId) });
   };
 
   const genderLabels = { male: 'Мужской', female: 'Женский', unknown: 'Неизвестно' } as const;
@@ -309,26 +321,29 @@ export function PersonDossier({ personId }: PersonDossierProps) {
           </button>
           {mediaOpen && (
             <ul className="media-list">
+              {mediaItems.length === 0 && !canEditMedia && (
+                <li className="media-list__empty">Нет прикреплённых файлов</li>
+              )}
               {mediaItems.map((m) => (
                 <li
                   key={m.id}
-                  className={editMode ? 'media-edit' : undefined}
-                  onDoubleClick={() => !editMode && openMediaViewer(m.id)}
+                  className={canEditMedia ? 'media-edit' : undefined}
+                  onDoubleClick={() => !canEditMedia && openMediaViewer(m.id)}
                   onContextMenu={(e) => {
-                    if (editMode) return;
+                    if (canEditMedia) return;
                     e.preventDefault();
-                    alert(`Файл: ${m.filename}`);
+                    openMediaViewer(m.id);
                   }}
                 >
-                  {editMode ? (
+                  {canEditMedia ? (
                     <>
                       <div className="media-edit-meta">
                         {m.type}: {m.filename}
                       </div>
                       <div className="media-edit-row">
                         <input value={m.description} onChange={(e) => updateMedia({ ...m, description: e.target.value })} placeholder="Описание" />
-                        <button type="button" className="btn tiny" onClick={() => removeMedia(m.id)} title="Удалить">
-                          ×
+                        <button type="button" className="btn tiny danger" onClick={() => removeMedia(m.id)} title="Удалить из проекта">
+                          Удалить
                         </button>
                       </div>
                     </>
@@ -339,25 +354,33 @@ export function PersonDossier({ personId }: PersonDossierProps) {
                   )}
                 </li>
               ))}
-              {editMode && (
+              {canEditMedia && (
                 <li className="media-edit">
-                  <input
-                    type="file"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const id = createId();
-                      const type = file.type.startsWith('video')
-                        ? 'video'
-                        : file.type.startsWith('audio')
-                          ? 'audio'
-                          : file.type === 'application/pdf'
-                            ? 'document'
-                            : 'photo';
-                      addMedia({ id, type, filename: file.name, description: file.name, personIds: [personId] }, file);
-                      saveField({ mediaIds: [...person.mediaIds, id] });
-                    }}
-                  />
+                  <label className="media-upload">
+                    <span>Добавить файл</span>
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const id = createId();
+                        const type = file.type.startsWith('video')
+                          ? 'video'
+                          : file.type.startsWith('audio')
+                            ? 'audio'
+                            : file.type === 'application/pdf'
+                              ? 'document'
+                              : 'photo';
+                        addMedia({ id, type, filename: file.name, description: file.name, personIds: [personId] }, file);
+                        if (editMode && draft) {
+                          setDraft({ ...draft, mediaIds: [...draft.mediaIds, id] });
+                        } else {
+                          saveField({ mediaIds: [...storePerson.mediaIds, id] });
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
                 </li>
               )}
             </ul>

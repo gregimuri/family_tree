@@ -15,6 +15,7 @@ import {
   removePersonFromProject,
   repairProjectRelationships,
   finalizeRelationshipChanges,
+  removeMediaFromProject,
   validateProjectRelationships,
 } from '../models/person-utils';
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
@@ -932,6 +933,32 @@ describe('relationships', () => {
     const project = importGedcom(ged, 'Valid');
     expect(validateProjectRelationships(project)).toEqual([]);
     expect(getParents(project, Object.values(project.persons).find((p) => p.givenName === 'Child')!).length).toBe(2);
+  });
+});
+
+describe('media', () => {
+  it('removeMediaFromProject clears media, links and avatar', () => {
+    let project = createEmptyProject();
+    const personId = Object.keys(project.persons)[0];
+    const mediaId = createId();
+    project.media[mediaId] = {
+      id: mediaId,
+      type: 'photo',
+      filename: 'portrait.jpg',
+      description: 'Портрет',
+      personIds: [personId],
+    };
+    project.persons[personId] = {
+      ...project.persons[personId],
+      mediaIds: [mediaId],
+      avatar: { mediaId, x: 0, y: 0, width: 1, height: 1, rotation: 0, scale: 1 },
+    };
+
+    project = removeMediaFromProject(project, mediaId);
+
+    expect(project.media[mediaId]).toBeUndefined();
+    expect(project.persons[personId].mediaIds).not.toContain(mediaId);
+    expect(project.persons[personId].avatar).toBeUndefined();
   });
 });
 

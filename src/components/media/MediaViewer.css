@@ -39,6 +39,10 @@
   margin-bottom: 12px;
 }
 
+.media-viewer-delete {
+  margin-top: 8px;
+}
+
 .photo-viewer {
   position: relative;
   display: inline-block;

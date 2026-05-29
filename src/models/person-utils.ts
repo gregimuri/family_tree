@@ -918,6 +918,32 @@ export function repairProjectRelationships(project: Project): Project {
   return touchProjectMeta(next);
 }
 
+/** Удаляет медиафайл из проекта и очищает все ссылки на него. */
+export function removeMediaFromProject(project: Project, mediaId: string): Project {
+  if (!project.media[mediaId]) return project;
+
+  const media = { ...project.media };
+  delete media[mediaId];
+
+  const persons = { ...project.persons };
+  for (const [id, person] of Object.entries(persons)) {
+    let next = person;
+    let changed = false;
+
+    if (person.mediaIds.includes(mediaId)) {
+      next = { ...next, mediaIds: person.mediaIds.filter((mid) => mid !== mediaId) };
+      changed = true;
+    }
+    if (person.avatar?.mediaId === mediaId) {
+      next = { ...next, avatar: undefined };
+      changed = true;
+    }
+    if (changed) persons[id] = next;
+  }
+
+  return touchProjectMeta({ ...project, media, persons });
+}
+
 /** Гарантирует двусторонние ссылки union ↔ person после любой операции со связями. */
 export function finalizeRelationshipChanges(project: Project): Project {
   return repairProjectRelationships(project);
