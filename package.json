@@ -1,0 +1,47 @@
+{
+  "name": "family-tree",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "dexie": "^4.4.3",
+    "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.1",
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "^5.7.284",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-easy-crop": "^5.5.7",
+    "react-router-dom": "^7.15.1",
+    "react-zoom-pan-pinch": "^4.0.3",
+    "read-gedcom": "^0.3.2",
+    "uuid": "^14.0.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "jsdom": "^26.1.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.12",
+    "vitest": "^3.2.4"
+  }
+}

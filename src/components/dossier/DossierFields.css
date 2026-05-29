@@ -1,0 +1,136 @@
+.dossier-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.date-parts {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.date-parts input[type='number'] {
+  width: 72px;
+  margin-bottom: 0 !important;
+}
+
+.date-text,
+.place-details {
+  font-size: 13px;
+}
+
+.place-details {
+  margin-bottom: 0 !important;
+}
+
+.btn.tiny {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+}
+
+.btn.tiny:hover {
+  background: #fecaca;
+  color: #b91c1c;
+}
+
+.dossier-facts select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--color-bg-elevated);
+}
+
+.dossier-facts dd input,
+.dossier-facts dd textarea,
+.dossier-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.dossier-edit-names {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.dossier-edit-names h3 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dossier-edit-names h3:first-child {
+  margin-top: 0;
+}
+
+.dossier-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dossier-checkbox input {
+  width: auto;
+  margin: 0;
+}
+
+.media-list li.media-edit {
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.media-list li.media-edit:hover {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border);
+}
+
+.media-edit-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.media-edit-row input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.media-edit-meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

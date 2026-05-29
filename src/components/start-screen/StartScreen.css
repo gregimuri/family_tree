@@ -1,0 +1,230 @@
+.start-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(45, 106, 79, 0.12), transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(64, 145, 108, 0.1), transparent 45%),
+    var(--color-bg);
+}
+
+.start-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  width: min(960px, 100%);
+  align-items: center;
+}
+
+@media (max-width: 800px) {
+  .start-layout {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .start-hero {
+    text-align: center;
+  }
+
+  .start-features {
+    justify-content: center;
+  }
+}
+
+.start-hero h1 {
+  margin: 16px 0 12px;
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-primary);
+}
+
+.start-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.subtitle {
+  color: var(--color-text-secondary);
+  margin: 0 0 20px;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.start-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.start-features li {
+  padding: 6px 12px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.start-card {
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+}
+
+.start-error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+
+.start-label {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.start-label input {
+  margin-top: 6px;
+}
+
+.start-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+
+.action-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.action-card.primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #40916c 100%);
+  border-color: transparent;
+  color: #fff;
+}
+
+.action-card.primary .action-card__icon {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.action-card.primary small {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.action-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.action-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.action-card__text strong {
+  font-size: 15px;
+}
+
+.action-card__text small {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.recents {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.recents h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: var(--color-text-secondary);
+}
+
+.recents ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recents li button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.recents li button:hover {
+  background: var(--color-bg-muted);
+  border-color: var(--color-border);
+}
+
+.recents__name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.recents__date {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}

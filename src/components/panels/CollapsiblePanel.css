@@ -1,0 +1,343 @@
+.collapsible-panel {
+  position: absolute;
+  z-index: 20;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  max-width: 340px;
+  max-height: calc(100% - 100px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.collapsible-panel.docked {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  max-width: none;
+  width: 100%;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.collapsible-panel.docked.open {
+  overflow: hidden;
+  max-height: min(560px, calc(100vh - 48px));
+}
+
+.tree-panel-dock {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tree-panel-dock > * {
+  pointer-events: auto;
+}
+
+.tree-panel-dock--left {
+  top: 16px;
+  left: 16px;
+  width: min(300px, calc(100vw - 100px));
+  padding-right: 6px;
+  padding-bottom: 6px;
+}
+
+.tree-panel-dock--right {
+  top: 16px;
+  right: 16px;
+  width: min(288px, calc(100vw - 100px));
+  padding-left: 6px;
+  padding-bottom: 6px;
+}
+
+.tree-panel-dock--right .collapsible-panel.docked.open {
+  max-height: min(560px, calc(100vh - 48px));
+}
+
+.tree-panel-dock--right .collapsible-panel__body {
+  max-height: min(460px, calc(100vh - 140px));
+}
+
+.collapsible-panel.top-left {
+  top: 16px;
+  left: 16px;
+}
+
+.collapsible-panel.top-right {
+  top: 16px;
+  right: 16px;
+}
+
+.collapsible-panel.bottom-left {
+  bottom: 16px;
+  left: 16px;
+}
+
+.collapsible-panel.collapsed {
+  max-width: none;
+  overflow: visible;
+}
+
+.collapsible-panel.docked.collapsed {
+  border-radius: var(--radius-md);
+}
+
+.collapsible-panel__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  text-align: left;
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition), border-color var(--transition);
+  box-sizing: border-box;
+}
+
+.collapsible-panel__toggle:hover {
+  background: var(--color-bg-muted);
+  border-color: var(--color-border-strong);
+}
+
+.collapsible-panel.docked.collapsed {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.collapsible-panel.open .collapsible-panel__toggle {
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  box-shadow: none;
+  background: var(--color-bg-elevated);
+}
+
+.collapsible-panel.docked.open {
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+}
+
+.collapsible-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collapsible-panel__icon {
+  display: flex;
+  color: var(--color-primary);
+}
+
+.collapsible-panel__chevron {
+  color: var(--color-text-muted);
+  transition: transform var(--transition);
+  flex-shrink: 0;
+}
+
+.collapsible-panel.top-left .collapsible-panel__chevron.open,
+.collapsible-panel.top-right .collapsible-panel__chevron.open {
+  transform: rotate(90deg);
+}
+
+.collapsible-panel__body {
+  padding: 14px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(28, 25, 23, 0.14) transparent;
+}
+
+.collapsible-panel__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.collapsible-panel__body::-webkit-scrollbar-thumb {
+  background: rgba(28, 25, 23, 0.14);
+  border-radius: var(--radius-full);
+}
+
+/* Shared panel forms */
+.panel-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-form__submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.infinity-input {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.infinity-input__field {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0 !important;
+}
+
+.infinity-input__toggle {
+  flex-shrink: 0;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.infinity-input__toggle:hover {
+  background: var(--color-bg-muted);
+  color: var(--color-primary);
+}
+
+.infinity-input__toggle.active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.settings-grid label:not(.checkbox-label) {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.settings-grid label:not(.checkbox-label):last-child {
+  margin-bottom: 0;
+}
+
+.settings-grid input:not([type='checkbox']),
+.settings-grid select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  font-weight: 400;
+}
+
+.settings-grid fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px 12px;
+  margin: 4px 0 0;
+}
+
+.settings-grid fieldset label {
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.settings-grid fieldset label:last-child {
+  margin-bottom: 0;
+}
+
+.settings-grid legend {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 0 4px;
+}
+
+.settings-grid .checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 10px;
+}
+
+.settings-grid .checkbox-label input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.settings-grid .hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.search-results {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.search-results li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+.search-results li button:hover {
+  background: var(--color-primary-soft);
+}
+
+.search-results li strong {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.search-results li span {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.search-input-wrap {
+  margin: 0;
+}

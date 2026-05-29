@@ -1,0 +1,84 @@
+.avatar-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-editor {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  width: min(520px, 90vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.avatar-editor-crop {
+  position: relative;
+  height: 280px;
+  margin: 16px 0;
+  background: #222;
+}
+
+.avatar-editor-controls label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.avatar-editor-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.avatar-editor-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.avatar-editor-archive__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.avatar-editor-archive__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.avatar-editor-archive__item {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--color-bg-muted);
+}
+
+.avatar-editor-archive__item.selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-soft);
+}
+
+.avatar-editor-archive__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-editor-error {
+  margin: 8px 0 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
