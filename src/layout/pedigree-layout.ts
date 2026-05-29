@@ -461,7 +461,7 @@ function assignLayerX(
   const sideGap = SIDE_BRANCH_GAP;
 
   const mainWidth = totalUnitsWidth(main, layerNodes, settings, mainGap);
-  let mainStart = centerX - mainWidth / 2;
+  const mainStart = centerX - mainWidth / 2;
   let x = mainStart;
 
   for (let i = 0; i < main.length; i++) {

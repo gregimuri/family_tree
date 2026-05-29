@@ -138,7 +138,7 @@ function sanitizeUiAfterRestore(snapshot: ProjectSnapshot): {
   if (selection?.type === 'person' && !project.persons[selection.id]) selection = null;
   if (selection?.type === 'family' && !project.unions[selection.id]) selection = null;
 
-  let mediaViewerId: string | null = null;
+  const mediaViewerId: string | null = null;
   return { dossierPersonId, selection, mediaViewerId };
 }
 

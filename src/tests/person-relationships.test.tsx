@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PersonRelationships } from '../components/dossier/PersonRelationships';
-import { createEmptyPerson } from '../models/defaults';
 import { getParents } from '../models/person-utils';
 import { useProjectStore } from '../store/project-store';
 
