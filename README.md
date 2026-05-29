@@ -1,5 +1,7 @@
 # Генеалогическое древо
 
+![CI](https://github.com/Gregimuri/Family_Tree/actions/workflows/ci.yml/badge.svg)
+
 Клиентское веб-приложение для создания, просмотра и редактирования семейных деревьев. Все данные хранятся **локально** в браузере и в файлах проекта на компьютере пользователя — сервер не требуется.
 
 ---
@@ -354,9 +356,11 @@ project.drevo (zip)
 | `npm run build` | Production-сборка в папку `dist/` |
 | `npm run build:pages` | Сборка с базовым путём `/Family_Tree/` для GitHub Pages |
 | `npm run preview` | Просмотр собранной версии |
-| `npm test` | Запуск автотестов (Vitest) |
+| `npm test` | Запуск автотестов (Vitest), в т.ч. проверки раскладки для родителей, детей, супругов, братьев/сестёр и предков |
 | `npm run lint` | Проверка кода ESLint |
 | `npm run install:hooks` | Установить git hook: убрать `Co-authored-by: Cursor` из коммитов |
+
+При push и pull request в `main` на GitHub автоматически запускается CI: lint, тесты и сборка.
 
 После клонирования репозитория рекомендуется один раз выполнить `npm run install:hooks`.
 

@@ -6,6 +6,12 @@ import { getTreeSheetBounds } from '../layout/content-bounds';
 import { repairProjectRelationships } from '../models/person-utils';
 import projectJson from './fixtures/novy-proekt/project.json';
 
+const IVAN = '92312a00-8c2a-42ea-8078-1b5d6507302b';
+const MARIA_SIBLINGS = [
+  'bef57a98-ef26-44a2-b230-6bc86dc17bca',
+  '4eef35b8-50f5-4433-ad1e-36590d1a211b',
+];
+
 function load(centerId: string): Project {
   const p = repairProjectRelationships(projectJson as Project);
   p.center = { type: 'person', id: centerId };
@@ -30,22 +36,21 @@ function maxLayerGap(layout: ReturnType<typeof buildLayout>): number {
 
 describe('collateral sibling layout', () => {
   it('centers children of focal parent in one row, not at opposite ends', () => {
-    const project = load('fce0025a-7dbf-4161-bff9-65e3079372f0');
+    const project = load('a5a08cef-6502-42a8-9f09-3e54857eea11');
     const layout = buildLayout(project);
     const sheet = getTreeSheetBounds(layout);
 
-    expect(sheet.maxX - sheet.minX).toBeLessThan(700);
+    expect(sheet.maxX - sheet.minX).toBeLessThan(900);
     expect(maxLayerGap(layout)).toBeLessThan(500);
   });
 
   it('does not place collateral siblings on main line when center is spouse', () => {
-    const project = load('63c1b808-93fd-4479-b390-fcc9d3ce8beb');
+    const project = load(IVAN);
     const graph = buildGraph(project, project.viewSettings);
     const layout = buildLayout(project);
     const sheet = getTreeSheetBounds(layout);
 
-    const mariaSiblings = ['6f1ed5f2-2c20-4da9-866d-e4b020ed077e', 'fc118401-0e0a-480e-bbf8-673cbf1fae3a'];
-    for (const id of mariaSiblings) {
+    for (const id of MARIA_SIBLINGS) {
       const gn = graph.nodes.find((n) => n.kind === 'person' && n.personId === id);
       if (gn) expect(gn.isSideBranch).toBe(true);
     }

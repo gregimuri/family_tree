@@ -434,7 +434,7 @@ function placeBlocksHorizontally(blocks: SubtreeLayout[], gap: number): SubtreeL
     contour: new Map(),
   };
 
-  let cursorX = 0;
+  const cursorX = 0;
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
     if (i === 0) {
