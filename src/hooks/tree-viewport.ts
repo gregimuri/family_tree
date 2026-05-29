@@ -133,6 +133,9 @@ export function buildViewportKey(
   manualCount: number,
   generationsUp: number,
   generationsDown: number,
+  sideBranchesAt: number,
+  sideBranchDepth: number,
+  cardSizeMode: string,
 ): string {
   const b = layout.bounds;
   return [
@@ -142,6 +145,9 @@ export function buildViewportKey(
     manualCount,
     generationsUp,
     generationsDown,
+    sideBranchesAt,
+    sideBranchDepth,
+    cardSizeMode,
     frame.svgW,
     frame.svgH,
     b.minX.toFixed(1),

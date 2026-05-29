@@ -92,6 +92,7 @@ export function DisplaySettingsPanel() {
             value={s.sideBranchesAt}
             onChange={(e) => update({ sideBranchesAt: +e.target.value })}
           />
+          <small className="hint">1 — братья/сёстры родителей; 2 — братья/сёстры дедов</small>
         </label>
         <label>
           Глубина боковых ветвей

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { StartScreen } from '../components/start-screen/StartScreen';
 import { TreeView } from '../components/tree/TreeView';
+import { useProjectUndo } from '../hooks/useProjectUndo';
 import { useProjectStore } from '../store/project-store';
 import { useUiStore } from '../store/ui-store';
 import { Icons } from '../components/ui/Icons';
@@ -14,6 +15,8 @@ function TreeRoute({ edit }: { edit: boolean }) {
   useEffect(() => {
     setMode(edit ? 'edit' : 'view');
   }, [edit, setMode]);
+
+  useProjectUndo(edit);
 
   if (!project) return <Navigate to="/" replace />;
 
@@ -33,6 +36,10 @@ function AppHeader() {
   const setProjectName = useProjectStore((s) => s.setProjectName);
   const saveProject = useProjectStore((s) => s.saveProject);
   const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
+  const undo = useProjectStore((s) => s.undo);
+  const redo = useProjectStore((s) => s.redo);
+  const canUndo = useProjectStore((s) => s.undoStack.length > 0);
+  const canRedo = useProjectStore((s) => s.redoStack.length > 0);
   const dirty = useProjectStore((s) => s.dirty);
   const toggleAddPerson = useUiStore((s) => s.toggleAddPerson);
 
@@ -80,10 +87,32 @@ function AppHeader() {
 
       <div className="app-header-actions">
         {isEditing && (
-          <button type="button" className="btn" onClick={toggleAddPerson}>
-            <Icons.UserPlus size={16} />
-            Персона
-          </button>
+          <>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => undo()}
+              disabled={!canUndo}
+              title="Отменить (Ctrl+Z)"
+            >
+              <Icons.Undo size={16} />
+              Отменить
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => redo()}
+              disabled={!canRedo}
+              title="Вернуть (Ctrl+Y)"
+            >
+              <Icons.Redo size={16} />
+              Вернуть
+            </button>
+            <button type="button" className="btn" onClick={toggleAddPerson}>
+              <Icons.UserPlus size={16} />
+              Персона
+            </button>
+          </>
         )}
         {isEditing ? (
           <>

@@ -24,6 +24,16 @@ import {
 import { addRecent, saveProjectToDb } from '../services/project-io/db';
 import { saveProjectToHandle, saveProjectAs } from '../services/project-io/zip-project';
 import { isExternalMediaUrl } from '../utils/media-url';
+import {
+  cloneMediaBlobs,
+  cloneProject,
+  createMediaUrls,
+  HISTORY_DEBOUNCE_MS,
+  type ProjectSnapshot,
+  trimUndoStack,
+} from './project-history';
+
+type HistoryMode = 'debounced' | 'immediate' | 'skip';
 
 interface ProjectState {
   project: Project | null;
@@ -38,6 +48,8 @@ interface ProjectState {
   dossierPersonId: string | null;
   mediaViewerId: string | null;
   manualLayoutMode: boolean;
+  undoStack: ProjectSnapshot[];
+  redoStack: ProjectSnapshot[];
 
   newProject: (name?: string, edit?: boolean) => void;
   loadProject: (
@@ -49,7 +61,11 @@ interface ProjectState {
     fileName?: string | null,
   ) => void;
   setMode: (mode: AppMode) => void;
-  updateProject: (updater: (p: Project) => Project) => void;
+  updateProject: (updater: (p: Project) => Project, options?: { history?: HistoryMode }) => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  undo: () => void;
+  redo: () => void;
   setProjectName: (name: string) => void;
   setViewSettings: (settings: ViewSettings) => void;
   setCenter: (center: ProjectCenter) => void;
@@ -86,6 +102,8 @@ interface ProjectState {
 }
 
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+let historyMuted = false;
+let lastHistoryPushAt = 0;
 
 function scheduleAutosave(get: () => ProjectState) {
   if (autosaveTimer) clearTimeout(autosaveTimer);
@@ -96,6 +114,71 @@ function scheduleAutosave(get: () => ProjectState) {
 
 function revokeUrls(urls: Map<string, string>) {
   for (const url of urls.values()) URL.revokeObjectURL(url);
+}
+
+function createSnapshot(state: ProjectState): ProjectSnapshot {
+  return {
+    project: cloneProject(state.project!),
+    mediaBlobs: cloneMediaBlobs(state.mediaBlobs),
+    dossierPersonId: state.dossierPersonId,
+    selection: state.selection,
+  };
+}
+
+function sanitizeUiAfterRestore(snapshot: ProjectSnapshot): {
+  dossierPersonId: string | null;
+  selection: SelectionTarget;
+  mediaViewerId: string | null;
+} {
+  const { project } = snapshot;
+  let dossierPersonId = snapshot.dossierPersonId;
+  if (dossierPersonId && !project.persons[dossierPersonId]) dossierPersonId = null;
+
+  let selection = snapshot.selection;
+  if (selection?.type === 'person' && !project.persons[selection.id]) selection = null;
+  if (selection?.type === 'family' && !project.unions[selection.id]) selection = null;
+
+  let mediaViewerId: string | null = null;
+  return { dossierPersonId, selection, mediaViewerId };
+}
+
+function recordHistory(get: () => ProjectState, set: (partial: Partial<ProjectState>) => void, mode: HistoryMode) {
+  if (mode === 'skip' || historyMuted || !get().project) return;
+  if (mode === 'debounced') {
+    const now = Date.now();
+    if (now - lastHistoryPushAt < HISTORY_DEBOUNCE_MS) return;
+    lastHistoryPushAt = now;
+  } else {
+    lastHistoryPushAt = Date.now();
+  }
+
+  const snapshot = createSnapshot(get());
+  set({
+    undoStack: trimUndoStack([...get().undoStack, snapshot]),
+    redoStack: [],
+  });
+}
+
+function applySnapshot(
+  snapshot: ProjectSnapshot,
+  get: () => ProjectState,
+  set: (partial: Partial<ProjectState> | ((state: ProjectState) => Partial<ProjectState>)) => void,
+) {
+  revokeUrls(get().mediaUrls);
+  const mediaBlobs = cloneMediaBlobs(snapshot.mediaBlobs);
+  const mediaUrls = createMediaUrls(mediaBlobs);
+  const ui = sanitizeUiAfterRestore(snapshot);
+
+  set({
+    project: cloneProject(snapshot.project),
+    mediaBlobs,
+    mediaUrls,
+    dossierPersonId: ui.dossierPersonId,
+    selection: ui.selection,
+    mediaViewerId: ui.mediaViewerId,
+    dirty: true,
+  });
+  scheduleAutosave(get);
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -111,8 +194,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   dossierPersonId: null,
   mediaViewerId: null,
   manualLayoutMode: false,
+  undoStack: [],
+  redoStack: [],
 
   newProject: (name, edit = true) => {
+    lastHistoryPushAt = 0;
     const project = createEmptyProject(name);
     const blobKey = createId();
     set({
@@ -127,6 +213,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       selection: null,
       dossierPersonId: null,
       manualLayoutMode: false,
+      undoStack: [],
+      redoStack: [],
     });
     scheduleAutosave(get);
   },
@@ -134,6 +222,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   loadProject: (project, blobKey, mediaBlobs = new Map(), mode = 'view', fileHandle = null, fileName = null) => {
     const state = get();
     revokeUrls(state.mediaUrls);
+    lastHistoryPushAt = 0;
     const mediaUrls = new Map<string, string>();
     for (const [filename, blob] of mediaBlobs) {
       mediaUrls.set(filename, URL.createObjectURL(blob));
@@ -150,6 +239,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       selection: null,
       dossierPersonId: null,
       manualLayoutMode: false,
+      undoStack: [],
+      redoStack: [],
     });
     void addRecent({
       id: blobKey,
@@ -162,11 +253,46 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   setMode: (mode) => set({ mode }),
 
-  updateProject: (updater) => {
+  updateProject: (updater, options) => {
     const current = get().project;
     if (!current) return;
+    recordHistory(get, set, options?.history ?? 'debounced');
     set({ project: touchProjectMeta(updater(current)), dirty: true });
     scheduleAutosave(get);
+  },
+
+  canUndo: () => get().undoStack.length > 0,
+
+  canRedo: () => get().redoStack.length > 0,
+
+  undo: () => {
+    const { undoStack, redoStack } = get();
+    if (undoStack.length === 0) return;
+
+    historyMuted = true;
+    const current = createSnapshot(get());
+    const snapshot = undoStack[undoStack.length - 1];
+    applySnapshot(snapshot, get, set);
+    set({
+      undoStack: undoStack.slice(0, -1),
+      redoStack: trimUndoStack([...redoStack, current]),
+    });
+    historyMuted = false;
+  },
+
+  redo: () => {
+    const { undoStack, redoStack } = get();
+    if (redoStack.length === 0) return;
+
+    historyMuted = true;
+    const current = createSnapshot(get());
+    const snapshot = redoStack[redoStack.length - 1];
+    applySnapshot(snapshot, get, set);
+    set({
+      redoStack: redoStack.slice(0, -1),
+      undoStack: trimUndoStack([...undoStack, current]),
+    });
+    historyMuted = false;
   },
 
   setProjectName: (name) => {
@@ -192,10 +318,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   addPerson: (partial) => {
     const person = createEmptyPerson(partial);
-    get().updateProject((p) => ({
-      ...p,
-      persons: { ...p.persons, [person.id]: person },
-    }));
+    get().updateProject(
+      (p) => ({
+        ...p,
+        persons: { ...p.persons, [person.id]: person },
+      }),
+      { history: 'immediate' },
+    );
     return person;
   },
 
@@ -210,6 +339,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const state = get();
     if (!state.project?.persons[personId]) return;
 
+    recordHistory(get, set, 'immediate');
     const nextProject = removePersonFromProject(state.project, personId);
     const removedUnionIds = new Set(
       [...state.project.persons[personId].unionIds, ...state.project.persons[personId].parentUnionIds].filter(
@@ -225,7 +355,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
     if (Object.keys(uiPatch).length > 0) set(uiPatch);
 
-    get().updateProject(() => nextProject);
+    get().updateProject(() => nextProject, { history: 'skip' });
   },
 
   addUnion: (union) => {
@@ -237,27 +367,27 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   linkParent: (childId, parentId) => {
-    get().updateProject((p) => linkParentInProject(p, childId, parentId));
+    get().updateProject((p) => linkParentInProject(p, childId, parentId), { history: 'immediate' });
   },
 
   unlinkParent: (childId, parentId) => {
-    get().updateProject((p) => unlinkParentInProject(p, childId, parentId));
+    get().updateProject((p) => unlinkParentInProject(p, childId, parentId), { history: 'immediate' });
   },
 
   linkPartner: (personAId, personBId) => {
-    get().updateProject((p) => linkPartnerInProject(p, personAId, personBId));
+    get().updateProject((p) => linkPartnerInProject(p, personAId, personBId), { history: 'immediate' });
   },
 
   unlinkPartner: (personAId, personBId) => {
-    get().updateProject((p) => unlinkPartnerInProject(p, personAId, personBId));
+    get().updateProject((p) => unlinkPartnerInProject(p, personAId, personBId), { history: 'immediate' });
   },
 
   linkChild: (parentId, childId, unionId) => {
-    get().updateProject((p) => linkChildInProject(p, parentId, childId, unionId));
+    get().updateProject((p) => linkChildInProject(p, parentId, childId, unionId), { history: 'immediate' });
   },
 
   unlinkChild: (unionId, childId) => {
-    get().updateProject((p) => unlinkChildInProject(p, unionId, childId));
+    get().updateProject((p) => unlinkChildInProject(p, unionId, childId), { history: 'immediate' });
   },
 
   placeNewPersonNear: (newPersonId, nearPersonId) => {
@@ -267,19 +397,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   addMedia: (item, blob) => {
+    recordHistory(get, set, 'immediate');
     const state = get();
     const mediaBlobs = new Map(state.mediaBlobs);
     const mediaUrls = new Map(state.mediaUrls);
     mediaBlobs.set(item.filename, blob);
     mediaUrls.set(item.filename, URL.createObjectURL(blob));
-    get().updateProject((p) => ({
-      ...p,
-      media: { ...p.media, [item.id]: item },
-    }));
+    get().updateProject(
+      (p) => ({
+        ...p,
+        media: { ...p.media, [item.id]: item },
+      }),
+      { history: 'skip' },
+    );
     set({ mediaBlobs, mediaUrls });
   },
 
   replaceMediaBlob: (filename, blob) => {
+    recordHistory(get, set, 'immediate');
     const state = get();
     const mediaBlobs = new Map(state.mediaBlobs);
     const mediaUrls = new Map(state.mediaUrls);
@@ -296,6 +431,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   deleteMedia: (mediaId) => {
+    recordHistory(get, set, 'immediate');
     const state = get();
     const item = state.project?.media[mediaId];
     if (item) {
@@ -307,11 +443,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       mediaUrls.delete(item.filename);
       set({ mediaBlobs, mediaUrls });
     }
-    get().updateProject((p) => {
-      const media = { ...p.media };
-      delete media[mediaId];
-      return { ...p, media };
-    });
+    get().updateProject(
+      (p) => {
+        const media = { ...p.media };
+        delete media[mediaId];
+        return { ...p, media };
+      },
+      { history: 'skip' },
+    );
   },
 
   getMediaUrl: (filename) => {
@@ -358,26 +497,32 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   setManualPosition: (personId, x, y) => {
-    get().updateProject((p) => ({
-      ...p,
-      manualLayout: { ...(p.manualLayout ?? {}), [personId]: { x, y } },
-    }));
+    get().updateProject(
+      (p) => ({
+        ...p,
+        manualLayout: { ...(p.manualLayout ?? {}), [personId]: { x, y } },
+      }),
+      { history: 'immediate' },
+    );
   },
 
   clearManualPosition: (personId) => {
-    get().updateProject((p) => {
-      if (!p.manualLayout?.[personId]) return p;
-      const manualLayout = { ...p.manualLayout };
-      delete manualLayout[personId];
-      return {
-        ...p,
-        manualLayout: Object.keys(manualLayout).length > 0 ? manualLayout : undefined,
-      };
-    });
+    get().updateProject(
+      (p) => {
+        if (!p.manualLayout?.[personId]) return p;
+        const manualLayout = { ...p.manualLayout };
+        delete manualLayout[personId];
+        return {
+          ...p,
+          manualLayout: Object.keys(manualLayout).length > 0 ? manualLayout : undefined,
+        };
+      },
+      { history: 'immediate' },
+    );
   },
 
   clearManualLayout: () => {
-    get().updateProject((p) => ({ ...p, manualLayout: undefined }));
+    get().updateProject((p) => ({ ...p, manualLayout: undefined }), { history: 'immediate' });
   },
 }));
 

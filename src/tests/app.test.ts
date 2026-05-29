@@ -13,10 +13,12 @@ import {
   unlinkParent,
   unlinkPartner,
   removePersonFromProject,
+  repairProjectRelationships,
   validateProjectRelationships,
 } from '../models/person-utils';
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
 import { buildLayout } from '../layout';
+import { buildGraph } from '../layout/graph-builder';
 import { buildGraph } from '../layout/graph-builder';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
@@ -156,6 +158,74 @@ describe('layout', () => {
     const parentCenter = (husband.x + husband.width / 2 + wife.x + wife.width / 2) / 2;
     const childCenter = child.x + child.width / 2;
     expect(Math.abs(parentCenter - childCenter)).toBeLessThan(5);
+  });
+
+  it('places maternal collateral left and paternal collateral right', () => {
+    const ged = `0 HEAD
+0 @C@ INDI
+1 NAME Child /Ivanov/
+1 SEX M
+0 @F@ INDI
+1 NAME Father /Ivanov/
+1 SEX M
+0 @M@ INDI
+1 NAME Mother /Ivanova/
+1 SEX F
+0 @PGF@ INDI
+1 NAME PGF /Ivanov/
+1 SEX M
+0 @PGM@ INDI
+1 NAME PGM /Ivanova/
+1 SEX F
+0 @PU@ INDI
+1 NAME Uncle /Ivanov/
+1 SEX M
+0 @MGF@ INDI
+1 NAME MGF /Petrov/
+1 SEX M
+0 @MGM@ INDI
+1 NAME MGM /Petrova/
+1 SEX F
+0 @MA@ INDI
+1 NAME Aunt /Petrova/
+1 SEX F
+0 @FC@ FAM
+1 HUSB @F@
+1 WIFE @M@
+1 CHIL @C@
+0 @FF@ FAM
+1 HUSB @PGF@
+1 WIFE @PGM@
+1 CHIL @F@
+1 CHIL @PU@
+0 @FM@ FAM
+1 HUSB @MGF@
+1 WIFE @MGM@
+1 CHIL @M@
+1 CHIL @MA@
+0 TRLR`;
+    const project = importGedcom(ged, 'Collateral');
+    project.center = { type: 'person', id: 'C' };
+    project.viewSettings = {
+      ...project.viewSettings,
+      generationsUp: 3,
+      generationsDown: 0,
+      sideBranchesAt: 1,
+      sideBranchDepth: 0,
+    };
+    const graph = buildGraph(project, project.viewSettings);
+    expect(graph.personToNode.has('PU')).toBe(true);
+    expect(graph.personToNode.has('MA')).toBe(true);
+    const layout = buildLayout(project);
+    const cx = (n: { x: number; width: number }) => n.x + n.width / 2;
+    const uncle = layout.nodes.find((n) => n.personId === 'PU')!;
+    const aunt = layout.nodes.find((n) => n.personId === 'MA')!;
+    const father = layout.nodes.find((n) => n.personId === 'F')!;
+    const mother = layout.nodes.find((n) => n.personId === 'M')!;
+    expect(uncle).toBeTruthy();
+    expect(aunt).toBeTruthy();
+    expect(cx(uncle)).toBeGreaterThan(cx(father));
+    expect(cx(aunt)).toBeLessThan(cx(mother));
   });
 
   it('uses pedigree connectors instead of duplicate parent edges', () => {
@@ -308,6 +378,30 @@ describe('dates', () => {
       death: { date: { text: 'после 2000' } },
     });
     expect(formatLifeDates(person, 'years')).toBe('ок. 1951–после 2000');
+  });
+
+  it('shows text dates in years mode when year is also stored', () => {
+    const person = createEmptyPerson({
+      birth: { date: { year: 1951, text: 'ABT 1951' } },
+      death: { date: { year: 2000, text: 'AFT 2000' } },
+    });
+    expect(formatLifeDates(person, 'years')).toBe('ABT 1951–AFT 2000');
+  });
+
+  it('shows mixed text and numeric dates in years mode', () => {
+    const person = createEmptyPerson({
+      birth: { date: { text: 'ок. 1951' } },
+      death: { date: { year: 2010 } },
+    });
+    expect(formatLifeDates(person, 'years')).toBe('ок. 1951–2010');
+  });
+
+  it('shows only year for numeric dates in years mode', () => {
+    const person = createEmptyPerson({
+      birth: { date: { year: 1951, month: 3, day: 15 } },
+      death: { date: { year: 2010 } },
+    });
+    expect(formatLifeDates(person, 'years')).toBe('1951–2010');
   });
 
   it('appends old-style suffix for julian dates', () => {
@@ -509,6 +603,93 @@ describe('relationships', () => {
     expect(validateProjectRelationships(project)).toEqual([]);
     expect(getAllChildren(project, project.persons[parentId]).some((c) => c.id === child.id)).toBe(false);
     expect(getParents(project, project.persons[child.id]).length).toBe(0);
+  });
+
+  it('linkPartner merges shared children into marriage union', () => {
+    let project = createEmptyProject();
+    const [parentId, spouseId] = Object.keys(project.persons);
+    const marriageUnionId = project.persons[parentId].unionIds[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+
+    project = unlinkPartner(project, parentId, spouseId);
+    project = linkParent(project, child.id, parentId);
+    project = linkParent(project, child.id, spouseId);
+    expect(project.unions[marriageUnionId]).toBeUndefined();
+
+    project = linkPartner(project, parentId, spouseId);
+    const marriageUnion = Object.values(project.unions).find(
+      (u) => u.partnerIds.includes(parentId) && u.partnerIds.includes(spouseId) && u.partnerIds.length >= 2,
+    );
+    expect(marriageUnion?.childIds).toContain(child.id);
+    expect(validateProjectRelationships(project)).toEqual([]);
+  });
+
+  it('removePersonFromProject cleans single-parent union with children', () => {
+    let project = createEmptyProject();
+    const parentId = Object.keys(project.persons)[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+    project = linkChild(project, parentId, child.id);
+
+    const next = removePersonFromProject(project, parentId);
+    expect(validateProjectRelationships(next)).toEqual([]);
+    expect(getParents(next, next.persons[child.id]).length).toBe(0);
+    expect(Object.values(next.unions).every((u) => u.partnerIds.length > 0)).toBe(true);
+  });
+
+  it('blocks parent-child cycles', () => {
+    let project = createEmptyProject();
+    const [parentId, spouseId] = Object.keys(project.persons);
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+    project = linkParent(project, child.id, parentId);
+
+    const blocked = linkParent(project, parentId, child.id);
+    expect(validateProjectRelationships(blocked)).toEqual([]);
+    expect(getParents(blocked, blocked.persons[parentId]).some((p) => p.id === child.id)).toBe(false);
+  });
+
+  it('repairProjectRelationships fixes stale references', () => {
+    let project = createEmptyProject();
+    const [parentId, spouseId] = Object.keys(project.persons);
+    const unionId = project.persons[parentId].unionIds[0];
+    project = {
+      ...project,
+      persons: {
+        ...project.persons,
+        [parentId]: {
+          ...project.persons[parentId],
+          unionIds: [...project.persons[parentId].unionIds, 'ghost-union'],
+        },
+      },
+    };
+    expect(validateProjectRelationships(project).length).toBeGreaterThan(0);
+
+    project = repairProjectRelationships(project);
+    expect(validateProjectRelationships(project)).toEqual([]);
+    expect(project.persons[parentId].unionIds).toEqual([unionId]);
+  });
+
+  it('GEDCOM import produces valid bidirectional relationships', () => {
+    const ged = `0 HEAD
+0 @I1@ INDI
+1 NAME Ivan /Ivanov/
+1 SEX M
+0 @I2@ INDI
+1 NAME Maria /Ivanova/
+1 SEX F
+0 @C1@ INDI
+1 NAME Child /Ivanov/
+1 SEX M
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @C1@
+0 TRLR`;
+    const project = importGedcom(ged, 'Valid');
+    expect(validateProjectRelationships(project)).toEqual([]);
+    expect(getParents(project, Object.values(project.persons).find((p) => p.givenName === 'Child')!).length).toBe(2);
   });
 });
 

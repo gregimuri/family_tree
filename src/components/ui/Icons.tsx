@@ -74,4 +74,10 @@ export const Icons = {
   Clock: (p: IconProps) => (
     <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></Icon>
   ),
+  Undo: (p: IconProps) => (
+    <Icon {...p}><path d="M3 10h10a5 5 0 0 1 5 5v0a5 5 0 0 1-5 5H5" /><path d="m3 10 4-4" /><path d="M7 6 3 10l4 4" /></Icon>
+  ),
+  Redo: (p: IconProps) => (
+    <Icon {...p}><path d="M21 10H11a5 5 0 0 0-5 5v0a5 5 0 0 0 5 5h8" /><path d="m21 10-4-4" /><path d="M17 6l4 4-4 4" /></Icon>
+  ),
 };

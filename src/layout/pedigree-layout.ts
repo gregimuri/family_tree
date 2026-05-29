@@ -1,5 +1,5 @@
 import type { Project } from '../types';
-import type { GraphNode, GraphResult } from './graph-builder';
+import type { BranchSide, GraphNode, GraphResult } from './graph-builder';
 import {
   CARD_H,
   CARD_W,
@@ -30,6 +30,7 @@ export interface LayoutUnit {
   siblingGroup: boolean;
   parentUnionId?: string;
   isSideBranch: boolean;
+  branchSide: BranchSide;
 }
 
 function nodeSize(scale: number): { w: number; h: number } {
@@ -58,12 +59,14 @@ function sortPartnersInUnit(nodes: GraphPersonNode[], project: Project): GraphPe
   });
 }
 
-function unitIsSideBranch(unit: LayoutUnit): boolean {
-  return unit.isSideBranch;
-}
-
 function nodeFromLayer(layerNodes: GraphNode[], id: string): GraphPersonNode {
   return layerNodes.find((n) => n.id === id) as GraphPersonNode;
+}
+
+function branchSideOf(nodes: GraphPersonNode[]): BranchSide {
+  if (nodes.some((n) => n.branchSide === 'left')) return 'left';
+  if (nodes.some((n) => n.branchSide === 'right')) return 'right';
+  return 'main';
 }
 
 /** Собрать блоки слоя: пары, группы сiblings, одиночные персоны */
@@ -91,6 +94,7 @@ export function buildLayoutUnits(layerNodes: GraphNode[], project: Project): Lay
       sortKey: Math.min(...sorted.map((m) => m.birthOrder ?? Number.MAX_SAFE_INTEGER)),
       siblingGroup: false,
       isSideBranch: sideOf(sorted),
+      branchSide: branchSideOf(sorted),
     });
   }
 
@@ -113,6 +117,7 @@ export function buildLayoutUnits(layerNodes: GraphNode[], project: Project): Lay
       siblingGroup: true,
       parentUnionId,
       isSideBranch: sideOf(sorted),
+      branchSide: branchSideOf(sorted),
     });
   }
 
@@ -124,6 +129,7 @@ export function buildLayoutUnits(layerNodes: GraphNode[], project: Project): Lay
       siblingGroup: false,
       parentUnionId: node.parentUnionId,
       isSideBranch: node.isSideBranch,
+      branchSide: node.branchSide ?? (node.isSideBranch ? 'right' : 'main'),
     });
   }
 
@@ -381,7 +387,7 @@ function orderUnitsByBarycenter(
   positions: Map<string, number>,
   largeTree: boolean,
 ): LayoutUnit[] {
-  const geneWeight = largeTree ? 0.15 : 1;
+  const geneWeight = largeTree ? 0.35 : 1;
 
   const scored = units.map((unit) => {
     const bary = neighborMedian(unit, towardLayer, graph, nodeById, positions);
@@ -399,14 +405,20 @@ function orderUnitsByBarycenter(
   return scored.map((s) => s.unit);
 }
 
-function splitMainAndSide(units: LayoutUnit[]): { main: LayoutUnit[]; side: LayoutUnit[] } {
+function splitMainLeftRight(units: LayoutUnit[]): {
+  main: LayoutUnit[];
+  left: LayoutUnit[];
+  right: LayoutUnit[];
+} {
   const main: LayoutUnit[] = [];
-  const side: LayoutUnit[] = [];
+  const left: LayoutUnit[] = [];
+  const right: LayoutUnit[] = [];
   for (const unit of units) {
-    if (unitIsSideBranch(unit)) side.push(unit);
+    if (unit.branchSide === 'left') left.push(unit);
+    else if (unit.branchSide === 'right') right.push(unit);
     else main.push(unit);
   }
-  return { main, side };
+  return { main, left, right };
 }
 
 function totalUnitsWidth(
@@ -431,24 +443,35 @@ function assignLayerX(
   positions: Map<string, number>,
   centerX: number,
 ): void {
-  const { main, side } = splitMainAndSide(units);
+  const { main, left, right } = splitMainLeftRight(units);
   const mainGap = GROUP_GAP;
   const sideGap = SIDE_BRANCH_GAP;
 
   const mainWidth = totalUnitsWidth(main, layerNodes, settings, mainGap);
-  let x = centerX - mainWidth / 2;
+  let mainStart = centerX - mainWidth / 2;
+  let x = mainStart;
 
   for (let i = 0; i < main.length; i++) {
     x = placeUnitAt(main[i], layerNodes, settings, x, positions);
     if (i < main.length - 1) x += mainGap;
   }
+  const mainEnd = x;
 
-  if (side.length === 0) return;
+  if (left.length > 0) {
+    const leftWidth = totalUnitsWidth(left, layerNodes, settings, sideGap);
+    let lx = mainStart - MAIN_SIDE_GAP - leftWidth;
+    for (let i = 0; i < left.length; i++) {
+      lx = placeUnitAt(left[i], layerNodes, settings, lx, positions);
+      if (i < left.length - 1) lx += sideGap;
+    }
+  }
 
-  x += MAIN_SIDE_GAP;
-  for (let i = 0; i < side.length; i++) {
-    x = placeUnitAt(side[i], layerNodes, settings, x, positions);
-    if (i < side.length - 1) x += sideGap;
+  if (right.length > 0) {
+    let rx = mainEnd + MAIN_SIDE_GAP;
+    for (let i = 0; i < right.length; i++) {
+      rx = placeUnitAt(right[i], layerNodes, settings, rx, positions);
+      if (i < right.length - 1) rx += sideGap;
+    }
   }
 }
 
@@ -567,16 +590,16 @@ function alignChildrenUnderParents(
           .filter((n): n is GraphPersonNode => n.kind === 'person' && n.unionId === unionId);
         if (partners.length === 0) continue;
 
-        const parentCenter =
-          partners.reduce((sum, p) => sum + (positions.get(p.id) ?? 0), 0) / partners.length;
+        const partnerXs = partners.map((p) => positions.get(p.id) ?? 0);
+        const parentCenter = (Math.min(...partnerXs) + Math.max(...partnerXs)) / 2;
 
         const children = layers
           .get(nextLayer)!
           .filter((n): n is GraphPersonNode => n.kind === 'person' && n.parentUnionId === unionId);
         if (children.length === 0) continue;
 
-        const childCenter =
-          children.reduce((sum, c) => sum + (positions.get(c.id) ?? 0), 0) / children.length;
+        const childXs = children.map((c) => positions.get(c.id) ?? 0);
+        const childCenter = (Math.min(...childXs) + Math.max(...childXs)) / 2;
         const delta = parentCenter - childCenter;
         if (Math.abs(delta) < CONVERGENCE_EPS) continue;
 
@@ -604,6 +627,25 @@ function layerTargetCenter(
     .map((unit) => neighborMedian(unit, towardLayer, graph, nodeById, positions))
     .filter((v): v is number => v !== null);
   return median(scores) ?? 0;
+}
+
+function anchorMainLineToCenter(
+  layers: Map<number, GraphNode[]>,
+  positions: Map<string, number>,
+): void {
+  const layer0 = layers.get(0) ?? [];
+  const mainNodes = layer0.filter(
+    (n): n is GraphPersonNode => n.kind === 'person' && n.branchSide === 'main',
+  );
+  if (mainNodes.length === 0) return;
+
+  const centerX =
+    mainNodes.reduce((sum, n) => sum + (positions.get(n.id) ?? 0), 0) / mainNodes.length;
+  if (Math.abs(centerX) < CONVERGENCE_EPS) return;
+
+  for (const id of positions.keys()) {
+    positions.set(id, (positions.get(id) ?? 0) - centerX);
+  }
 }
 
 /**
@@ -667,6 +709,8 @@ export function runPedigreeLayout(
     if (maxMove < CONVERGENCE_EPS) break;
   }
 
+  enforceAllLayerCollisions(layers, sortedLayers, project, positions);
+  anchorMainLineToCenter(layers, positions);
   enforceAllLayerCollisions(layers, sortedLayers, project, positions);
 }
 

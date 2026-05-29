@@ -1,6 +1,6 @@
 import type { DateValue, Person, Project, Union, MediaItem } from '../../types';
 import { createEmptyPerson, defaultViewSettings } from '../../models/defaults';
-import { sortChildrenByAge } from '../../models/person-utils';
+import { repairProjectRelationships, sortChildrenByAge } from '../../models/person-utils';
 
 const MONTHS: Record<string, number> = {
   JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6,
@@ -383,5 +383,5 @@ export function importGedcom(text: string, projectName = 'Импорт GEDCOM'):
   };
 
   project.center = pickCenter(project);
-  return project;
+  return repairProjectRelationships(project);
 }

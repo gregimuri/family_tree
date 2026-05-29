@@ -87,6 +87,9 @@ export function useCenterTreeView({
       manualCount,
       project.viewSettings.generationsUp,
       project.viewSettings.generationsDown,
+      project.viewSettings.sideBranchesAt,
+      project.viewSettings.sideBranchDepth,
+      project.viewSettings.cardSizeMode,
     );
 
     if (viewportKeyRef.current === key) return;

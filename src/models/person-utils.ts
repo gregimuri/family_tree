@@ -42,6 +42,18 @@ function yearFromDate(date?: DateValue): number | undefined {
   return date?.year;
 }
 
+/** Years-only card line: numeric dates → year; text dates → full text (e.g. «ок. 1951»). */
+function formatDateForYearsMode(date?: DateValue): string {
+  if (!date) return '';
+  if (date.text?.trim()) return dateToText(date);
+  const year = yearFromDate(date);
+  if (year !== undefined) {
+    const suffix = date.julian ? ' ст.' : '';
+    return `${year}${suffix}`;
+  }
+  return '';
+}
+
 export function dateToText(date?: DateValue): string {
   if (!date) return '';
   const suffix = date.julian ? ' ст.' : '';
@@ -63,15 +75,12 @@ export function formatLifeDates(
   const death = dateToText(person.death?.date);
   if (!birth && !death) return '';
   if (format === 'years') {
-    const by = yearFromDate(person.birth?.date);
-    const dy = yearFromDate(person.death?.date);
-    if (by && dy) return `${by}–${dy}`;
-    if (by) return `${by}–`;
-    if (dy) return `–${dy}`;
-    const birth = dateToText(person.birth?.date);
-    const death = dateToText(person.death?.date);
-    if (birth && death) return `${birth}–${death}`;
-    return birth || death;
+    const birthYears = formatDateForYearsMode(person.birth?.date);
+    const deathYears = formatDateForYearsMode(person.death?.date);
+    if (birthYears && deathYears) return `${birthYears}–${deathYears}`;
+    if (birthYears) return `${birthYears}–`;
+    if (deathYears) return `–${deathYears}`;
+    return '';
   }
   if (birth && death) return `${birth} – ${death}`;
   return birth ? `${birth} –` : `– ${death}`;
@@ -207,8 +216,17 @@ export function touchProjectMeta(project: Project): Project {
 }
 
 function shouldRemoveUnion(partnerIds: string[], childIds: string[]): boolean {
-  if (partnerIds.length === 0 && childIds.length === 0) return true;
-  return partnerIds.length <= 1 && childIds.length === 0;
+  if (partnerIds.length === 0) return true;
+  if (childIds.length === 0) return partnerIds.length <= 1;
+  return false;
+}
+
+function normalizeUnion(union: Union): Union {
+  return {
+    ...union,
+    partnerIds: [...new Set(union.partnerIds)],
+    childIds: [...new Set(union.childIds)],
+  };
 }
 
 function cleanupRemovedUnions(
@@ -265,6 +283,32 @@ function compactRedundantParentUnions(
   persons[childId] = { ...child, parentUnionIds };
 
   return cleanupRemovedUnions({ ...project, persons, unions }, unions, removed);
+}
+
+function getSharedChildIds(project: Project, personAId: string, personBId: string): string[] {
+  const personA = project.persons[personAId];
+  const personB = project.persons[personBId];
+  if (!personA || !personB) return [];
+
+  const childIds = new Set<string>();
+  for (const child of getAllChildren(project, personA)) {
+    if (getParents(project, child).some((p) => p.id === personBId)) {
+      childIds.add(child.id);
+    }
+  }
+  return [...childIds];
+}
+
+function consolidateSharedChildrenForPartners(
+  project: Project,
+  personAId: string,
+  personBId: string,
+): Project {
+  let next = project;
+  for (const childId of getSharedChildIds(next, personAId, personBId)) {
+    next = mergeMarriedParentsForChild(next, childId);
+  }
+  return next;
 }
 
 function sanitizeChildParentUnionIds(
@@ -376,7 +420,7 @@ export function removePersonFromProject(project: Project, personId: string): Pro
       continue;
     }
 
-    unions[unionId] = { ...union, partnerIds, childIds };
+    unions[unionId] = normalizeUnion({ ...union, partnerIds, childIds });
   }
 
   for (const [id, p] of Object.entries(persons)) {
@@ -475,6 +519,7 @@ function applyParentChildLink(
   options: { unionId?: string; preferMarriageUnion?: boolean },
 ): Project {
   if (childId === parentId) return project;
+  if (getDescendantIds(project, childId).has(parentId)) return project;
   const child = project.persons[childId];
   const parent = project.persons[parentId];
   if (!child || !parent) return project;
@@ -486,9 +531,9 @@ function applyParentChildLink(
   let uid = resolveParentChildUnion(project, unions, childId, parentId, options);
   if (!uid) {
     uid = createId();
-    unions[uid] = { id: uid, partnerIds: [parentId], childIds: [childId] };
+    unions[uid] = normalizeUnion({ id: uid, partnerIds: [parentId], childIds: [childId] });
   } else {
-    const union = unions[uid] ?? { id: uid, partnerIds: [parentId], childIds: [] };
+    const union = normalizeUnion(unions[uid] ?? { id: uid, partnerIds: [parentId], childIds: [] });
     unions[uid] = {
       ...union,
       partnerIds: union.partnerIds.includes(parentId) ? union.partnerIds : [...union.partnerIds, parentId],
@@ -576,6 +621,7 @@ export function unlinkParent(project: Project, childId: string, parentId: string
 
 export function linkPartner(project: Project, personAId: string, personBId: string): Project {
   if (personAId === personBId) return project;
+  if (getDescendantIds(project, personAId).has(personBId)) return project;
   const a = project.persons[personAId];
   const b = project.persons[personBId];
   if (!a || !b) return project;
@@ -586,11 +632,13 @@ export function linkPartner(project: Project, personAId: string, personBId: stri
   const unions = { ...project.unions };
   const persons = { ...project.persons };
   const uid = createId();
-  unions[uid] = { id: uid, partnerIds: [personAId, personBId], childIds: [] };
+  unions[uid] = normalizeUnion({ id: uid, partnerIds: [personAId, personBId], childIds: [] });
   persons[personAId] = { ...a, unionIds: [...a.unionIds, uid] };
   persons[personBId] = { ...b, unionIds: [...b.unionIds, uid] };
 
-  return touchProjectMeta({ ...project, persons, unions });
+  let next = touchProjectMeta({ ...project, persons, unions });
+  next = consolidateSharedChildrenForPartners(next, personAId, personBId);
+  return next;
 }
 
 export function unlinkPartner(project: Project, personAId: string, personBId: string): Project {
@@ -652,25 +700,21 @@ export function unlinkChild(project: Project, unionId: string, childId: string):
   if (!union || !child) return project;
 
   const unions = { ...project.unions };
-  const persons = { ...project.persons };
   const childIds = union.childIds.filter((id) => id !== childId);
 
   if (shouldRemoveUnion(union.partnerIds, childIds)) {
     delete unions[unionId];
-    for (const [id, p] of Object.entries(persons)) {
-      persons[id] = {
-        ...p,
-        unionIds: p.unionIds.filter((uid) => uid !== unionId),
-        parentUnionIds: p.parentUnionIds.filter((uid) => uid !== unionId),
-      };
-    }
-  } else {
-    unions[unionId] = { ...union, childIds };
-    persons[childId] = {
-      ...child,
-      parentUnionIds: child.parentUnionIds.filter((id) => id !== unionId),
-    };
+    return touchProjectMeta(
+      cleanupRemovedUnions({ ...project, unions }, unions, new Set([unionId])),
+    );
   }
+
+  const persons = { ...project.persons };
+  unions[unionId] = { ...union, childIds };
+  persons[childId] = {
+    ...child,
+    parentUnionIds: child.parentUnionIds.filter((id) => id !== unionId),
+  };
 
   return touchProjectMeta({ ...project, persons, unions });
 }
@@ -770,4 +814,62 @@ export function validateProjectRelationships(project: Project): string[] {
   }
 
   return errors;
+}
+
+/** Normalize union ↔ person references and merge married parents where possible. */
+export function repairProjectRelationships(project: Project): Project {
+  const unions: Record<string, Union> = {};
+  const removed = new Set<string>();
+
+  for (const [id, union] of Object.entries(project.unions)) {
+    const normalized = normalizeUnion(union);
+    if (normalized.partnerIds.length === 0) {
+      removed.add(id);
+      continue;
+    }
+    unions[id] = normalized;
+  }
+
+  let next = cleanupRemovedUnions({ ...project, unions }, unions, removed);
+  const persons = { ...next.persons };
+
+  for (const [unionId, union] of Object.entries(next.unions)) {
+    for (const partnerId of union.partnerIds) {
+      const partner = persons[partnerId] ?? next.persons[partnerId];
+      if (!partner) continue;
+      if (!partner.unionIds.includes(unionId)) {
+        persons[partnerId] = { ...partner, unionIds: [...partner.unionIds, unionId] };
+      }
+    }
+    for (const childId of union.childIds) {
+      const child = persons[childId] ?? next.persons[childId];
+      if (!child) continue;
+      if (!child.parentUnionIds.includes(unionId)) {
+        persons[childId] = { ...child, parentUnionIds: [...child.parentUnionIds, unionId] };
+      }
+    }
+  }
+
+  for (const [personId, person] of Object.entries(persons)) {
+    const unionIds = person.unionIds.filter((uid) => {
+      const u = next.unions[uid];
+      return u?.partnerIds.includes(personId);
+    });
+    const parentUnionIds = person.parentUnionIds.filter((uid) => {
+      const u = next.unions[uid];
+      return u?.childIds.includes(personId);
+    });
+    if (unionIds.length !== person.unionIds.length || parentUnionIds.length !== person.parentUnionIds.length) {
+      persons[personId] = { ...person, unionIds, parentUnionIds };
+    }
+  }
+
+  next = { ...next, persons };
+  for (const person of Object.values(next.persons)) {
+    for (const child of getAllChildren(next, person)) {
+      next = mergeMarriedParentsForChild(next, child.id);
+    }
+  }
+
+  return touchProjectMeta(next);
 }
