@@ -5,6 +5,7 @@ export function validateViewSettings(settings: ViewSettings): ViewSettings {
   if (next.generationsUp < 0) next.generationsUp = 0;
   if (next.generationsDown < 0) next.generationsDown = 0;
   if (next.sideBranchDepth < 0) next.sideBranchDepth = 0;
+  if (next.allowExternalMedia === undefined) next.allowExternalMedia = false;
   return next;
 }
 

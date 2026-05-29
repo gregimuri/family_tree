@@ -1,4 +1,5 @@
 import { useProjectStore } from '../../store/project-store';
+import { isExternalMediaUrl } from '../../utils/media-url';
 import { PhotoViewer } from './PhotoViewer';
 import { VideoViewer } from './VideoViewer';
 import { AudioViewer } from './AudioViewer';
@@ -18,6 +19,7 @@ export function MediaViewer({ mediaId }: MediaViewerProps) {
   const media = project.media[mediaId];
   if (!media) return null;
   const url = getMediaUrl(media.filename);
+  const externalBlocked = isExternalMediaUrl(media.filename) && !project.viewSettings.allowExternalMedia;
 
   return (
     <div className="media-viewer-overlay" onClick={closeMediaViewer}>
@@ -31,7 +33,14 @@ export function MediaViewer({ mediaId }: MediaViewerProps) {
             {[media.date?.year, media.place?.name].filter(Boolean).join(' · ')}
           </p>
         </header>
-        {!url ? (
+        {externalBlocked ? (
+          <p className="media-viewer-blocked">
+            Внешняя ссылка не загружается (настройки конфиденциальности). Включите «Загружать внешние медиа по URL» в
+            настройках древа, если доверяете источнику.
+            <br />
+            <span className="muted">{media.filename}</span>
+          </p>
+        ) : !url ? (
           <p>Файл не найден: {media.filename}</p>
         ) : media.type === 'photo' ? (
           <PhotoViewer url={url} media={media} project={project} />

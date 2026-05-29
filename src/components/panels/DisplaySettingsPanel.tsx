@@ -2,6 +2,7 @@ import type { ViewSettings } from '../../types';
 import { useProjectStore } from '../../store/project-store';
 import { useUiStore } from '../../store/ui-store';
 import { validateViewSettings } from '../../models/validation';
+import { countExternalMediaInProject } from '../../utils/media-url';
 import { CollapsiblePanel } from './CollapsiblePanel';
 import { Icons } from '../ui/Icons';
 
@@ -52,6 +53,7 @@ export function DisplaySettingsPanel() {
 
   if (!project) return null;
   const s = project.viewSettings;
+  const externalMediaCount = countExternalMediaInProject(project);
 
   const update = (patch: Partial<ViewSettings>) => {
     setViewSettings(validateViewSettings({ ...s, ...patch }));
@@ -118,6 +120,17 @@ export function DisplaySettingsPanel() {
             onChange={(e) => update({ showDiedBefore18: e.target.checked })}
           />
           Показывать умерших до 18 лет
+        </label>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={!!s.allowExternalMedia}
+            onChange={(e) => update({ allowExternalMedia: e.target.checked })}
+          />
+          Загружать внешние медиа по URL
+          {externalMediaCount > 0 && (
+            <small className="hint">В проекте {externalMediaCount} внешн. ссылок (GEDCOM и др.)</small>
+          )}
         </label>
         <label>
           Оформление

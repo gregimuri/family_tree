@@ -95,6 +95,17 @@
   font-size: 14px;
 }
 
+.start-notice {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .start-label {
   display: block;
   margin-bottom: 16px;

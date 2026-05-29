@@ -18,6 +18,7 @@ import { exportGedcom } from '../services/gedcom/export';
 import { computeExportViewport } from '../services/export/image-export';
 import { validateViewSettings, canUseUniformCards } from '../models/validation';
 import { formatPlaceText, placeHasValue } from '../components/dossier/DossierFields';
+import { countExternalMediaInProject, isExternalMediaUrl } from '../utils/media-url';
 import { createId } from '../utils/create-id';
 
 describe('gedcom parsing', () => {
@@ -360,6 +361,39 @@ describe('relationships', () => {
       [parentId, spouseId].sort(),
     );
     expect(getAllChildren(project, project.persons[spouseId]).some((c) => c.id === child.id)).toBe(true);
+  });
+});
+
+describe('privacy', () => {
+  it('detects external media URLs', () => {
+    expect(isExternalMediaUrl('https://example.com/photo.jpg')).toBe(true);
+    expect(isExternalMediaUrl('photo.jpg')).toBe(false);
+    expect(isExternalMediaUrl('blob:abc')).toBe(false);
+  });
+
+  it('counts external media in project', () => {
+    const project = createEmptyProject();
+    project.media = {
+      m1: {
+        id: 'm1',
+        type: 'photo',
+        filename: 'https://example.com/a.jpg',
+        description: '',
+        personIds: [],
+      },
+      m2: {
+        id: 'm2',
+        type: 'photo',
+        filename: 'local.jpg',
+        description: '',
+        personIds: [],
+      },
+    };
+    expect(countExternalMediaInProject(project)).toBe(1);
+  });
+
+  it('defaults allowExternalMedia to false', () => {
+    expect(validateViewSettings({ ...createEmptyProject().viewSettings, allowExternalMedia: undefined }).allowExternalMedia).toBe(false);
   });
 });
 

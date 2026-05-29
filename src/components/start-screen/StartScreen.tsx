@@ -5,7 +5,8 @@ import { openProjectFile, zipToProject } from '../../services/project-io/zip-pro
 import { importGedcom } from '../../services/gedcom/import';
 import { useProjectStore } from '../../store/project-store';
 import { createId } from '../../utils/create-id';
-import type { RecentProject } from '../../types';
+import { countExternalMediaInProject, formatExternalMediaWarning } from '../../utils/media-url';
+import type { Project, RecentProject } from '../../types';
 import { Icons } from '../ui/Icons';
 import './StartScreen.css';
 
@@ -16,10 +17,18 @@ export function StartScreen() {
   const [recents, setRecents] = useState<RecentProject[]>([]);
   const [projectName, setProjectName] = useState('Новый проект');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     void getRecents().then(setRecents);
   }, []);
+
+  const confirmExternalMedia = (project: Project): boolean => {
+    const externalCount = countExternalMediaInProject(project);
+    if (externalCount === 0) return true;
+    setNotice(formatExternalMediaWarning(externalCount));
+    return window.confirm(`${formatExternalMediaWarning(externalCount)}\n\nПродолжить открытие проекта?`);
+  };
 
   const openTree = (edit = false) => {
     navigate(edit ? '/edit' : '/tree');
@@ -33,6 +42,7 @@ export function StartScreen() {
   const handleOpen = async () => {
     const result = await openProjectFile();
     if (!result) return;
+    if (!confirmExternalMedia(result.project)) return;
     loadProject(result.project, createId(), result.mediaBlobs, 'view', result.handle, result.file.name);
     openTree(false);
   };
@@ -52,6 +62,7 @@ export function StartScreen() {
           setError('Файл GEDCOM не содержит персон.');
           return;
         }
+        if (!confirmExternalMedia(project)) return;
         loadProject(project, createId(), new Map(), 'edit');
         openTree(true);
       } catch (e) {
@@ -64,6 +75,7 @@ export function StartScreen() {
   const handleRecent = async (recent: RecentProject) => {
     const data = await loadProjectFromDb(recent.blobKey);
     if (data) {
+      if (!confirmExternalMedia(data)) return;
       loadProject(data, recent.blobKey, new Map(), 'view');
       openTree(false);
     }
@@ -90,6 +102,7 @@ export function StartScreen() {
 
         <section className="start-card">
           {error && <p className="start-error">{error}</p>}
+          {notice && !error && <p className="start-notice">{notice}</p>}
 
           <label className="start-label">
             Название нового проекта

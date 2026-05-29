@@ -29,6 +29,12 @@
   cursor: pointer;
 }
 
+.media-viewer-blocked {
+  max-width: 480px;
+  line-height: 1.5;
+  margin: 16px 0;
+}
+
 .media-viewer-meta {
   margin-bottom: 12px;
 }

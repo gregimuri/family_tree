@@ -23,6 +23,7 @@ import {
 } from '../models/person-utils';
 import { addRecent, saveProjectToDb } from '../services/project-io/db';
 import { saveProjectToHandle, saveProjectAs } from '../services/project-io/zip-project';
+import { isExternalMediaUrl } from '../utils/media-url';
 
 interface ProjectState {
   project: Project | null;
@@ -314,8 +315,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   getMediaUrl: (filename) => {
-    if (/^https?:\/\//i.test(filename)) return filename;
-    return get().mediaUrls.get(filename);
+    const state = get();
+    if (isExternalMediaUrl(filename) && !state.project?.viewSettings.allowExternalMedia) {
+      return undefined;
+    }
+    if (isExternalMediaUrl(filename)) return filename;
+    return state.mediaUrls.get(filename);
   },
 
   autosave: async () => {

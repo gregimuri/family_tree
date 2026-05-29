@@ -23,6 +23,7 @@ export const defaultViewSettings = (): ViewSettings => ({
   showDiedBefore18: true,
   theme: 'clean',
   cardFields: defaultCardFields(),
+  allowExternalMedia: false,
 });
 
 export const createEmptyPerson = (partial?: Partial<Person>): Person => ({

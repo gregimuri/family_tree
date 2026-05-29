@@ -118,6 +118,8 @@ export interface ViewSettings {
   showDiedBefore18: boolean;
   theme: TreeTheme;
   cardFields: CardFieldSettings;
+  /** Загружать медиа по http(s) URL из GEDCOM и проектов (по умолчанию выкл.) */
+  allowExternalMedia?: boolean;
 }
 
 export interface ProjectCenter {
