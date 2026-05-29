@@ -2,6 +2,7 @@ import type { LayoutResult, Project } from '../types';
 import type { GraphResult } from './graph-builder';
 import { buildGraph } from './graph-builder';
 import { buildLayoutEdges, computeBounds, computeLayout } from './layered-layout';
+import { applyManualEdgeRoutes } from './manual-edge-routes';
 
 export function applyManualLayout(
   layout: LayoutResult,
@@ -29,7 +30,8 @@ export function buildLayout(project: Project): LayoutResult {
   const graph = buildGraph(project, project.viewSettings);
   let layout = computeLayout(graph, project);
   layout = repositionOrphanNodes(layout, project);
-  return applyManualLayout(layout, project, graph);
+  layout = applyManualLayout(layout, project, graph);
+  return applyManualEdgeRoutes(layout, project);
 }
 
 function repositionOrphanNodes(layout: LayoutResult, project: Project): LayoutResult {

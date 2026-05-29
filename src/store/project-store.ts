@@ -106,11 +106,17 @@ interface ProjectState {
   setManualPosition: (personId: string, x: number, y: number) => void;
   clearManualPosition: (personId: string) => void;
   clearManualLayout: () => void;
+  setManualEdgeRoute: (edgeId: string, points: { x: number; y: number }[]) => void;
+  clearManualEdgeRoute: (edgeId: string) => void;
+  clearManualEdgeRoutes: () => void;
 }
 
-let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+function layoutHistoryMode(get: () => ProjectState): HistoryMode {
+  return get().manualLayoutMode ? 'skip' : 'immediate';
+}
 let historyMuted = false;
 let lastHistoryPushAt = 0;
+let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function scheduleAutosave(get: () => ProjectState) {
   if (autosaveTimer) clearTimeout(autosaveTimer);
@@ -316,6 +322,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       ...p,
       center,
       manualLayout: undefined,
+      manualEdgeRoutes: undefined,
     }));
     set({ selection: null });
   },
@@ -326,7 +333,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   closeDossier: () => set({ dossierPersonId: null }),
   openMediaViewer: (mediaId) => set({ mediaViewerId: mediaId }),
   closeMediaViewer: () => set({ mediaViewerId: null }),
-  setManualLayoutMode: (enabled) => set({ manualLayoutMode: enabled }),
+  setManualLayoutMode: (enabled) => {
+    if (enabled && !get().manualLayoutMode) {
+      recordHistory(get, set, 'immediate');
+    }
+    set({ manualLayoutMode: enabled });
+  },
 
   addPerson: (partial) => {
     const person = createEmptyPerson(partial);
@@ -391,7 +403,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   updateUnion: (union) => {
-    get().updateProject((p) => ({ ...p, unions: { ...p.unions, [union.id]: union } }));
+    get().updateProject((p) => ({ ...p, unions: { ...p.unions, [union.id]: union } }), {
+      history: 'immediate',
+    });
   },
 
   linkParent: (childId, parentId) => {
@@ -547,7 +561,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         ...p,
         manualLayout: { ...(p.manualLayout ?? {}), [personId]: { x, y } },
       }),
-      { history: 'immediate' },
+      { history: layoutHistoryMode(get) },
     );
   },
 
@@ -562,12 +576,47 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           manualLayout: Object.keys(manualLayout).length > 0 ? manualLayout : undefined,
         };
       },
-      { history: 'immediate' },
+      { history: layoutHistoryMode(get) },
     );
   },
 
   clearManualLayout: () => {
-    get().updateProject((p) => ({ ...p, manualLayout: undefined }), { history: 'immediate' });
+    get().updateProject(
+      (p) => ({ ...p, manualLayout: undefined, manualEdgeRoutes: undefined }),
+      { history: layoutHistoryMode(get) },
+    );
+  },
+
+  setManualEdgeRoute: (edgeId, points) => {
+    get().updateProject(
+      (p) => ({
+        ...p,
+        manualEdgeRoutes: { ...(p.manualEdgeRoutes ?? {}), [edgeId]: points.map((pt) => ({ ...pt })) },
+      }),
+      { history: layoutHistoryMode(get) },
+    );
+  },
+
+  clearManualEdgeRoute: (edgeId) => {
+    get().updateProject(
+      (p) => {
+        if (!p.manualEdgeRoutes?.[edgeId]) return p;
+        const manualEdgeRoutes = { ...p.manualEdgeRoutes };
+        delete manualEdgeRoutes[edgeId];
+        return {
+          ...p,
+          manualEdgeRoutes: Object.keys(manualEdgeRoutes).length > 0 ? manualEdgeRoutes : undefined,
+        };
+      },
+      { history: layoutHistoryMode(get) },
+    );
+  },
+
+  clearManualEdgeRoutes: () => {
+    get().updateProject(
+      (p) => ({ ...p, manualEdgeRoutes: undefined }),
+      { history: layoutHistoryMode(get) },
+    );
   },
 }));
 

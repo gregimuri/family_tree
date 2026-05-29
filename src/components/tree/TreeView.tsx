@@ -11,7 +11,7 @@ import { useCenterTreeView, resetTreeView } from '../../hooks/useCenterTreeView'
 import { useScreenToLayout } from '../../hooks/useScreenToLayout';
 import { PersonCardWithMedia } from './PersonCard';
 import { ManualLayoutGrid } from './ManualLayoutGrid';
-import { TreeConnections } from './TreeConnections';
+import { EditableTreeConnections } from './EditableTreeConnections';
 import { SearchPanel } from '../panels/SearchPanel';
 import { DisplaySettingsPanel } from '../panels/DisplaySettingsPanel';
 import { AddPersonPanel } from '../panels/AddPersonPanel';
@@ -38,6 +38,8 @@ export function TreeView() {
   const setManualPosition = useProjectStore((s) => s.setManualPosition);
   const clearManualPosition = useProjectStore((s) => s.clearManualPosition);
   const clearManualLayout = useProjectStore((s) => s.clearManualLayout);
+  const setManualEdgeRoute = useProjectStore((s) => s.setManualEdgeRoute);
+  const clearManualEdgeRoute = useProjectStore((s) => s.clearManualEdgeRoute);
   const dossierPersonId = useProjectStore((s) => s.dossierPersonId);
   const mediaViewerId = useProjectStore((s) => s.mediaViewerId);
   const exportOpen = useUiStore((s) => s.exportOpen);
@@ -48,6 +50,7 @@ export function TreeView() {
   const svgRef = useRef<SVGSVGElement>(null);
   const layoutGroupRef = useRef<SVGGElement>(null);
   const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   const treeLayout = useMemo(() => {
     if (!project) return null;
@@ -62,7 +65,10 @@ export function TreeView() {
 
   const screenToLayout = useScreenToLayout(svgRef, layoutGroupRef);
 
-  const handleBackgroundClick = () => setSelection(null);
+  const handleBackgroundClick = () => {
+    setSelection(null);
+    if (manualLayoutMode) setSelectedEdgeId(null);
+  };
 
   const makeCenter = () => {
     if (!selection) return;
@@ -101,6 +107,7 @@ export function TreeView() {
   const theme = project.viewSettings.theme;
   const { svgW, svgH, offsetX, offsetY } = frame;
   const manualCount = Object.keys(project.manualLayout ?? {}).length;
+  const manualEdgeCount = Object.keys(project.manualEdgeRoutes ?? {}).length;
   const isDragging = Object.keys(dragPositions).length > 0;
 
   return (
@@ -118,9 +125,26 @@ export function TreeView() {
       {manualLayoutMode && (
         <div className="manual-layout-bar">
           <Icons.Move size={16} />
-          <span>Перетаскивайте карточки мышью. ПКМ или колёсико — прокрутка.</span>
-          {manualCount > 0 && (
-            <span className="manual-layout-bar__count">Изменено: {manualCount}</span>
+          <span>
+            Карточки — перетаскивание; линии — клик и узлы маршрута. ПКМ / колёсико — прокрутка.
+          </span>
+          {(manualCount > 0 || manualEdgeCount > 0) && (
+            <span className="manual-layout-bar__count">
+              Карточек: {manualCount}
+              {manualEdgeCount > 0 ? ` · линий: ${manualEdgeCount}` : ''}
+            </span>
+          )}
+          {selectedEdgeId && (
+            <button
+              type="button"
+              className="btn small"
+              onClick={() => {
+                clearManualEdgeRoute(selectedEdgeId);
+                setSelectedEdgeId(null);
+              }}
+            >
+              Сбросить линию
+            </button>
           )}
           {selection?.type === 'person' && project.manualLayout?.[selection.id] && (
             <button
@@ -131,12 +155,13 @@ export function TreeView() {
               Сбросить карточку
             </button>
           )}
-          {manualCount > 0 && (
+          {(manualCount > 0 || manualEdgeCount > 0) && (
             <button
               type="button"
               className="btn small"
               onClick={() => {
                 clearManualLayout();
+                setSelectedEdgeId(null);
                 resetTreeView(transformRef, frame, layout, project);
               }}
             >
@@ -155,7 +180,10 @@ export function TreeView() {
           <button
             type="button"
             className={`btn tree-action-btn${manualLayoutMode ? ' accent' : ''}`}
-            onClick={() => setManualLayoutMode(!manualLayoutMode)}
+            onClick={() => {
+              if (manualLayoutMode) setSelectedEdgeId(null);
+              setManualLayoutMode(!manualLayoutMode);
+            }}
             title="Перетаскивание карточек по сетке"
           >
             <Icons.Move size={16} />
@@ -174,8 +202,9 @@ export function TreeView() {
         {manualLayoutMode ? (
           <>
             <span>ЛКМ на карточке — перемещение</span>
+            <span>ЛКМ на линии — редактирование маршрута</span>
             <span>ПКМ / колёсико — прокрутка</span>
-            <span>Ctrl+колёсико — масштаб</span>
+            <span>Ctrl+Z — отмена (вся сессия расположения)</span>
           </>
         ) : (
           <>
@@ -261,11 +290,16 @@ export function TreeView() {
                   active={manualLayoutMode}
                   dragging={isDragging}
                 />
-                <TreeConnections
+                <EditableTreeConnections
                   edges={layout.edges}
                   theme={theme}
                   project={project}
                   showMarriageYears={project.viewSettings.cardFields.showMarriageYears}
+                  active={manualLayoutMode}
+                  selectedEdgeId={selectedEdgeId}
+                  onSelectEdge={setSelectedEdgeId}
+                  onUpdateRoute={setManualEdgeRoute}
+                  screenToLayout={screenToLayout}
                 />
                 {layout.nodes.map((node) => {
                   if (node.kind === 'person' && node.personId) {

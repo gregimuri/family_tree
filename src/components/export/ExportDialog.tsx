@@ -4,8 +4,11 @@ import type { LayoutResult } from '../../types';
 import type { TreeFrame } from '../../layout/center-focus';
 import {
   exportTreeElement,
+  getPresetDimensions,
+  orientPageDimensions,
   PRESET_SIZES,
   type ExportImageFormat,
+  type ExportOrientation,
   type ExportSizeMode,
 } from '../../services/export/image-export';
 import { downloadGedcom } from '../../services/gedcom/export';
@@ -25,17 +28,27 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
   const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const [format, setFormat] = useState<ExportImageFormat>('png');
   const [sizeMode, setSizeMode] = useState<ExportSizeMode>('tree');
+  const [orientation, setOrientation] = useState<ExportOrientation>('landscape');
   const [preset, setPreset] = useState('A4');
-  const [widthMm, setWidthMm] = useState(210);
-  const [heightMm, setHeightMm] = useState(297);
+  const [widthMm, setWidthMm] = useState(297);
+  const [heightMm, setHeightMm] = useState(210);
   const [busy, setBusy] = useState(false);
 
-  const applyPreset = (label: string) => {
+  const applyPreset = (label: string, orient: ExportOrientation = orientation) => {
     setPreset(label);
-    const p = PRESET_SIZES.find((s) => s.label === label);
-    if (p) {
-      setWidthMm(p.widthMm);
-      setHeightMm(p.heightMm);
+    const dims = getPresetDimensions(label, orient);
+    setWidthMm(dims.widthMm);
+    setHeightMm(dims.heightMm);
+  };
+
+  const changeOrientation = (next: ExportOrientation) => {
+    setOrientation(next);
+    if (preset !== 'custom') {
+      applyPreset(preset, next);
+    } else {
+      const swapped = orientPageDimensions(widthMm, heightMm, next);
+      setWidthMm(swapped.widthMm);
+      setHeightMm(swapped.heightMm);
     }
   };
 
@@ -44,13 +57,18 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
     if (!el) return;
     setBusy(true);
     try {
+      const page =
+        sizeMode === 'fixed'
+          ? orientPageDimensions(widthMm, heightMm, orientation)
+          : undefined;
       await exportTreeElement(
         { svg: el, layout, frame },
         {
           format,
           sizeMode,
-          widthMm: sizeMode === 'fixed' ? widthMm : undefined,
-          heightMm: sizeMode === 'fixed' ? heightMm : undefined,
+          orientation,
+          widthMm: page?.widthMm,
+          heightMm: page?.heightMm,
         },
       );
     } finally {
@@ -71,6 +89,16 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
               <option value="png">PNG</option>
               <option value="jpeg">JPEG</option>
               <option value="pdf">PDF</option>
+            </select>
+          </label>
+          <label>
+            Ориентация листа
+            <select
+              value={orientation}
+              onChange={(e) => changeOrientation(e.target.value as ExportOrientation)}
+            >
+              <option value="landscape">Альбомная</option>
+              <option value="portrait">Книжная</option>
             </select>
           </label>
           <label>
@@ -105,7 +133,17 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
                   </label>
                 </>
               )}
+              {preset !== 'custom' && (
+                <p className="export-dialog__dims-hint">
+                  {widthMm} × {heightMm} мм
+                </p>
+              )}
             </>
+          )}
+          {sizeMode === 'tree' && format === 'pdf' && (
+            <p className="export-dialog__dims-hint">
+              PDF: {orientation === 'landscape' ? 'A4 альбомная' : 'A4 книжная'}, дерево вписывается на страницу
+            </p>
           )}
           <button type="button" className="btn primary" disabled={busy} onClick={exportImage}>
             Экспортировать лист

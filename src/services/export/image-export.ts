@@ -6,10 +6,12 @@ import { getTreeContentRect } from '../../hooks/tree-viewport';
 
 export type ExportImageFormat = 'png' | 'jpeg' | 'pdf';
 export type ExportSizeMode = 'tree' | 'fixed';
+export type ExportOrientation = 'landscape' | 'portrait';
 
 export interface ExportOptions {
   format: ExportImageFormat;
   sizeMode: ExportSizeMode;
+  orientation?: ExportOrientation;
   widthMm?: number;
   heightMm?: number;
   pixelRatio?: number;
@@ -273,6 +275,7 @@ export async function exportTreeElement(
   options: ExportOptions,
 ): Promise<void> {
   const { format, sizeMode } = options;
+  const orientation = options.orientation ?? 'landscape';
   const pixelRatio = options.pixelRatio ?? 2;
   const { svg, layout, frame } = source;
   const backgroundColor = '#f7f3eb';
@@ -288,8 +291,9 @@ export async function exportTreeElement(
   let heightPx: number;
 
   if (sizeMode === 'fixed' && options.widthMm && options.heightMm) {
-    widthPx = Math.round(options.widthMm * MM_TO_PX);
-    heightPx = Math.round(options.heightMm * MM_TO_PX);
+    const page = orientPageDimensions(options.widthMm, options.heightMm, orientation);
+    widthPx = Math.round(page.widthMm * MM_TO_PX);
+    heightPx = Math.round(page.heightMm * MM_TO_PX);
     configureSvgForFixedPage(prepared, viewport, widthPx, heightPx);
   } else {
     prepared.setAttribute(
@@ -313,12 +317,16 @@ export async function exportTreeElement(
   );
 
   if (format === 'pdf') {
-    const widthMm = options.widthMm ?? 210;
-    const heightMm = options.heightMm ?? 297;
+    const baseW = options.widthMm ?? 210;
+    const baseH = options.heightMm ?? 297;
+    const page =
+      sizeMode === 'fixed'
+        ? orientPageDimensions(baseW, baseH, orientation)
+        : orientPageDimensions(210, 297, orientation);
     const pdf = new jsPDF({
-      orientation: widthMm > heightMm ? 'landscape' : 'portrait',
+      orientation: page.widthMm > page.heightMm ? 'landscape' : 'portrait',
       unit: 'mm',
-      format: sizeMode === 'fixed' ? [widthMm, heightMm] : 'a4',
+      format: sizeMode === 'fixed' ? [page.widthMm, page.heightMm] : 'a4',
     });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
@@ -338,3 +346,23 @@ export const PRESET_SIZES = [
   { label: 'A3', widthMm: 297, heightMm: 420 },
   { label: 'A2', widthMm: 420, heightMm: 594 },
 ];
+
+export function orientPageDimensions(
+  widthMm: number,
+  heightMm: number,
+  orientation: ExportOrientation,
+): { widthMm: number; heightMm: number } {
+  const isLandscape = widthMm > heightMm;
+  const wantLandscape = orientation === 'landscape';
+  if (isLandscape === wantLandscape) return { widthMm, heightMm };
+  return { widthMm: heightMm, heightMm: widthMm };
+}
+
+export function getPresetDimensions(
+  label: string,
+  orientation: ExportOrientation = 'landscape',
+): { widthMm: number; heightMm: number } {
+  const preset = PRESET_SIZES.find((s) => s.label === label);
+  if (!preset) return orientPageDimensions(210, 297, orientation);
+  return orientPageDimensions(preset.widthMm, preset.heightMm, orientation);
+}

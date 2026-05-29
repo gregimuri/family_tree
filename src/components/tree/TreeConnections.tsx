@@ -7,6 +7,7 @@ interface TreeConnectionsProps {
   theme: 'clean' | 'forest';
   project: Project;
   showMarriageYears: boolean;
+  highlightEdgeId?: string | null;
 }
 
 function bondLabel(unionId: string, project: Project): string {
@@ -15,12 +16,14 @@ function bondLabel(unionId: string, project: Project): string {
   return formatMarriageDates(union);
 }
 
-export function TreeConnections({ edges, theme, project, showMarriageYears }: TreeConnectionsProps) {
+export function TreeConnections({ edges, theme, project, showMarriageYears, highlightEdgeId }: TreeConnectionsProps) {
   return (
     <g className="tree-connections">
       {edges.map((edge) => {
         const isBond = edge.id.startsWith('bond-');
         const isPedigree = edge.id.startsWith('fam-');
+        const highlighted = edge.id === highlightEdgeId;
+        const strokeExtra = highlighted ? 1.5 : 0;
         if (isBond) {
           const unionId = edge.id.replace(/^bond-/, '');
           const label = showMarriageYears ? bondLabel(unionId, project) : '';
@@ -37,8 +40,9 @@ export function TreeConnections({ edges, theme, project, showMarriageYears }: Tr
                 d={coupleBondPath(edge.points)}
                 fill="none"
                 stroke={theme === 'forest' ? '#6d4c41' : '#64748b'}
-                strokeWidth={theme === 'forest' ? 2.5 : 2}
+                strokeWidth={(theme === 'forest' ? 2.5 : 2) + strokeExtra}
                 strokeLinecap="round"
+                className={highlighted ? 'tree-edge--selected' : undefined}
               />
               {label && mid && (
                 <text
@@ -62,11 +66,12 @@ export function TreeConnections({ edges, theme, project, showMarriageYears }: Tr
             key={edge.id}
             d={d}
             fill="none"
-            stroke={theme === 'forest' ? '#5d4037' : '#64748b'}
-            strokeWidth={theme === 'forest' ? 2.5 : 1.5}
+            stroke={highlighted ? '#eab308' : theme === 'forest' ? '#5d4037' : '#64748b'}
+            strokeWidth={(theme === 'forest' ? 2.5 : 1.5) + strokeExtra}
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeDasharray={theme === 'clean' && !isPedigree ? '5 4' : undefined}
+            strokeDasharray={theme === 'clean' && !isPedigree && !highlighted ? '5 4' : undefined}
+            className={highlighted ? 'tree-edge--selected' : undefined}
           />
         );
       })}

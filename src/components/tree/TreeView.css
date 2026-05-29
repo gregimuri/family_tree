@@ -156,3 +156,19 @@
     display: none;
   }
 }
+
+.tree-edge-handle {
+  fill: #ffffff;
+  stroke: #2d6a4f;
+  stroke-width: 2;
+  cursor: grab;
+  pointer-events: all;
+}
+
+.tree-edge-handle:active {
+  cursor: grabbing;
+}
+
+.tree-edge--selected {
+  filter: drop-shadow(0 0 3px rgba(234, 179, 8, 0.65));
+}

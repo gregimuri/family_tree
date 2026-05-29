@@ -147,6 +147,8 @@ export interface Project {
   viewSettings: ViewSettings;
   center: ProjectCenter;
   manualLayout?: Record<string, ManualLayoutEntry>;
+  /** Пользовательские маршруты линий связи (ключ — id ребра раскладки). */
+  manualEdgeRoutes?: Record<string, { x: number; y: number }[]>;
 }
 
 export interface RecentProject {

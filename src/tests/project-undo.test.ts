@@ -57,6 +57,23 @@ describe('project undo', () => {
     expect(useProjectStore.getState().project!.persons[id].givenName).toBe(person.givenName);
   });
 
+  it('groups manual layout drags into one undo step', () => {
+    const store = useProjectStore.getState();
+    const personId = Object.keys(store.project!.persons)[0];
+
+    store.setManualLayoutMode(true);
+    const stackAfterEnter = useProjectStore.getState().undoStack.length;
+
+    store.setManualPosition(personId, 100, 200);
+    store.setManualPosition(personId, 120, 220);
+    store.setManualPosition(personId, 140, 240);
+
+    expect(useProjectStore.getState().undoStack.length).toBe(stackAfterEnter);
+
+    store.undo();
+    expect(useProjectStore.getState().project!.manualLayout?.[personId]).toBeUndefined();
+  });
+
   it('records structural link changes separately', () => {
     const store = useProjectStore.getState();
     const child = createEmptyPerson({ givenName: 'Ребёнок' });

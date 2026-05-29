@@ -40,11 +40,11 @@ export async function loadProjectFromDb(blobKey: string): Promise<Project | null
 export async function addRecent(recent: RecentProject): Promise<void> {
   await db.recents.put(recent);
   const all = await db.recents.orderBy('openedAt').reverse().toArray();
-  if (all.length > 10) {
-    await db.recents.bulkDelete(all.slice(10).map((r) => r.id));
+  if (all.length > 5) {
+    await db.recents.bulkDelete(all.slice(5).map((r) => r.id));
   }
 }
 
 export async function getRecents(): Promise<RecentProject[]> {
-  return db.recents.orderBy('openedAt').reverse().limit(10).toArray();
+  return db.recents.orderBy('openedAt').reverse().limit(5).toArray();
 }
