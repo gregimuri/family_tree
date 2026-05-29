@@ -75,3 +75,21 @@ export function convertDateCalendar(date: DateValue, toJulian: boolean): DateVal
   }
   return { year, month, day, julian: toJulian };
 }
+
+/** Old-style flag only — date parts stay as entered by the user. */
+export function setDateJulianFlag(date: DateValue | undefined, julian: boolean): DateValue | undefined {
+  if (!date) return julian ? { julian: true } : undefined;
+
+  if (date.text?.trim()) {
+    return { text: date.text.trim(), julian: julian || undefined };
+  }
+
+  const next: DateValue = { ...date };
+  if (julian) next.julian = true;
+  else delete next.julian;
+
+  if (!next.year && !next.month && !next.day) {
+    return next.julian ? next : undefined;
+  }
+  return next;
+}

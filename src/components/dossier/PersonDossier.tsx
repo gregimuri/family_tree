@@ -155,11 +155,11 @@ export function PersonDossier({ personId }: PersonDossierProps) {
         <div className="dossier-main">
           {editMode ? (
             <div className="dossier-edit-names">
-              <h3>Текущее имя</h3>
-              <label className="dossier-field-inline">
+              <label className="dossier-field-inline dossier-field-inline--gender">
                 <span>Пол</span>
                 <GenderSelect value={person.gender} onChange={(gender) => saveField({ gender })} />
               </label>
+              <h3>Текущее имя</h3>
               <input value={person.surname} onChange={(e) => saveField({ surname: e.target.value })} placeholder="Фамилия" />
               <input value={person.givenName} onChange={(e) => saveField({ givenName: e.target.value })} placeholder="Имя" />
               <input value={person.patronymic} onChange={(e) => saveField({ patronymic: e.target.value })} placeholder="Отчество" />

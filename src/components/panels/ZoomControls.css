@@ -1,8 +1,8 @@
 .zoom-toolbar {
   position: absolute;
-  right: 16px;
-  top: calc(16px + min(560px, calc(100vh - 48px)) + 16px);
-  bottom: auto;
+  right: calc(16px + min(288px, calc(100vw - 100px)) + 12px);
+  bottom: 16px;
+  top: auto;
   z-index: 30;
   display: flex;
   flex-direction: column;
@@ -42,14 +42,6 @@
 .zoom-btn.active {
   background: var(--color-primary-soft);
   color: var(--color-primary);
-}
-
-@media (max-height: 720px), (max-width: 900px) {
-  .zoom-toolbar {
-    top: auto;
-    right: calc(16px + min(288px, calc(100vw - 100px)) + 16px);
-    bottom: 16px;
-  }
 }
 
 @media (max-width: 720px) {

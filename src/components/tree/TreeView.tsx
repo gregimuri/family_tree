@@ -36,7 +36,9 @@ export function TreeView() {
   const setCenter = useProjectStore((s) => s.setCenter);
   const openDossier = useProjectStore((s) => s.openDossier);
   const getMediaUrl = useProjectStore((s) => s.getMediaUrl);
+  const mode = useProjectStore((s) => s.mode);
   const manualLayoutMode = useProjectStore((s) => s.manualLayoutMode);
+  const setManualLayoutMode = useProjectStore((s) => s.setManualLayoutMode);
   const setManualPosition = useProjectStore((s) => s.setManualPosition);
   const clearManualPosition = useProjectStore((s) => s.clearManualPosition);
   const clearManualLayout = useProjectStore((s) => s.clearManualLayout);
@@ -150,6 +152,17 @@ export function TreeView() {
           <Icons.Export size={16} />
           Экспорт
         </button>
+        {mode === 'edit' && (
+          <button
+            type="button"
+            className={`btn tree-action-btn${manualLayoutMode ? ' accent' : ''}`}
+            onClick={() => setManualLayoutMode(!manualLayoutMode)}
+            title="Перетаскивание карточек по сетке"
+          >
+            <Icons.Move size={16} />
+            {manualLayoutMode ? 'Расположение: вкл' : 'Расположение карточек'}
+          </button>
+        )}
         {selection && !manualLayoutMode && (
           <button type="button" className="btn tree-action-btn accent" onClick={makeCenter}>
             <Icons.Target size={16} />

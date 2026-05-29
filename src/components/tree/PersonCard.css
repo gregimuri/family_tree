@@ -39,6 +39,16 @@
   cursor: grabbing;
 }
 
+.person-card-html--draggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.person-card-html--draggable:active {
+  cursor: grabbing;
+}
+
 .person-card-html--forest {
   border-radius: 8px;
 }

@@ -106,8 +106,8 @@ export function PersonCardWithMedia({
     .filter(Boolean)
     .join(' ');
 
-  const handleMouseDown = draggable
-    ? (e: React.MouseEvent) => {
+  const handlePointerDown = draggable
+    ? (e: React.PointerEvent<HTMLDivElement>) => {
         if (e.button !== 0 || !screenToLayout) return;
         e.preventDefault();
         e.stopPropagation();
@@ -115,24 +115,30 @@ export function PersonCardWithMedia({
         const start = screenToLayout(e.clientX, e.clientY);
         if (!start) return;
 
+        const target = e.currentTarget;
+        target.setPointerCapture(e.pointerId);
+
         const offsetX = start.x - (x + width / 2);
         const offsetY = start.y - (y + height / 2);
 
-        const move = (ev: MouseEvent) => {
+        const move = (ev: PointerEvent) => {
           const pt = screenToLayout(ev.clientX, ev.clientY);
           if (!pt) return;
           onDragMove?.(pt.x - offsetX, pt.y - offsetY);
         };
 
-        const up = (ev: MouseEvent) => {
-          window.removeEventListener('mousemove', move);
-          window.removeEventListener('mouseup', up);
+        const up = (ev: PointerEvent) => {
+          target.releasePointerCapture(ev.pointerId);
+          target.removeEventListener('pointermove', move);
+          target.removeEventListener('pointerup', up);
+          target.removeEventListener('pointercancel', up);
           const pt = screenToLayout(ev.clientX, ev.clientY);
           if (pt) onDragEnd?.(pt.x - offsetX, pt.y - offsetY);
         };
 
-        window.addEventListener('mousemove', move);
-        window.addEventListener('mouseup', up);
+        target.addEventListener('pointermove', move);
+        target.addEventListener('pointerup', up);
+        target.addEventListener('pointercancel', up);
       }
     : undefined;
 
@@ -148,7 +154,6 @@ export function PersonCardWithMedia({
         e.stopPropagation();
         onDoubleClick();
       }}
-      onMouseDown={handleMouseDown}
     >
       <rect
         width={width}
@@ -159,13 +164,14 @@ export function PersonCardWithMedia({
       />
       <foreignObject x={0} y={0} width={width} height={height} overflow="hidden">
         <div
-          className={`person-card-html ${theme === 'forest' ? 'person-card-html--forest' : ''} ${selected ? 'selected' : ''} ${manualPlaced ? 'manual-placed' : ''}`}
+          className={`person-card-html ${theme === 'forest' ? 'person-card-html--forest' : ''} ${selected ? 'selected' : ''} ${manualPlaced ? 'manual-placed' : ''}${draggable ? ' person-card-html--draggable' : ''}`}
           style={{
             width,
             height,
             borderColor: selected ? '#eab308' : borderColor,
             boxShadow: selected ? '0 0 0 2px #eab308, 0 4px 14px rgba(28, 25, 23, 0.12)' : undefined,
           }}
+          onPointerDown={handlePointerDown}
         >
           {draggable && (
             <div className="person-card-html__drag-hint" title="Перетащите для перемещения">

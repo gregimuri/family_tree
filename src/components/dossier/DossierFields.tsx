@@ -1,6 +1,6 @@
 import type { DateValue, Gender, LocationDisplaySource, Person, Place } from '../../types';
 import { dateToText } from '../../models/person-utils';
-import { convertDateCalendar } from '../../utils/julian-calendar';
+import { setDateJulianFlag } from '../../utils/julian-calendar';
 
 interface DateFieldProps {
   value?: DateValue;
@@ -37,11 +37,7 @@ export function DateField({ value, onChange, label }: DateFieldProps) {
   const clear = () => onChange(undefined);
 
   const toggleJulian = (checked: boolean) => {
-    if (!value) {
-      onChange({ julian: checked });
-      return;
-    }
-    onChange(convertDateCalendar(value, checked));
+    onChange(setDateJulianFlag(value, checked));
   };
 
   return (
