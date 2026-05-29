@@ -19,6 +19,8 @@ import {
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
 import { buildLayout } from '../layout';
 import { buildGraph } from '../layout/graph-builder';
+import { pickPartnersForUnion } from '../layout/pedigree-edges';
+import type { LayoutNode } from '../types';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
 import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
@@ -157,6 +159,82 @@ describe('layout', () => {
     const parentCenter = (husband.x + husband.width / 2 + wife.x + wife.width / 2) / 2;
     const childCenter = child.x + child.width / 2;
     expect(Math.abs(parentCenter - childCenter)).toBeLessThan(5);
+  });
+
+  it('keeps partners close after recenter without stale manual positions', () => {
+    let project = createEmptyProject();
+    const [idA, idB] = Object.keys(project.persons);
+    const layout1 = buildLayout(project);
+    const nodeA = layout1.nodes.find((n) => n.personId === idA)!;
+    const cy = nodeA.y + nodeA.height / 2;
+    project.manualLayout = { [idA]: { x: nodeA.x + nodeA.width / 2 + 3000, y: cy } };
+
+    const drifted = buildLayout(project);
+    const driftA = drifted.nodes.find((n) => n.personId === idA)!;
+    const driftB = drifted.nodes.find((n) => n.personId === idB)!;
+    expect(Math.abs(driftA.x + driftA.width / 2 - (driftB.x + driftB.width / 2))).toBeGreaterThan(500);
+
+    project = { ...project, center: { type: 'person', id: idA }, manualLayout: undefined };
+    const layout2 = buildLayout(project);
+    const na = layout2.nodes.find((n) => n.personId === idA)!;
+    const nb = layout2.nodes.find((n) => n.personId === idB)!;
+    expect(Math.abs(na.x + na.width / 2 - (nb.x + nb.width / 2))).toBeLessThan(300);
+  });
+
+  it('pickPartnersForUnion ignores partners on different layers', () => {
+    const partners = [
+      { layer: -1, x: 0, width: 100, personId: 'a' },
+      { layer: 0, x: 2000, width: 100, personId: 'b' },
+    ] as LayoutNode[];
+    const children = [{ layer: 0, x: 100, width: 100, personId: 'c' }] as LayoutNode[];
+    const picked = pickPartnersForUnion(partners, children);
+    expect(picked).toHaveLength(1);
+    expect(picked[0].personId).toBe('a');
+  });
+
+  it('recentering on collateral keeps compact family connectors', () => {
+    const ged = `0 HEAD
+0 @C@ INDI
+1 NAME Child /Ivanov/
+1 SEX M
+0 @F@ INDI
+1 NAME Father /Ivanov/
+1 SEX M
+0 @M@ INDI
+1 NAME Mother /Ivanova/
+1 SEX F
+0 @PU@ INDI
+1 NAME Uncle /Ivanov/
+1 SEX M
+0 @FC@ FAM
+1 HUSB @F@
+1 WIFE @M@
+1 CHIL @C@
+0 @FF@ FAM
+1 HUSB @F@
+1 WIFE @M@
+1 CHIL @PU@
+0 TRLR`;
+    let project = importGedcom(ged, 'Recenter');
+    project.center = { type: 'person', id: 'C' };
+    project.viewSettings = {
+      ...project.viewSettings,
+      generationsUp: 2,
+      generationsDown: 0,
+      sideBranchesAt: 1,
+      sideBranchDepth: 0,
+    };
+    buildLayout(project);
+
+    project = { ...project, center: { type: 'person', id: 'PU' }, manualLayout: undefined };
+    const layout = buildLayout(project);
+    const uncle = layout.nodes.find((n) => n.personId === 'PU')!;
+    const father = layout.nodes.find((n) => n.personId === 'F')!;
+    expect(Math.abs(uncle.y - father.y)).toBeLessThan(500);
+    const maxEdgeSpan = Math.max(
+      ...layout.edges.flatMap((e) => e.points.map((p) => p.x)),
+    ) - Math.min(...layout.edges.flatMap((e) => e.points.map((p) => p.x)));
+    expect(maxEdgeSpan).toBeLessThan(2000);
   });
 
   it('places maternal collateral left and paternal collateral right', () => {

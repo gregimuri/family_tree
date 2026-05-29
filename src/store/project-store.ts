@@ -304,7 +304,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   setCenter: (center) => {
-    get().updateProject((p) => ({ ...p, center }));
+    get().updateProject((p) => ({
+      ...p,
+      center,
+      manualLayout: undefined,
+    }));
     set({ selection: null });
   },
 

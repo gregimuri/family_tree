@@ -124,12 +124,25 @@ export function buildGraph(
   ): string | null => {
     const isSideBranch = branchSide !== 'main';
     if (visitedPersons.has(personId)) {
-      const existing = personToNode.get(personId);
-      if (existing && unionId) {
-        const node = nodes.find((n) => n.id === existing);
-        if (node?.kind === 'person' && !node.unionId) node.unionId = unionId;
+      const existingId = personToNode.get(personId);
+      if (existingId) {
+        const node = nodes.find((n) => n.id === existingId);
+        if (node?.kind === 'person') {
+          if (unionId && !node.unionId) node.unionId = unionId;
+          const preferMainLine =
+            branchSide === 'main' &&
+            (node.branchSide !== 'main' || Math.abs(layer) < Math.abs(node.layer));
+          if (preferMainLine) {
+            node.layer = layer;
+            node.branchSide = branchSide;
+            node.isSideBranch = false;
+            node.branchDepth = branchDepth;
+            if (unionId) node.unionId = unionId;
+            if (parentUnionId) node.parentUnionId = parentUnionId;
+          }
+        }
       }
-      return existing ?? null;
+      return existingId ?? null;
     }
     const person = project.persons[personId];
     if (!person || !shouldIncludePerson(person, settings)) return null;

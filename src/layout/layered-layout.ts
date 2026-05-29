@@ -71,24 +71,35 @@ export function buildLayoutEdges(
 
   for (const [unionId, members] of byUnion) {
     if (members.length < 2) continue;
-    const sorted = [...members].sort((a, b) => {
-      const pa = project.persons[a.personId!];
-      const pb = project.persons[b.personId!];
-      if (pa?.gender === 'male' && pb?.gender !== 'male') return -1;
-      if (pb?.gender === 'male' && pa?.gender !== 'male') return 1;
-      return a.x - b.x;
-    });
-    const left = sorted[0];
-    const right = sorted[1];
-    const bondId = `bond-${unionId}`;
-    if (seenBonds.has(bondId)) continue;
-    seenBonds.add(bondId);
-    coupleBonds.push({
-      id: bondId,
-      from: left.id,
-      to: right.id,
-      points: routeCoupleBond(left, right),
-    });
+
+    const layerGroups = new Map<number, LayoutNode[]>();
+    for (const member of members) {
+      const list = layerGroups.get(member.layer) ?? [];
+      list.push(member);
+      layerGroups.set(member.layer, list);
+    }
+
+    for (const group of layerGroups.values()) {
+      if (group.length < 2) continue;
+      const sorted = [...group].sort((a, b) => {
+        const pa = project.persons[a.personId!];
+        const pb = project.persons[b.personId!];
+        if (pa?.gender === 'male' && pb?.gender !== 'male') return -1;
+        if (pb?.gender === 'male' && pa?.gender !== 'male') return 1;
+        return a.x - b.x;
+      });
+      const left = sorted[0];
+      const right = sorted[1];
+      const bondId = `bond-${unionId}-${left.layer}`;
+      if (seenBonds.has(bondId)) continue;
+      seenBonds.add(bondId);
+      coupleBonds.push({
+        id: bondId,
+        from: left.id,
+        to: right.id,
+        points: routeCoupleBond(left, right),
+      });
+    }
   }
 
   return [...coupleBonds, ...pedigreeEdges];

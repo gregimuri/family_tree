@@ -15,6 +15,41 @@ function sortChildren(nodes: LayoutNode[]): LayoutNode[] {
   return [...nodes].sort((a, b) => a.x - b.x);
 }
 
+/** Partners must share a layer — otherwise pedigree lines stretch across the tree. */
+export function pickPartnersForUnion(
+  partners: LayoutNode[],
+  children: LayoutNode[],
+): LayoutNode[] {
+  if (partners.length <= 1) return partners;
+
+  const groups = new Map<number, LayoutNode[]>();
+  for (const partner of partners) {
+    const list = groups.get(partner.layer) ?? [];
+    list.push(partner);
+    groups.set(partner.layer, list);
+  }
+
+  if (groups.size === 1) return partners;
+
+  const parentLayer =
+    children.length > 0 ? Math.min(...children.map((c) => c.layer)) - 1 : null;
+
+  if (parentLayer !== null && groups.has(parentLayer)) {
+    return groups.get(parentLayer)!;
+  }
+
+  let best = partners;
+  let bestScore = -1;
+  for (const group of groups.values()) {
+    const score = group.length * 100 - Math.abs(group[0].layer) * 10;
+    if (score > bestScore) {
+      bestScore = score;
+      best = group;
+    }
+  }
+  return best;
+}
+
 function buildFamilyConnector(
   unionId: string,
   partners: LayoutNode[],
@@ -103,9 +138,14 @@ export function buildPedigreeEdges(
     const union = project.unions[unionId];
     if (!union) continue;
 
-    const partners = union.partnerIds
-      .map((id) => nodeByPersonId.get(id))
-      .filter((n): n is LayoutNode => Boolean(n));
+    const partners = pickPartnersForUnion(
+      union.partnerIds
+        .map((id) => nodeByPersonId.get(id))
+        .filter((n): n is LayoutNode => Boolean(n)),
+      union.childIds
+        .map((id) => nodeByPersonId.get(id))
+        .filter((n): n is LayoutNode => Boolean(n)),
+    );
 
     const children = union.childIds
       .map((id) => nodeByPersonId.get(id))
