@@ -64,8 +64,10 @@ describe('export resolution', () => {
       { format: 'png', sizeMode: 'tree', quality: 'high' },
       { width: 1200, height: 900 },
     );
-    expect(res.pixelRatio).toBe(3);
-    expect(res.cardRasterRatio).toBe(3);
-    expect(res.widthPx).toBe(1200);
+    expect(res.dpi).toBe(200);
+    expect(res.pixelRatio).toBe(1);
+    expect(res.widthPx).toBe(Math.round(1200 * (200 / 96)));
+    expect(res.heightPx).toBe(Math.round(900 * (200 / 96)));
+    expect(res.cardRasterRatio).toBeGreaterThanOrEqual(3);
   });
 });

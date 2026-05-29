@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Person } from '../../types';
+import type { ProjectSnapshot } from '../../store/project-history';
 import {
   dateToText,
   formatPersonName,
@@ -50,6 +51,8 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   const deleteMedia = useProjectStore((s) => s.deleteMedia);
   const getMediaUrl = useProjectStore((s) => s.getMediaUrl);
   const deletePerson = useProjectStore((s) => s.deletePerson);
+  const captureProjectSnapshot = useProjectStore((s) => s.captureProjectSnapshot);
+  const restoreProjectSnapshot = useProjectStore((s) => s.restoreProjectSnapshot);
 
   const [bioOpen, setBioOpen] = useState(true);
   const [mediaOpen, setMediaOpen] = useState(true);
@@ -57,6 +60,7 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState<Person | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const editSnapshotRef = useRef<ProjectSnapshot | null>(null);
 
   if (!project) return null;
   const storePerson = project.persons[personId];
@@ -79,17 +83,32 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   };
 
   const startEdit = () => {
+    editSnapshotRef.current = captureProjectSnapshot();
     setDraft(structuredClone(storePerson));
     setEditMode(true);
   };
 
   const finishEdit = () => {
-    if (draft) updatePerson(draft);
+    if (draft) {
+      const live = project.persons[personId];
+      updatePerson({
+        ...draft,
+        parentUnionIds: live.parentUnionIds,
+        unionIds: live.unionIds,
+        mediaIds: live.mediaIds,
+        avatar: live.avatar,
+      });
+    }
+    editSnapshotRef.current = null;
     setDraft(null);
     setEditMode(false);
   };
 
   const handleClose = () => {
+    if (editMode && editSnapshotRef.current) {
+      restoreProjectSnapshot(editSnapshotRef.current);
+    }
+    editSnapshotRef.current = null;
     setDraft(null);
     setEditMode(false);
     closeDossier();
@@ -197,13 +216,11 @@ export function PersonDossier({ personId }: PersonDossierProps) {
             </h2>
           )}
 
-          {mode === 'edit' && editMode && (
-            <PersonRelationships
-              personId={personId}
-              canEdit
-              onNavigate={openDossier}
-            />
-          )}
+          <PersonRelationships
+            personId={personId}
+            canEdit={mode === 'edit' && editMode}
+            onNavigate={openDossier}
+          />
 
           <dl className="dossier-facts">
             {!editMode && (

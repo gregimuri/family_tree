@@ -2,6 +2,7 @@ import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import type { LayoutResult } from '../../types';
 import type { TreeFrame } from '../../layout/center-focus';
+import { getTreeSheetBounds } from '../../layout/content-bounds';
 import { getTreeContentRect } from '../../hooks/tree-viewport';
 
 export type ExportImageFormat = 'png' | 'jpeg' | 'pdf';
@@ -71,10 +72,14 @@ export function resolveExportResolution(
     return { widthPx, heightPx, pixelRatio: 1, cardRasterRatio, dpi };
   }
 
-  const widthPx = Math.round(viewport.width);
-  const heightPx = Math.round(viewport.height);
-  const cardRasterRatio = Math.min(MAX_CARD_RASTER_RATIO, Math.max(2, pixelRatio));
-  return { widthPx, heightPx, pixelRatio, cardRasterRatio, dpi };
+  const layoutScale = dpi / 96;
+  const widthPx = Math.max(1, Math.round(viewport.width * layoutScale));
+  const heightPx = Math.max(1, Math.round(viewport.height * layoutScale));
+  const cardRasterRatio = Math.min(
+    MAX_CARD_RASTER_RATIO,
+    Math.max(2, Math.ceil(layoutScale * pixelRatio)),
+  );
+  return { widthPx, heightPx, pixelRatio: 1, cardRasterRatio, dpi };
 }
 
 const INLINE_STYLE_PROPS = [
@@ -301,7 +306,7 @@ export function computeExportViewport(
   layout: LayoutResult,
   pad = EXPORT_PAD,
 ) {
-  return getTreeContentRect(frame, layout, pad);
+  return getTreeContentRect(frame, layout, pad, getTreeSheetBounds(layout));
 }
 
 /** Fit tree content inside a fixed page without cropping (letterboxing). */

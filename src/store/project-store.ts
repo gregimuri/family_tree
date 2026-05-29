@@ -70,6 +70,8 @@ interface ProjectState {
   canRedo: () => boolean;
   undo: () => void;
   redo: () => void;
+  captureProjectSnapshot: () => ProjectSnapshot | null;
+  restoreProjectSnapshot: (snapshot: ProjectSnapshot) => void;
   setProjectName: (name: string) => void;
   setViewSettings: (settings: ViewSettings) => void;
   setCenter: (center: ProjectCenter) => void;
@@ -307,6 +309,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       redoStack: redoStack.slice(0, -1),
       undoStack: trimUndoStack([...undoStack, current]),
     });
+    historyMuted = false;
+  },
+
+  captureProjectSnapshot: () => {
+    const state = get();
+    if (!state.project) return null;
+    return createSnapshot(state);
+  },
+
+  restoreProjectSnapshot: (snapshot) => {
+    historyMuted = true;
+    applySnapshot(snapshot, get, set);
     historyMuted = false;
   },
 

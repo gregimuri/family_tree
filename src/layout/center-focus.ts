@@ -1,5 +1,5 @@
 import type { LayoutResult, Project } from '../types';
-import { getFramingBounds } from './framing-bounds';
+import { getTreeSheetBounds } from './content-bounds';
 
 export interface LayoutFocusPoint {
   x: number;
@@ -63,12 +63,11 @@ export function getSymmetricTreeFrame(
   const focus = getCenterFocusPoint(project, layout);
   if (!focus) return null;
 
-  const framing = getFramingBounds(project, layout);
-  const leftSpan = focus.x - framing.minX;
-  const rightSpan = framing.maxX - focus.x;
-  const topSpan = focus.y - framing.minY;
-  // Include orphan strip below the linked tree in canvas height.
-  const bottomSpan = layout.bounds.maxY - focus.y;
+  const content = getTreeSheetBounds(layout);
+  const leftSpan = focus.x - content.minX;
+  const rightSpan = content.maxX - focus.x;
+  const topSpan = focus.y - content.minY;
+  const bottomSpan = content.maxY - focus.y;
 
   const halfW = Math.max(leftSpan, rightSpan, 1);
   const halfH = Math.max(topSpan, bottomSpan, 1);
