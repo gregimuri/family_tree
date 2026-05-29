@@ -48,8 +48,10 @@ const FAMILY_H = 110;
 const LAYER_GAP = CARD_H + 48;
 const NODE_GAP = 48;
 const COUPLE_GAP = 10;
+/** Расстояние между группами карточек на одном слое */
+const GROUP_GAP = 64;
 
-export { CARD_W, CARD_H, FAMILY_W, FAMILY_H, LAYER_GAP, NODE_GAP, COUPLE_GAP };
+export { CARD_W, CARD_H, FAMILY_W, FAMILY_H, LAYER_GAP, NODE_GAP, COUPLE_GAP, GROUP_GAP };
 
 function shouldIncludePerson(person: Person, settings: ViewSettings): boolean {
   if (settings.showDiedBefore18) return true;

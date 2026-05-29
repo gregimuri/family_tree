@@ -8,6 +8,7 @@ import {
   computeNuclearLayoutNodes,
   mergeNuclearAndPedigreeNodes,
 } from './nuclear-tree-adapter';
+import { reconcileMergedLayout } from './merge-layout';
 import { routeCoupleBond } from './edge-router';
 import { buildPedigreeEdges } from './pedigree-edges';
 import { nodeSize, runPedigreeLayout } from './pedigree-layout';
@@ -168,6 +169,7 @@ export function computeLayout(
   const pedigree = computePedigreeLayout(graph, project);
   const nuclearNodes = computeNuclearLayoutNodes(project, graph);
   const mergedNodes = mergeNuclearAndPedigreeNodes(nuclearNodes, pedigree.nodes, graph);
+  reconcileMergedLayout(mergedNodes, graph, project);
 
   const layout: LayoutResult = {
     nodes: mergedNodes,

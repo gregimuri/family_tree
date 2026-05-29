@@ -1,6 +1,6 @@
 import type { LayoutNode, Person, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
-import { CARD_W, COUPLE_GAP, LAYER_GAP, getCardScale } from './graph-builder';
+import { CARD_W, COUPLE_GAP, GROUP_GAP, LAYER_GAP, getCardScale } from './graph-builder';
 import { CARD_H_TEXT, getCardDimensions } from './card-dimensions';
 import {
   computeNuclearTreeLayout,
@@ -75,7 +75,7 @@ export function buildNuclearLayoutOptions(project: Project): LayoutOptions {
     nodeWidth: CARD_W * scale,
     nodeHeight,
     verticalGap: LAYER_GAP - nodeHeight,
-    horizontalGap: 30,
+    horizontalGap: GROUP_GAP,
     spouseGap: COUPLE_GAP,
   };
 }

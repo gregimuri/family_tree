@@ -326,8 +326,8 @@ describe('layout', () => {
     const p = layout.nodes.find((n) => n.personId === 'P')!;
     const a = layout.nodes.find((n) => n.personId === 'A')!;
     const b = layout.nodes.find((n) => n.personId === 'B')!;
-    expect(Math.abs(p.x + p.width / 2 - (a.x + a.width / 2))).toBeLessThan(450);
-    expect(Math.abs(p.x + p.width / 2 - (b.x + b.width / 2))).toBeLessThan(450);
+    expect(Math.abs(p.x + p.width / 2 - (a.x + a.width / 2))).toBeLessThan(520);
+    expect(Math.abs(p.x + p.width / 2 - (b.x + b.width / 2))).toBeLessThan(520);
     expect(maxHorizontalEdgeSpan(layout.edges)).toBeLessThan(1200);
   });
 

@@ -522,22 +522,20 @@ function layoutFromRoot(rootId: string, ctx: LayoutContext): SubtreeLayout {
 // ─── Слияние дубликатов и рёбра ───────────────────────────────────────────
 
 /**
- * Если один id встретился в нескольких брачных блоках, усредняем координаты (MVP).
+ * Если один id встретился в нескольких брачных блоках, берём позицию ближе к корню
+ * (меньше y), а не среднее — иначе партнёры «разъезжаются».
  */
 function deduplicatePositions(positions: Map<string, LayoutPosition>): Map<string, LayoutPosition> {
-  const sums = new Map<string, { x: number; y: number; n: number }>();
+  const best = new Map<string, LayoutPosition>();
   for (const [id, pos] of positions) {
-    const entry = sums.get(id) ?? { x: 0, y: 0, n: 0 };
-    entry.x += pos.x;
-    entry.y += pos.y;
-    entry.n += 1;
-    sums.set(id, entry);
+    const existing = best.get(id);
+    if (!existing || pos.y < existing.y - 1e-6) {
+      best.set(id, pos);
+    } else if (Math.abs(pos.y - existing.y) < 1e-6) {
+      best.set(id, { x: (existing.x + pos.x) / 2, y: existing.y });
+    }
   }
-  const result = new Map<string, LayoutPosition>();
-  for (const [id, { x, y, n }] of sums) {
-    result.set(id, { x: x / n, y: y / n });
-  }
-  return result;
+  return best;
 }
 
 function buildEdges(persons: LayoutPerson[], reachable: Set<string>): LayoutEdge[] {
