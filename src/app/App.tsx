@@ -115,8 +115,10 @@ function AppHeader() {
 }
 
 export function App() {
+  const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '');
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename || undefined}>
       <Routes>
         <Route path="/" element={<StartScreen />} />
         <Route path="/tree" element={<TreeRoute edit={false} />} />

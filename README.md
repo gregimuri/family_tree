@@ -9,6 +9,7 @@
 - [Возможности](#возможности)
 - [Требования](#требования)
 - [Установка и запуск на другом компьютере](#установка-и-запуск-на-другом-компьютере)
+- [Демо на GitHub Pages](#демо-на-github-pages)
 - [Инструкция для тестировщика](#инструкция-для-тестировщика)
 - [Работа с приложением](#работа-с-приложением)
 - [Управление на древе](#управление-на-древе)
@@ -79,6 +80,31 @@ npm -v
 ```
 
 Ожидаемый результат, например: `v22.x.x` и `10.x.x`.
+
+---
+
+## Демо на GitHub Pages
+
+Онлайн-версия (без установки Node.js): **[https://gregimuri.github.io/Family_Tree/](https://gregimuri.github.io/Family_Tree/)**
+
+Деплой выполняется автоматически при push в ветку `main` (workflow `.github/workflows/deploy-pages.yml`).
+
+### Первичная настройка в репозитории GitHub
+
+1. Откройте **Settings → Pages**
+2. В **Build and deployment → Source** выберите **GitHub Actions**
+3. Запушьте изменения в `main` — после успешного workflow сайт станет доступен по ссылке выше
+
+### Локальная проверка сборки для Pages
+
+```bash
+npm run build:pages
+npm run preview -- --base /Family_Tree/
+```
+
+Откройте адрес из вывода `preview` (обычно `http://localhost:4173/Family_Tree/`).
+
+> На GitHub Pages данные по-прежнему хранятся только в браузере пользователя. File System Access API может быть ограничен — используйте «Сохранить как» для скачивания `.drevo`.
 
 ---
 
@@ -295,6 +321,7 @@ project.drevo (zip)
 | `npm install` | Установить зависимости (первый запуск на машине) |
 | `npm run dev` | Локальный сервер разработки с hot-reload |
 | `npm run build` | Production-сборка в папку `dist/` |
+| `npm run build:pages` | Сборка с базовым путём `/Family_Tree/` для GitHub Pages |
 | `npm run preview` | Просмотр собранной версии |
 | `npm test` | Запуск автотестов (Vitest) |
 | `npm run lint` | Проверка кода ESLint |
