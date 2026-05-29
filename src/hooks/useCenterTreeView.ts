@@ -31,12 +31,16 @@ function scheduleFit(
   frame: TreeFrame,
   layout: LayoutResult,
   animationTime: number,
+  project?: Project | null,
 ): () => void {
   let raf = 0;
   let attempts = 0;
 
   const tick = () => {
-    if (fitTreeToViewport(ref, frame, layout, animationTime) || attempts >= MAX_FIT_ATTEMPTS) {
+    if (
+      fitTreeToViewport(ref, frame, layout, animationTime, project) ||
+      attempts >= MAX_FIT_ATTEMPTS
+    ) {
       return;
     }
     attempts += 1;
@@ -57,13 +61,15 @@ export function useCenterTreeView({
   const viewportKeyRef = useRef('');
   const layoutRef = useRef(layout);
   const frameRef = useRef(frame);
+  const projectRef = useRef(project);
   const enabledRef = useRef(enabled);
 
   useLayoutEffect(() => {
     layoutRef.current = layout;
     frameRef.current = frame;
+    projectRef.current = project;
     enabledRef.current = enabled;
-  }, [layout, frame, enabled]);
+  }, [layout, frame, project, enabled]);
 
   useEffect(() => {
     if (enabled) viewportKeyRef.current = '';
@@ -88,7 +94,7 @@ export function useCenterTreeView({
 
     const ref = transformRef.current;
     if (!ref) return;
-    return scheduleFit(ref, frame, layout, 250);
+    return scheduleFit(ref, frame, layout, 250, project);
   }, [enabled, project, layout, frame, transformRef]);
 
   useEffect(() => {
@@ -107,8 +113,9 @@ export function useCenterTreeView({
         const liveRef = transformRef.current;
         const liveLayout = layoutRef.current;
         const liveFrame = frameRef.current;
+        const liveProject = projectRef.current;
         if (!liveRef || !liveLayout || !liveFrame || !enabledRef.current) return;
-        cancelRaf = scheduleFit(liveRef, liveFrame, liveLayout, 120);
+        cancelRaf = scheduleFit(liveRef, liveFrame, liveLayout, 120, liveProject);
       }, 80);
     };
 
@@ -140,8 +147,9 @@ export function resetTreeView(
   transformRef: React.RefObject<ReactZoomPanPinchRef | null>,
   frame: TreeFrame | null,
   layout: LayoutResult | null,
+  project?: Project | null,
 ) {
   const ref = transformRef.current;
   if (!ref || !frame || !layout) return;
-  scheduleFit(ref, frame, layout, 200);
+  scheduleFit(ref, frame, layout, 200, project);
 }

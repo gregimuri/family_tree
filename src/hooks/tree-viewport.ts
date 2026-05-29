@@ -1,5 +1,6 @@
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import type { LayoutResult } from '../types';
+import type { LayoutResult, Project } from '../types';
+import { getFramingBounds } from '../layout/framing-bounds';
 import type { TreeFrame } from '../layout/center-focus';
 
 export const TREE_FIT_PADDING = 0.9;
@@ -40,8 +41,9 @@ export function getTreeContentRect(
   frame: TreeFrame,
   layout: LayoutResult,
   pad = TREE_CONTENT_PAD,
+  bounds = layout.bounds,
 ): ViewportRect {
-  const { minX, minY, maxX, maxY } = layout.bounds;
+  const { minX, minY, maxX, maxY } = bounds;
   const width = Math.max(maxX - minX, 160);
   const height = Math.max(maxY - minY, 200);
 
@@ -103,11 +105,13 @@ export function fitTreeToViewport(
   frame: TreeFrame,
   layout: LayoutResult,
   animationTime = 0,
+  project?: Project | null,
 ): boolean {
   const wrapper = ref.instance.wrapperComponent;
   if (!wrapper) return false;
 
-  const contentRect = getTreeContentRect(frame, layout);
+  const bounds = project ? getFramingBounds(project, layout) : layout.bounds;
+  const contentRect = getTreeContentRect(frame, layout, TREE_CONTENT_PAD, bounds);
   const transform = computeFitTransform({
     wrapperWidth: wrapper.clientWidth,
     wrapperHeight: wrapper.clientHeight,

@@ -41,8 +41,8 @@ function repositionOrphanNodes(layout: LayoutResult, project: Project): LayoutRe
   const orphans = layout.nodes.filter((n) => n.personId && !linked.has(n.personId));
   if (orphans.length === 0) return layout;
 
-  let x = layout.bounds.maxX + 64;
-  const y = layout.bounds.minY;
+  let x = layout.bounds.minX;
+  const y = layout.bounds.maxY + 64;
   const orphanIds = new Set(orphans.map((n) => n.personId!));
 
   const nodes = layout.nodes.map((n) => {

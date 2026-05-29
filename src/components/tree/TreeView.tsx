@@ -136,7 +136,7 @@ export function TreeView() {
               className="btn small"
               onClick={() => {
                 clearManualLayout();
-                resetTreeView(transformRef, frame, layout);
+                resetTreeView(transformRef, frame, layout, project);
               }}
             >
               Авторасположение
@@ -300,7 +300,7 @@ export function TreeView() {
       <ZoomControls
         onZoomIn={() => transformRef.current?.zoomIn()}
         onZoomOut={() => transformRef.current?.zoomOut()}
-        onReset={() => resetTreeView(transformRef, frame, layout)}
+        onReset={() => resetTreeView(transformRef, frame, layout, project)}
       />
 
       {exportOpen && (

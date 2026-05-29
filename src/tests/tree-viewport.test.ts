@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyProject } from '../models/defaults';
+import { createEmptyProject, createEmptyPerson } from '../models/defaults';
 import { buildLayout } from '../layout';
 import { getSymmetricTreeFrame } from '../layout/center-focus';
+import { getFramingBounds } from '../layout/framing-bounds';
 import {
   computeFitTransform,
   getTreeContentRect,
@@ -9,16 +10,17 @@ import {
 } from '../hooks/tree-viewport';
 
 describe('tree viewport', () => {
-  it('content rect covers layout bounds inside svg frame', () => {
+  it('content rect covers framing bounds inside svg frame', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
     const frame = getSymmetricTreeFrame(project, layout, 80)!;
-    const rect = getTreeContentRect(frame, layout);
+    const framing = getFramingBounds(project, layout);
+    const rect = getTreeContentRect(frame, layout, TREE_CONTENT_PAD, framing);
 
-    expect(rect.x).toBeLessThanOrEqual(frame.offsetX + layout.bounds.minX);
-    expect(rect.y).toBeLessThanOrEqual(frame.offsetY + layout.bounds.minY);
-    expect(rect.x + rect.width).toBeGreaterThanOrEqual(frame.offsetX + layout.bounds.maxX);
-    expect(rect.y + rect.height).toBeGreaterThanOrEqual(frame.offsetY + layout.bounds.maxY);
+    expect(rect.x).toBeLessThanOrEqual(frame.offsetX + framing.minX);
+    expect(rect.y).toBeLessThanOrEqual(frame.offsetY + framing.minY);
+    expect(rect.x + rect.width).toBeGreaterThanOrEqual(frame.offsetX + framing.maxX);
+    expect(rect.y + rect.height).toBeGreaterThanOrEqual(frame.offsetY + framing.maxY);
     expect(rect.width).toBeGreaterThan(0);
     expect(rect.height).toBeGreaterThan(0);
   });
@@ -66,10 +68,29 @@ describe('tree viewport', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
     const frame = getSymmetricTreeFrame(project, layout, 80)!;
-    const tight = getTreeContentRect(frame, layout, 0);
-    const padded = getTreeContentRect(frame, layout, TREE_CONTENT_PAD);
+    const framing = getFramingBounds(project, layout);
+    const tight = getTreeContentRect(frame, layout, 0, framing);
+    const padded = getTreeContentRect(frame, layout, TREE_CONTENT_PAD, framing);
 
     expect(padded.width).toBeGreaterThan(tight.width);
     expect(padded.height).toBeGreaterThan(tight.height);
+  });
+
+  it('does not stretch canvas when unlinked persons exist', () => {
+    const project = createEmptyProject();
+    const orphanA = createEmptyPerson({ givenName: 'Orphan', surname: 'One', gender: 'male' });
+    const orphanB = createEmptyPerson({ givenName: 'Orphan', surname: 'Two', gender: 'female' });
+    project.persons[orphanA.id] = orphanA;
+    project.persons[orphanB.id] = orphanB;
+
+    const layout = buildLayout(project);
+    const frame = getSymmetricTreeFrame(project, layout, 80)!;
+    const framing = getFramingBounds(project, layout);
+    const linkedWidth = framing.maxX - framing.minX;
+    const fullWidth = layout.bounds.maxX - layout.bounds.minX;
+
+    expect(fullWidth).toBeGreaterThan(linkedWidth);
+    expect(frame.svgW).toBeLessThan(fullWidth * 2 + 200);
+    expect(frame.svgW).toBeLessThan(8000);
   });
 });
