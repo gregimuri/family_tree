@@ -8,6 +8,7 @@ import {
   getParents,
   linkChild,
   linkParent,
+  unlinkParent,
   removePersonFromProject,
 } from '../models/person-utils';
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
@@ -361,6 +362,40 @@ describe('relationships', () => {
       [parentId, spouseId].sort(),
     );
     expect(getAllChildren(project, project.persons[spouseId]).some((c) => c.id === child.id)).toBe(true);
+  });
+
+  it('unlinkParent removes one parent but keeps marriage and other parent', () => {
+    let project = createEmptyProject();
+    const [parentId, spouseId] = Object.keys(project.persons);
+    const marriageUnionId = project.persons[parentId].unionIds[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+    project = linkParent(project, child.id, parentId);
+
+    project = unlinkParent(project, child.id, parentId);
+
+    expect(project.unions[marriageUnionId]).toBeDefined();
+    expect(project.unions[marriageUnionId].partnerIds.sort()).toEqual([parentId, spouseId].sort());
+    expect(getParents(project, project.persons[child.id]).map((p) => p.id)).toEqual([spouseId]);
+    expect(getAllChildren(project, project.persons[parentId]).some((c) => c.id === child.id)).toBe(false);
+    expect(getAllChildren(project, project.persons[spouseId]).some((c) => c.id === child.id)).toBe(true);
+  });
+
+  it('unlinkParent then linkParent restores both parents and marriage child link', () => {
+    let project = createEmptyProject();
+    const [parentId, spouseId] = Object.keys(project.persons);
+    const marriageUnionId = project.persons[parentId].unionIds[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    project = { ...project, persons: { ...project.persons, [child.id]: child } };
+    project = linkParent(project, child.id, parentId);
+
+    project = unlinkParent(project, child.id, parentId);
+    project = linkParent(project, child.id, parentId);
+
+    expect(project.unions[marriageUnionId].childIds).toContain(child.id);
+    expect(getParents(project, project.persons[child.id]).map((p) => p.id).sort()).toEqual(
+      [parentId, spouseId].sort(),
+    );
   });
 });
 

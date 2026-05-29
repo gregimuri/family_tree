@@ -107,13 +107,18 @@ export function getPersonLocation(person: Person): Place | undefined {
 }
 
 export function getParents(project: Project, person: Person): Person[] {
+  const seen = new Set<string>();
   const parents: Person[] = [];
   for (const unionId of person.parentUnionIds) {
     const u = project.unions[unionId];
     if (!u) continue;
     for (const pid of u.partnerIds) {
+      if (seen.has(pid)) continue;
       const p = project.persons[pid];
-      if (p) parents.push(p);
+      if (p) {
+        seen.add(pid);
+        parents.push(p);
+      }
     }
   }
   return parents.sort((a, b) => {
@@ -204,6 +209,63 @@ export function touchProjectMeta(project: Project): Project {
 function shouldRemoveUnion(partnerIds: string[], childIds: string[]): boolean {
   if (partnerIds.length === 0 && childIds.length === 0) return true;
   return partnerIds.length <= 1 && childIds.length === 0;
+}
+
+function cleanupRemovedUnions(
+  project: Project,
+  unions: Record<string, Union>,
+  removedUnionIds: Set<string>,
+): Project {
+  if (removedUnionIds.size === 0) return { ...project, unions };
+
+  const persons = { ...project.persons };
+  for (const [id, p] of Object.entries(persons)) {
+    const unionIds = p.unionIds.filter((uid) => !removedUnionIds.has(uid));
+    const parentUnionIds = p.parentUnionIds.filter((uid) => !removedUnionIds.has(uid));
+    if (unionIds.length !== p.unionIds.length || parentUnionIds.length !== p.parentUnionIds.length) {
+      persons[id] = { ...p, unionIds, parentUnionIds };
+    }
+  }
+
+  return { ...project, persons, unions };
+}
+
+function compactRedundantParentUnions(
+  project: Project,
+  childId: string,
+  primaryUnionId: string,
+): Project {
+  const primary = project.unions[primaryUnionId];
+  const child = project.persons[childId];
+  if (!primary || primary.partnerIds.length < 2 || !child) return project;
+
+  const unions = { ...project.unions };
+  const removed = new Set<string>();
+
+  for (const uid of child.parentUnionIds) {
+    if (uid === primaryUnionId) continue;
+    const u = unions[uid];
+    if (!u || !u.childIds.includes(childId)) continue;
+    if (!u.partnerIds.every((pid) => primary.partnerIds.includes(pid))) continue;
+
+    const newChildIds = u.childIds.filter((id) => id !== childId);
+    if (shouldRemoveUnion(u.partnerIds, newChildIds)) {
+      delete unions[uid];
+      removed.add(uid);
+    } else {
+      unions[uid] = { ...u, childIds: newChildIds };
+    }
+  }
+
+  if (removed.size === 0) return project;
+
+  const persons = { ...project.persons };
+  persons[childId] = {
+    ...child,
+    parentUnionIds: child.parentUnionIds.filter((id) => !removed.has(id)),
+  };
+
+  return cleanupRemovedUnions({ ...project, persons, unions }, unions, removed);
 }
 
 function pickFallbackCenter(project: Project): ProjectCenter {
@@ -365,7 +427,11 @@ function applyParentChildLink(
     }
   }
 
-  return touchProjectMeta({ ...project, persons, unions });
+  let next = touchProjectMeta({ ...project, persons, unions });
+  if (linkedUnion.partnerIds.length >= 2) {
+    next = compactRedundantParentUnions(next, childId, uid);
+  }
+  return next;
 }
 
 export function linkParent(project: Project, childId: string, parentId: string, unionId?: string): Project {
@@ -380,39 +446,44 @@ export function unlinkParent(project: Project, childId: string, parentId: string
   const child = project.persons[childId];
   if (!child) return project;
 
-  const unions = { ...project.unions };
-  const persons = { ...project.persons };
-  const removedUnionIds = new Set<string>();
+  let result = project;
 
-  for (const unionId of child.parentUnionIds) {
-    const union = unions[unionId];
-    if (!union || !union.partnerIds.includes(parentId)) continue;
+  for (const unionId of [...child.parentUnionIds]) {
+    const union = result.unions[unionId];
+    if (!union?.partnerIds.includes(parentId) || !union.childIds.includes(childId)) continue;
 
-    const partnerIds = union.partnerIds.filter((id) => id !== parentId);
-    const childIds = union.childIds.filter((id) => id !== childId);
+    const otherPartners = union.partnerIds.filter((id) => id !== parentId);
+    const newChildIds = union.childIds.filter((id) => id !== childId);
+    const unions = { ...result.unions };
 
-    if (shouldRemoveUnion(partnerIds, childIds)) {
+    if (shouldRemoveUnion(union.partnerIds, newChildIds)) {
       delete unions[unionId];
-      removedUnionIds.add(unionId);
+      result = cleanupRemovedUnions({ ...result, unions }, unions, new Set([unionId]));
     } else {
-      unions[unionId] = { ...union, partnerIds, childIds };
+      unions[unionId] = { ...union, childIds: newChildIds };
+      result = { ...result, unions };
+    }
+
+    const persons = { ...result.persons };
+    const currentChild = persons[childId];
+    if (currentChild) {
+      persons[childId] = {
+        ...currentChild,
+        parentUnionIds: currentChild.parentUnionIds.filter((uid) => {
+          const u = unions[uid] ?? result.unions[uid];
+          return u?.childIds.includes(childId);
+        }),
+      };
+      result = { ...result, persons };
+    }
+
+    for (const otherId of otherPartners) {
+      if (!result.persons[otherId]) continue;
+      result = applyParentChildLink(result, childId, otherId, { preferMarriageUnion: false });
     }
   }
 
-  persons[childId] = {
-    ...child,
-    parentUnionIds: child.parentUnionIds.filter((id) => !removedUnionIds.has(id)),
-  };
-
-  for (const [id, p] of Object.entries(persons)) {
-    if (id === childId) continue;
-    const unionIds = p.unionIds.filter((uid) => !removedUnionIds.has(uid));
-    if (unionIds.length !== p.unionIds.length) {
-      persons[id] = { ...p, unionIds };
-    }
-  }
-
-  return touchProjectMeta({ ...project, persons, unions });
+  return touchProjectMeta(result);
 }
 
 export function linkPartner(project: Project, personAId: string, personBId: string): Project {
