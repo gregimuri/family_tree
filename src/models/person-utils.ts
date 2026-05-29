@@ -147,6 +147,12 @@ export function getChildren(project: Project, union: Union): Person[] {
 
 export type LinkKind = 'parent' | 'partner' | 'child';
 
+export const MAX_PARENTS = 2;
+
+export function canAddParent(project: Project, person: Person): boolean {
+  return getParents(project, person).length < MAX_PARENTS;
+}
+
 /** Все потомки персоны (для запрета циклических связей). */
 export function getDescendantIds(project: Project, personId: string): Set<string> {
   const seen = new Set<string>();
@@ -564,7 +570,27 @@ function applyParentChildLink(
 }
 
 export function linkParent(project: Project, childId: string, parentId: string, unionId?: string): Project {
+  const child = project.persons[childId];
+  if (!child) return project;
+
+  const existingParents = getParents(project, child);
+  if (existingParents.length >= MAX_PARENTS && !existingParents.some((p) => p.id === parentId)) {
+    return project;
+  }
+
   let next = applyParentChildLink(project, childId, parentId, { unionId, preferMarriageUnion: false });
+
+  const parents = getParents(next, next.persons[childId]!);
+  if (parents.length === 2) {
+    const [p1, p2] = parents;
+    const alreadyPartners = p1.unionIds.some(
+      (uid) => p2.unionIds.includes(uid) && next.unions[uid]?.partnerIds.length >= 2,
+    );
+    if (!alreadyPartners) {
+      next = linkPartner(next, p1.id, p2.id);
+    }
+  }
+
   next = mergeMarriedParentsForChild(next, childId);
   return next;
 }

@@ -21,13 +21,9 @@ import { PersonDossier } from '../dossier/PersonDossier';
 import { MediaViewer } from '../media/MediaViewer';
 import { Icons } from '../ui/Icons';
 import './TreeView.css';
-import { MANUAL_GRID_SIZE } from './ManualLayoutGrid';
+import { snapCardCenterToGridCorners } from '../../layout/card-dimensions';
 
 const TREE_PAD = 80;
-
-function snapToGrid(value: number): number {
-  return Math.round(value / MANUAL_GRID_SIZE) * MANUAL_GRID_SIZE;
-}
 
 export function TreeView() {
   const project = useProjectStore((s) => s.project);
@@ -83,8 +79,10 @@ export function TreeView() {
   }, []);
 
   const handleDragEnd = useCallback(
-    (personId: string, centerX: number, centerY: number) => {
-      setManualPosition(personId, snapToGrid(centerX), snapToGrid(centerY));
+    (personId: string, centerX: number, centerY: number, width: number, height: number) => {
+      const gridSize = width / 6;
+      const snapped = snapCardCenterToGridCorners(centerX, centerY, width, height, gridSize);
+      setManualPosition(personId, snapped.x, snapped.y);
       setDragPositions((prev) => {
         const next = { ...prev };
         delete next[personId];
@@ -297,7 +295,7 @@ export function TreeView() {
                         manualPlaced={manualPlaced}
                         screenToLayout={screenToLayout}
                         onDragMove={(cx, cy) => handleDragMove(node.personId!, cx, cy)}
-                        onDragEnd={(cx, cy) => handleDragEnd(node.personId!, cx, cy)}
+                        onDragEnd={(cx, cy) => handleDragEnd(node.personId!, cx, cy, node.width, node.height)}
                         onClick={() => setSelection({ type: 'person', id: node.personId! })}
                         onDoubleClick={() => !manualLayoutMode && openDossier(node.personId!)}
                       />

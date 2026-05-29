@@ -3,9 +3,9 @@ import {
   calcAge,
   formatLifeDates,
   formatPersonName,
-  getCardBirthSuffix,
   getPersonLocation,
 } from '../../models/person-utils';
+import { personShowsCardPhoto } from '../../layout/card-dimensions';
 import './PersonCard.css';
 
 interface PersonCardProps {
@@ -29,22 +29,8 @@ interface PersonCardProps {
   onDragEnd?: (centerX: number, centerY: number) => void;
 }
 
-function CardNameLine({
-  text,
-  birthSuffix,
-  className,
-}: {
-  text: string;
-  birthSuffix?: string | null;
-  className: string;
-}) {
-  if (!text) return null;
-  return (
-    <div className={className}>
-      <span>{text}</span>
-      {birthSuffix && <span className="person-card-html__birth-part"> ({birthSuffix})</span>}
-    </div>
-  );
+function cardNameLine(text: string | undefined): string {
+  return text?.trim() ?? '';
 }
 
 export function PersonCardWithMedia({
@@ -81,19 +67,25 @@ export function PersonCardWithMedia({
   const dates = formatLifeDates(person, cf.dateFormat);
   const age = cf.showAge ? calcAge(person) : null;
   const location = cf.showLocation ? getPersonLocation(person)?.name : null;
-  const avatarUrl =
-    cf.showPhoto && person.avatar
-      ? (() => {
-          const media = project.media[person.avatar!.mediaId];
-          return media ? getMediaUrl(media.filename) : undefined;
-        })()
-      : undefined;
+  const hasPhoto = personShowsCardPhoto(project, person, settings);
+  const avatarUrl = hasPhoto
+    ? (() => {
+        const media = project.media[person.avatar!.mediaId];
+        return media ? getMediaUrl(media.filename) : undefined;
+      })()
+    : undefined;
 
-  const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
   const showBirth = cf.showBirthName;
-  const surnameBirth = getCardBirthSuffix(person.surname, person.birthSurname, showBirth);
-  const givenBirth = getCardBirthSuffix(person.givenName, person.birthGivenName, showBirth);
-  const patronymicBirth = getCardBirthSuffix(person.patronymic, person.birthPatronymic, showBirth);
+  const surname = showBirth
+    ? cardNameLine(person.birthSurname) || cardNameLine(person.surname)
+    : cardNameLine(person.surname);
+  const givenName = showBirth
+    ? cardNameLine(person.birthGivenName) || cardNameLine(person.givenName)
+    : cardNameLine(person.givenName);
+  const patronymic = showBirth
+    ? cardNameLine(person.birthPatronymic) || cardNameLine(person.patronymic)
+    : cardNameLine(person.patronymic);
+  const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
 
   const className = [
     'person-card',
@@ -102,6 +94,18 @@ export function PersonCardWithMedia({
     highlighted ? 'highlighted' : '',
     draggable ? 'person-card--draggable' : '',
     manualPlaced ? 'person-card--manual' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const htmlClassName = [
+    'person-card-html',
+    'person-card-html--vertical',
+    hasPhoto ? 'person-card-html--with-photo' : 'person-card-html--text-only',
+    theme === 'forest' ? 'person-card-html--forest' : '',
+    selected ? 'selected' : '',
+    manualPlaced ? 'manual-placed' : '',
+    draggable ? 'person-card-html--draggable' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -164,7 +168,7 @@ export function PersonCardWithMedia({
       />
       <foreignObject x={0} y={0} width={width} height={height} overflow="hidden">
         <div
-          className={`person-card-html ${theme === 'forest' ? 'person-card-html--forest' : ''} ${selected ? 'selected' : ''} ${manualPlaced ? 'manual-placed' : ''}${draggable ? ' person-card-html--draggable' : ''}`}
+          className={htmlClassName}
           style={{
             width,
             height,
@@ -178,50 +182,38 @@ export function PersonCardWithMedia({
               ⋮⋮
             </div>
           )}
-          <div className="person-card-html__photo">
-            {avatarUrl ? (
+          {hasPhoto && avatarUrl && (
+            <div className="person-card-html__photo">
               <img className="person-card-html__avatar" src={avatarUrl} alt="" />
-            ) : (
-              <div className="person-card-html__avatar person-card-html__avatar--empty" />
-            )}
-          </div>
-          <div className="person-card-html__names">
-            {nicknameAsPrimary ? (
-              <div className="person-card-html__nickname-primary">{person.nickname}</div>
-            ) : (
-              <>
-                <CardNameLine
-                  text={person.surname}
-                  birthSuffix={surnameBirth}
-                  className="person-card-html__surname"
-                />
-                <CardNameLine
-                  text={person.givenName}
-                  birthSuffix={givenBirth}
-                  className="person-card-html__given"
-                />
-                <CardNameLine
-                  text={person.patronymic}
-                  birthSuffix={patronymicBirth}
-                  className="person-card-html__patronymic"
-                />
-                {!person.surname && !person.givenName && !person.patronymic && (
-                  <div className="person-card-html__given">{formatPersonName(person)}</div>
-                )}
-              </>
-            )}
-            {cf.showNickname && person.nickname && !cf.nicknamePriority && (
-              <div className="person-card-html__nickname">«{person.nickname}»</div>
-            )}
-          </div>
-          <div className="person-card-html__footer">
-            {(dates || age !== null) && (
-              <div className="person-card-html__meta">
-                {dates && <span>{dates}</span>}
-                {age !== null && <span>{age} лет</span>}
-              </div>
-            )}
-            {location && <div className="person-card-html__location">{location}</div>}
+            </div>
+          )}
+          <div className="person-card-html__body">
+            <div className="person-card-html__names">
+              {nicknameAsPrimary ? (
+                <div className="person-card-html__nickname-primary">{person.nickname}</div>
+              ) : (
+                <>
+                  {surname && <div className="person-card-html__surname">{surname}</div>}
+                  {givenName && <div className="person-card-html__given">{givenName}</div>}
+                  {patronymic && <div className="person-card-html__patronymic">{patronymic}</div>}
+                  {!surname && !givenName && !patronymic && (
+                    <div className="person-card-html__given">{formatPersonName(person)}</div>
+                  )}
+                </>
+              )}
+              {cf.showNickname && person.nickname && !cf.nicknamePriority && (
+                <div className="person-card-html__nickname">«{person.nickname}»</div>
+              )}
+            </div>
+            <div className="person-card-html__footer">
+              {(dates || age !== null) && (
+                <div className="person-card-html__meta">
+                  {dates && <span>{dates}</span>}
+                  {age !== null && <span>{age} лет</span>}
+                </div>
+              )}
+              {location && <div className="person-card-html__location">{location}</div>}
+            </div>
           </div>
         </div>
       </foreignObject>

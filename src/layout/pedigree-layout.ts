@@ -1,12 +1,12 @@
 import type { Project } from '../types';
 import type { BranchSide, GraphNode, GraphResult } from './graph-builder';
 import {
-  CARD_H,
   CARD_W,
   COUPLE_GAP,
   LAYER_GAP,
   getCardScale,
 } from './graph-builder';
+import { CARD_H_FULL } from './card-dimensions';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
 
@@ -34,7 +34,7 @@ export interface LayoutUnit {
 }
 
 function nodeSize(scale: number): { w: number; h: number } {
-  return { w: CARD_W * scale, h: CARD_H * scale };
+  return { w: CARD_W * scale, h: CARD_H_FULL * scale };
 }
 
 function median(values: number[]): number | null {

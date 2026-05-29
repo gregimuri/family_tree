@@ -1,6 +1,7 @@
 import type { LayoutResult } from '../../types';
+import { CARD_GRID_CELL } from '../../layout/card-dimensions';
 
-export const MANUAL_GRID_SIZE = 28;
+export { CARD_GRID_CELL as MANUAL_GRID_SIZE };
 
 interface ManualLayoutGridProps {
   layout: LayoutResult;
@@ -8,16 +9,17 @@ interface ManualLayoutGridProps {
   dragging: boolean;
 }
 
-/** Сетка в координатах дерева — совпадает с шагом привязки при перетаскивании. */
+/** Сетка в координатах дерева — углы клеток совпадают с шагом привязки. */
 export function ManualLayoutGrid({ layout, active, dragging }: ManualLayoutGridProps) {
   if (!active) return null;
 
   const pad = 240;
   const { minX, minY, maxX, maxY } = layout.bounds;
-  const x = Math.floor((minX - pad) / MANUAL_GRID_SIZE) * MANUAL_GRID_SIZE;
-  const y = Math.floor((minY - pad) / MANUAL_GRID_SIZE) * MANUAL_GRID_SIZE;
-  const width = maxX - minX + pad * 2 + MANUAL_GRID_SIZE;
-  const height = maxY - minY + pad * 2 + MANUAL_GRID_SIZE;
+  const grid = CARD_GRID_CELL;
+  const x = Math.floor((minX - pad) / grid) * grid;
+  const y = Math.floor((minY - pad) / grid) * grid;
+  const width = maxX - minX + pad * 2 + grid;
+  const height = maxY - minY + pad * 2 + grid;
   const stroke = dragging ? 'rgba(45, 106, 79, 0.55)' : 'rgba(45, 106, 79, 0.32)';
   const dot = dragging ? 'rgba(45, 106, 79, 0.45)' : 'rgba(45, 106, 79, 0.22)';
   const patternId = dragging ? 'manual-grid-pattern-active' : 'manual-grid-pattern';
@@ -27,14 +29,14 @@ export function ManualLayoutGrid({ layout, active, dragging }: ManualLayoutGridP
       <defs>
         <pattern
           id={patternId}
-          width={MANUAL_GRID_SIZE}
-          height={MANUAL_GRID_SIZE}
+          width={grid}
+          height={grid}
           patternUnits="userSpaceOnUse"
           x={x}
           y={y}
         >
           <path
-            d={`M ${MANUAL_GRID_SIZE} 0 L 0 0 0 ${MANUAL_GRID_SIZE}`}
+            d={`M ${grid} 0 L 0 0 0 ${grid}`}
             fill="none"
             stroke={stroke}
             strokeWidth={1}

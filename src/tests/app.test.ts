@@ -23,6 +23,7 @@ import { pickPartnersForUnion } from '../layout/pedigree-edges';
 import type { LayoutEdge, LayoutNode } from '../types';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
+import { CARD_H_TEXT, CARD_W } from '../layout/card-dimensions';
 import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
 import { validateViewSettings, canUseUniformCards } from '../models/validation';
 import { formatPlaceText, placeHasValue } from '../components/dossier/DossierFields';
@@ -817,6 +818,62 @@ describe('relationships', () => {
     expect(getParents(blocked, blocked.persons[parentId]).some((p) => p.id === child.id)).toBe(false);
   });
 
+  it('allows at most two parents per person', () => {
+    let project = createEmptyProject();
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    const parent1 = createEmptyPerson({ givenName: 'Отец', gender: 'male' });
+    const parent2 = createEmptyPerson({ givenName: 'Мать', gender: 'female' });
+    const parent3 = createEmptyPerson({ givenName: 'Лишний', gender: 'male' });
+    project = {
+      ...project,
+      persons: {
+        ...project.persons,
+        [child.id]: child,
+        [parent1.id]: parent1,
+        [parent2.id]: parent2,
+        [parent3.id]: parent3,
+      },
+    };
+
+    project = linkParent(project, child.id, parent1.id);
+    project = linkParent(project, child.id, parent2.id);
+    expect(getParents(project, project.persons[child.id]).length).toBe(2);
+
+    const blocked = linkParent(project, child.id, parent3.id);
+    expect(getParents(blocked, blocked.persons[child.id]).length).toBe(2);
+    expect(getParents(blocked, blocked.persons[child.id]).some((p) => p.id === parent3.id)).toBe(false);
+  });
+
+  it('creates marriage union when second parent is linked', () => {
+    let project = createEmptyProject();
+    const child = createEmptyPerson({ givenName: 'Ребёнок' });
+    const father = createEmptyPerson({ givenName: 'Отец', gender: 'male' });
+    const mother = createEmptyPerson({ givenName: 'Мать', gender: 'female' });
+    project = {
+      ...project,
+      persons: {
+        ...project.persons,
+        [child.id]: child,
+        [father.id]: father,
+        [mother.id]: mother,
+      },
+    };
+
+    project = linkParent(project, child.id, father.id);
+    project = linkParent(project, child.id, mother.id);
+
+    const parents = getParents(project, project.persons[child.id]);
+    expect(parents.length).toBe(2);
+
+    const fatherAfter = project.persons[father.id];
+    const motherAfter = project.persons[mother.id];
+    const sharedUnion = fatherAfter.unionIds.find(
+      (uid) => motherAfter.unionIds.includes(uid) && project.unions[uid]?.partnerIds.length === 2,
+    );
+    expect(sharedUnion).toBeTruthy();
+    expect(project.unions[sharedUnion!].childIds).toContain(child.id);
+  });
+
   it('repairProjectRelationships fixes stale references', () => {
     let project = createEmptyProject();
     const [parentId] = Object.keys(project.persons);
@@ -1034,8 +1091,8 @@ describe('delete person', () => {
     const viewport = computeExportViewport(frame, layout);
     expect(viewport.width).toBeLessThan(frame.svgW);
     expect(viewport.height).toBeLessThan(frame.svgH);
-    expect(viewport.width).toBeGreaterThan(200);
-    expect(viewport.height).toBeGreaterThan(200);
+    expect(viewport.width).toBeGreaterThan(CARD_W);
+    expect(viewport.height).toBeGreaterThan(CARD_H_TEXT);
   });
 
   it('fixed page export uses meet fit inside sheet bounds', () => {

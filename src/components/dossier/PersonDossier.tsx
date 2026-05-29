@@ -185,11 +185,13 @@ export function PersonDossier({ personId }: PersonDossierProps) {
             </h2>
           )}
 
-          <PersonRelationships
-            personId={personId}
-            canEdit={mode === 'edit'}
-            onNavigate={openDossier}
-          />
+          {mode === 'edit' && editMode && (
+            <PersonRelationships
+              personId={personId}
+              canEdit
+              onNavigate={openDossier}
+            />
+          )}
 
           <dl className="dossier-facts">
             {!editMode && (

@@ -39,8 +39,9 @@ export interface GraphResult {
   personToNode: Map<string, string>;
 }
 
-const CARD_W = 148;
-const CARD_H = 208;
+import { CARD_H_FULL, CARD_W } from './card-dimensions';
+
+const CARD_H = CARD_H_FULL;
 const FAMILY_W = 200;
 const FAMILY_H = 110;
 /** Расстояние между центрами поколений: не меньше высоты карточки + зазор для линий */

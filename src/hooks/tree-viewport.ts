@@ -1,6 +1,7 @@
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { LayoutResult, Project } from '../types';
 import { getFramingBounds } from '../layout/framing-bounds';
+import { CARD_H_TEXT, CARD_W } from '../layout/card-dimensions';
 import type { TreeFrame } from '../layout/center-focus';
 
 export const TREE_FIT_PADDING = 0.9;
@@ -44,8 +45,8 @@ export function getTreeContentRect(
   bounds = layout.bounds,
 ): ViewportRect {
   const { minX, minY, maxX, maxY } = bounds;
-  const width = Math.max(maxX - minX, 160);
-  const height = Math.max(maxY - minY, 200);
+  const width = Math.max(maxX - minX, CARD_W);
+  const height = Math.max(maxY - minY, CARD_H_TEXT);
 
   return {
     x: frame.offsetX + minX - pad,

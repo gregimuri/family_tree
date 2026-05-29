@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Union } from '../../types';
 import {
+  canAddParent,
   formatMarriageDates,
   formatPersonName,
   getChildren,
@@ -79,7 +80,8 @@ function LinkActions({
 }
 
 const LINK_HINTS: Record<LinkKind, string> = {
-  parent: 'Выберите персону, которая станет родителем. Нельзя выбрать потомков или уже добавленных родителей.',
+  parent:
+    'Выберите персону, которая станет родителем. Можно указать не более двух родителей; при добавлении второго они автоматически объединяются в союз.',
   partner: 'Выберите партнёра для нового или существующего союза. Нельзя выбрать родителей, детей или текущих партнёров.',
   child: 'Выберите ребёнка для привязки. Нельзя выбрать родителей или уже добавленных детей.',
 };
@@ -114,6 +116,7 @@ export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRel
 
   const parents = getParents(project, person);
   const unions = getUnions(project, person);
+  const canAddMoreParents = canAddParent(project, person);
 
   const hasAnyLinks =
     parents.length > 0 ||
@@ -128,8 +131,17 @@ export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRel
     return 'unknown' as const;
   };
 
+  const defaultParentGender = () => {
+    if (parents.length === 1) {
+      if (parents[0].gender === 'male') return 'female' as const;
+      if (parents[0].gender === 'female') return 'male' as const;
+    }
+    return 'unknown' as const;
+  };
+
   const createAndLink = (kind: LinkKind, unionId?: string) => {
-    const gender = kind === 'partner' ? defaultPartnerGender() : 'unknown';
+    const gender =
+      kind === 'partner' ? defaultPartnerGender() : kind === 'parent' ? defaultParentGender() : 'unknown';
     const newPerson = addPerson({ gender });
     placeNewPersonNear(newPerson.id, personId);
     if (kind === 'parent') linkParent(personId, newPerson.id);
@@ -249,13 +261,7 @@ export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRel
     <section className="dossier-relationships">
       <h3 className="dossier-relationships__heading">Связи</h3>
 
-      {!canEdit && (
-        <p className="relationship-view-hint">
-          Для добавления, привязки или удаления связей переключитесь в режим «Редактировать» в шапке приложения.
-        </p>
-      )}
-
-      {canEdit && !hasAnyLinks && (
+      {!hasAnyLinks && (
         <p className="relationship-edit-hint">
           Добавьте родителей, партнёра или детей — создайте новую персону или привяжите существующую через поиск.
         </p>
@@ -276,13 +282,16 @@ export function PersonRelationships({ personId, canEdit, onNavigate }: PersonRel
           ))}
           {!parents.length && !canEdit && <span className="muted relationship-empty">Не указаны</span>}
         </div>
-        {canEdit && (
+        {canEdit && canAddMoreParents && (
           <LinkActions
             createLabel="+ Создать родителя"
             linkLabel="Привязать…"
             onCreate={() => createAndLink('parent')}
             onLink={() => openLink('parent')}
           />
+        )}
+        {canEdit && !canAddMoreParents && (
+          <p className="muted relationship-empty">Указаны оба родителя (максимум 2)</p>
         )}
       </div>
 

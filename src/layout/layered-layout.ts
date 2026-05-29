@@ -1,5 +1,6 @@
 import type { LayoutEdge, LayoutNode, LayoutResult, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
+import { getCardDimensions } from './card-dimensions';
 import { LAYER_GAP, getCardScale } from './graph-builder';
 import { getCenterFocusPoint } from './center-focus';
 import { routeCoupleBond } from './edge-router';
@@ -133,7 +134,10 @@ export function computeLayout(
     for (const node of layerNodes) {
       if (node.kind !== 'person') continue;
       const scale = getCardScale(node.layer, node.isSideBranch, node.branchDepth, settings.cardSizeMode);
-      const { w, h } = nodeSize(scale);
+      const person = project.persons[node.personId];
+      const { w, h } = person
+        ? getCardDimensions(project, person, settings, scale)
+        : nodeSize(scale);
       const px = positions.get(node.id) ?? 0;
       const py = layer * LAYER_GAP;
 

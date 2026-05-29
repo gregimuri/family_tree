@@ -157,8 +157,8 @@ async function rasterizePersonCards(source: SVGSVGElement, clone: SVGSVGElement)
     const foreignObject = cloneForeignObjects[i];
     if (!card || !foreignObject) continue;
 
-    const width = Number.parseFloat(foreignObject.getAttribute('width') ?? '148');
-    const height = Number.parseFloat(foreignObject.getAttribute('height') ?? '208');
+    const width = Number.parseFloat(foreignObject.getAttribute('width') ?? '120');
+    const height = Number.parseFloat(foreignObject.getAttribute('height') ?? '240');
     const x = foreignObject.getAttribute('x') ?? '0';
     const y = foreignObject.getAttribute('y') ?? '0';
 

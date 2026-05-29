@@ -396,7 +396,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   placeNewPersonNear: (newPersonId, nearPersonId) => {
     void nearPersonId;
-    get().setCenter({ type: 'person', id: newPersonId });
     get().setSelection({ type: 'person', id: newPersonId });
   },
 
