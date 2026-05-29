@@ -108,7 +108,7 @@ npm -v
 **Вариант A — через Git (если есть доступ к репозиторию):**
 
 ```bash
-git clone <URL-репозитория> Family_Tree
+git clone https://github.com/Gregimuri/Family_Tree
 cd Family_Tree
 ```
 
@@ -309,4 +309,4 @@ React 19 · TypeScript · Vite · Zustand · Dexie · JSZip · SVG · react-zoom
 
 ## Лицензия
 
-Проект для личного и семейного использования. Уточняйте условия распространения у автора репозитория.
+Проект для личного и семейного использования.
