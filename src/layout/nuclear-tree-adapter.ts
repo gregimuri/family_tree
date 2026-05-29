@@ -47,9 +47,34 @@ export function personToLayoutPerson(person: Person, project: Project): LayoutPe
   };
 }
 
+function pickMainLineMaleAtLayer(
+  graph: GraphResult,
+  project: Project,
+  layer: number,
+): string | null {
+  const candidates = graphPersonNodes(graph).filter(
+    (n) => n.layer === layer && !n.isSideBranch,
+  );
+  if (candidates.length === 0) return null;
+  const male = candidates.find((n) => project.persons[n.personId]?.gender === 'male');
+  return male?.personId ?? candidates[0].personId;
+}
+
 /** Корень нисходящего древа из настроек центра проекта. */
-export function resolveLayoutRootId(project: Project): string {
+export function resolveLayoutRootId(project: Project, graph?: GraphResult): string {
   const { center } = project;
+
+  if (graph && center.type === 'person') {
+    const centerNode = graphPersonNodes(graph).find((n) => n.personId === center.id);
+    if (centerNode && !centerNode.isSideBranch && centerNode.layer >= 1) {
+      return center.id;
+    }
+    const layerOne = pickMainLineMaleAtLayer(graph, project, 1);
+    if (layerOne) return layerOne;
+    const layerZero = pickMainLineMaleAtLayer(graph, project, 0);
+    if (layerZero) return layerZero;
+  }
+
   if (center.type === 'person' && project.persons[center.id]) {
     return center.id;
   }
@@ -96,7 +121,7 @@ export function shouldUseNuclearPosition(node: GraphPersonNode): boolean {
 /** Раскладка узлов ядерным алгоритмом (центры → top-left с учётом размеров карточек). */
 export function computeNuclearLayoutNodes(project: Project, graph: GraphResult): LayoutNode[] {
   const settings = project.viewSettings;
-  const rootId = resolveLayoutRootId(project);
+  const rootId = resolveLayoutRootId(project, graph);
   const layoutPersons = projectPersonsForGraph(project, graph);
   const options = buildNuclearLayoutOptions(project);
   const nuclear = computeNuclearTreeLayout(layoutPersons, rootId, options);

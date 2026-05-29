@@ -1,6 +1,6 @@
 import type { LayoutNode, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
-import { COUPLE_GAP, getCardScale, GROUP_GAP } from './graph-builder';
+import { COUPLE_GAP, getCardScale, GROUP_GAP, LAYER_GAP } from './graph-builder';
 import { CARD_W } from './card-dimensions';
 import { shouldUseNuclearPosition } from './nuclear-tree-adapter';
 
@@ -248,6 +248,14 @@ function resolveLayerCollisions(
   }
 }
 
+/** Единая вертикальная сетка по graph.layer (pedigree), не nuclear generation Y. */
+function normalizeNodesToLayerY(nodes: LayoutNode[], layerGap = LAYER_GAP): void {
+  for (const node of nodes) {
+    const centerY = node.layer * layerGap;
+    node.y = centerY - node.height / 2;
+  }
+}
+
 function resolveMergedCollisions(
   nodes: LayoutNode[],
   graph: GraphResult,
@@ -274,6 +282,7 @@ export function reconcileMergedLayout(
   project: Project,
 ): void {
   if (nodes.length === 0) return;
+  normalizeNodesToLayerY(nodes);
   alignPedigreeToNuclearSeam(nodes, graph, project);
   resolveMergedCollisions(nodes, graph, project);
 }

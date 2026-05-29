@@ -1,0 +1,285 @@
+{
+  "version": 1,
+  "meta": {
+    "name": "Новый проект",
+    "createdAt": "2026-05-29T19:53:39.193Z",
+    "modifiedAt": "2026-05-29T19:54:37.240Z"
+  },
+  "persons": {
+    "14836e93-5a5d-4b74-87a8-87549b6277e6": {
+      "id": "14836e93-5a5d-4b74-87a8-87549b6277e6",
+      "gender": "male",
+      "surname": "Иванов",
+      "givenName": "Иван",
+      "patronymic": "Иванович",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [
+        "bcf865af-f9a8-42bf-9991-8ee858770341"
+      ],
+      "unionIds": [
+        "53d35a3b-ccef-40a6-bef3-ab4dfd46b20b"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth",
+      "birth": {
+        "date": {
+          "year": 1980
+        },
+        "place": {
+          "name": "Москва"
+        }
+      }
+    },
+    "2db7a42d-d3c9-454b-b6ec-f83f33035998": {
+      "id": "2db7a42d-d3c9-454b-b6ec-f83f33035998",
+      "gender": "female",
+      "surname": "Иванова",
+      "givenName": "Мария",
+      "patronymic": "Петровна",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [
+        "af1b2e09-32a1-420b-950a-e91971e6d8c5"
+      ],
+      "unionIds": [
+        "53d35a3b-ccef-40a6-bef3-ab4dfd46b20b"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth",
+      "birth": {
+        "date": {
+          "year": 1982
+        },
+        "place": {
+          "name": "Санкт-Петербург"
+        }
+      }
+    },
+    "5ea662fc-756e-4ed9-9718-460aae96d114": {
+      "id": "5ea662fc-756e-4ed9-9718-460aae96d114",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [],
+      "unionIds": [
+        "bcf865af-f9a8-42bf-9991-8ee858770341"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "feebd2f9-336f-490e-8259-8ad6ccec368a": {
+      "id": "feebd2f9-336f-490e-8259-8ad6ccec368a",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [],
+      "unionIds": [
+        "bcf865af-f9a8-42bf-9991-8ee858770341"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "299b8302-e513-4cae-a1de-2776ae060d16": {
+      "id": "299b8302-e513-4cae-a1de-2776ae060d16",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [
+        "53d35a3b-ccef-40a6-bef3-ab4dfd46b20b"
+      ],
+      "unionIds": [],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "4e9fd30c-0a66-4c07-85c6-254d3e475306": {
+      "id": "4e9fd30c-0a66-4c07-85c6-254d3e475306",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [
+        "53d35a3b-ccef-40a6-bef3-ab4dfd46b20b"
+      ],
+      "unionIds": [],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "54207b39-19e4-4495-b45d-12ed724265c1": {
+      "id": "54207b39-19e4-4495-b45d-12ed724265c1",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [
+        "53d35a3b-ccef-40a6-bef3-ab4dfd46b20b"
+      ],
+      "unionIds": [],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "88371d9d-e291-4ec4-92ed-2ba0d38b93cd": {
+      "id": "88371d9d-e291-4ec4-92ed-2ba0d38b93cd",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [],
+      "unionIds": [
+        "af1b2e09-32a1-420b-950a-e91971e6d8c5"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "f64c903b-7ca3-4d7d-a117-4a7ad9451c8e": {
+      "id": "f64c903b-7ca3-4d7d-a117-4a7ad9451c8e",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [],
+      "unionIds": [
+        "af1b2e09-32a1-420b-950a-e91971e6d8c5"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "244269b6-a378-42ff-bbe5-242bb99dca20": {
+      "id": "244269b6-a378-42ff-bbe5-242bb99dca20",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [
+        "53d35a3b-ccef-40a6-bef3-ab4dfd46b20b"
+      ],
+      "unionIds": [
+        "3283185c-9759-4b66-83b2-c238d0f4f597"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "6d098cd6-90e8-4d28-bc54-1b5ef26e8da7": {
+      "id": "6d098cd6-90e8-4d28-bc54-1b5ef26e8da7",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [],
+      "unionIds": [
+        "3283185c-9759-4b66-83b2-c238d0f4f597"
+      ],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    },
+    "ebf72c68-8199-4634-90a4-feb3bd91a773": {
+      "id": "ebf72c68-8199-4634-90a4-feb3bd91a773",
+      "gender": "unknown",
+      "surname": "",
+      "givenName": "",
+      "patronymic": "",
+      "nicknamePriority": false,
+      "biography": "",
+      "parentUnionIds": [
+        "3283185c-9759-4b66-83b2-c238d0f4f597"
+      ],
+      "unionIds": [],
+      "mediaIds": [],
+      "cardLocationSource": "birth"
+    }
+  },
+  "unions": {
+    "53d35a3b-ccef-40a6-bef3-ab4dfd46b20b": {
+      "id": "53d35a3b-ccef-40a6-bef3-ab4dfd46b20b",
+      "partnerIds": [
+        "14836e93-5a5d-4b74-87a8-87549b6277e6",
+        "2db7a42d-d3c9-454b-b6ec-f83f33035998"
+      ],
+      "childIds": [
+        "299b8302-e513-4cae-a1de-2776ae060d16",
+        "4e9fd30c-0a66-4c07-85c6-254d3e475306",
+        "54207b39-19e4-4495-b45d-12ed724265c1",
+        "244269b6-a378-42ff-bbe5-242bb99dca20"
+      ],
+      "marriageStart": {
+        "year": 2005
+      }
+    },
+    "bcf865af-f9a8-42bf-9991-8ee858770341": {
+      "id": "bcf865af-f9a8-42bf-9991-8ee858770341",
+      "partnerIds": [
+        "5ea662fc-756e-4ed9-9718-460aae96d114",
+        "feebd2f9-336f-490e-8259-8ad6ccec368a"
+      ],
+      "childIds": [
+        "14836e93-5a5d-4b74-87a8-87549b6277e6"
+      ]
+    },
+    "af1b2e09-32a1-420b-950a-e91971e6d8c5": {
+      "id": "af1b2e09-32a1-420b-950a-e91971e6d8c5",
+      "partnerIds": [
+        "88371d9d-e291-4ec4-92ed-2ba0d38b93cd",
+        "f64c903b-7ca3-4d7d-a117-4a7ad9451c8e"
+      ],
+      "childIds": [
+        "2db7a42d-d3c9-454b-b6ec-f83f33035998"
+      ]
+    },
+    "3283185c-9759-4b66-83b2-c238d0f4f597": {
+      "id": "3283185c-9759-4b66-83b2-c238d0f4f597",
+      "partnerIds": [
+        "244269b6-a378-42ff-bbe5-242bb99dca20",
+        "6d098cd6-90e8-4d28-bc54-1b5ef26e8da7"
+      ],
+      "childIds": [
+        "ebf72c68-8199-4634-90a4-feb3bd91a773"
+      ]
+    }
+  },
+  "media": {},
+  "viewSettings": {
+    "generationsUp": 3,
+    "generationsDown": 3,
+    "sideBranchesAt": 2,
+    "sideBranchDepth": 1,
+    "cardSizeMode": "uniform",
+    "showDiedBefore18": true,
+    "theme": "clean",
+    "cardFields": {
+      "showBirthName": false,
+      "showNickname": true,
+      "nicknamePriority": false,
+      "dateFormat": "years",
+      "showAge": false,
+      "showLocation": true,
+      "showPhoto": true,
+      "showMarriageYears": false
+    },
+    "allowExternalMedia": false
+  },
+  "center": {
+    "type": "person",
+    "id": "f64c903b-7ca3-4d7d-a117-4a7ad9451c8e"
+  }
+}
