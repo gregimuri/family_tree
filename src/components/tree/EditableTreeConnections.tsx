@@ -98,6 +98,7 @@ export function EditableTreeConnections({
         project={project}
         marriageDateFormat={marriageDateFormat}
         highlightEdgeId={selectedEdgeId}
+        pointerEvents={active ? 'none' : 'auto'}
       />
 
       {active &&

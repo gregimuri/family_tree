@@ -18,6 +18,8 @@ interface TreeConnectionsProps {
   project: Project;
   marriageDateFormat: DateDisplayFormat;
   highlightEdgeId?: string | null;
+  /** В режиме редактирования линий клики проходят к невидимым hit-областям. */
+  pointerEvents?: 'none' | 'auto';
 }
 
 function bondLabel(unionId: string, project: Project, format: DateDisplayFormat): string {
@@ -89,12 +91,13 @@ export function TreeConnections({
   project,
   marriageDateFormat,
   highlightEdgeId,
+  pointerEvents = 'auto',
 }: TreeConnectionsProps) {
   const bondEdges = edges.filter((e) => isBondEdge(e.id));
   const otherEdges = edges.filter((e) => !isBondEdge(e.id));
 
   return (
-    <g className="tree-connections">
+    <g className="tree-connections" pointerEvents={pointerEvents}>
       {otherEdges.map((edge) => {
         const isPedigree = edge.id.startsWith('fam-');
         const highlighted = edge.id === highlightEdgeId;

@@ -23,7 +23,7 @@ import { MediaViewer } from '../media/MediaViewer';
 import { Icons } from '../ui/Icons';
 import './TreeView.css';
 import { snapCardCenterToGridCorners } from '../../layout/card-dimensions';
-import { normalizeRect, rectsIntersect } from './layout-selection-utils';
+import { normalizeRect, rectsIntersect, isMarqueePointerTarget } from './layout-selection-utils';
 import type { LayoutNode } from '../../types';
 
 const MARQUEE_MIN_SIZE = 4;
@@ -70,6 +70,7 @@ export function TreeView() {
     null,
   );
   const marqueePointerIdRef = useRef<number | null>(null);
+  const ignoreNextBackgroundClickRef = useRef(false);
 
   const treeLayout = useMemo(() => {
     if (!project) return null;
@@ -99,6 +100,10 @@ export function TreeView() {
   const screenToLayout = useScreenToLayout(svgRef, layoutGroupRef);
 
   const handleBackgroundClick = () => {
+    if (ignoreNextBackgroundClickRef.current) {
+      ignoreNextBackgroundClickRef.current = false;
+      return;
+    }
     if (marquee) return;
     setSelection(null);
     if (manualLayoutMode) {
@@ -134,11 +139,10 @@ export function TreeView() {
     [layout, dragPositions, setSelection],
   );
 
-  const handleMarqueePointerDown = useCallback(
-    (e: React.PointerEvent<SVGRectElement>) => {
+  const startMarqueeFromPointer = useCallback(
+    (e: React.PointerEvent<SVGSVGElement>) => {
       if (!manualLayoutMode || e.button !== 0 || !screenToLayout) return;
-      const target = e.target as Element;
-      if (target.closest('.person-card') || target.closest('.tree-edge-hit')) return;
+      if (!isMarqueePointerTarget(e.target)) return;
 
       const pt = screenToLayout(e.clientX, e.clientY);
       if (!pt) return;
@@ -146,34 +150,37 @@ export function TreeView() {
       e.preventDefault();
       e.stopPropagation();
       marqueePointerIdRef.current = e.pointerId;
-      e.currentTarget.setPointerCapture(e.pointerId);
       setMarquee({ x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y });
       setSelectedEdgeId(null);
-    },
-    [manualLayoutMode, screenToLayout],
-  );
 
-  const handleMarqueePointerMove = useCallback(
-    (e: React.PointerEvent<SVGRectElement>) => {
-      if (marqueePointerIdRef.current !== e.pointerId || !screenToLayout) return;
-      const pt = screenToLayout(e.clientX, e.clientY);
-      if (!pt) return;
-      setMarquee((prev) => (prev ? { ...prev, x2: pt.x, y2: pt.y } : null));
-    },
-    [screenToLayout],
-  );
+      const move = (ev: PointerEvent) => {
+        if (marqueePointerIdRef.current !== ev.pointerId) return;
+        const p = screenToLayout(ev.clientX, ev.clientY);
+        if (!p) return;
+        setMarquee((prev) => (prev ? { ...prev, x2: p.x, y2: p.y } : null));
+      };
 
-  const endMarquee = useCallback(
-    (e: React.PointerEvent<SVGRectElement>) => {
-      if (marqueePointerIdRef.current !== e.pointerId) return;
-      marqueePointerIdRef.current = null;
-      e.currentTarget.releasePointerCapture(e.pointerId);
-      setMarquee((prev) => {
-        if (prev) finishMarquee(prev);
-        return null;
-      });
+      const up = (ev: PointerEvent) => {
+        if (marqueePointerIdRef.current !== ev.pointerId) return;
+        marqueePointerIdRef.current = null;
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+
+        const p = screenToLayout(ev.clientX, ev.clientY);
+        setMarquee((prev) => {
+          if (prev && p) finishMarquee({ ...prev, x2: p.x, y2: p.y });
+          return null;
+        });
+        ignoreNextBackgroundClickRef.current = true;
+        ev.preventDefault();
+      };
+
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
     },
-    [finishMarquee],
+    [manualLayoutMode, screenToLayout, finishMarquee],
   );
 
   const makeCenter = () => {
@@ -328,11 +335,6 @@ export function TreeView() {
   const layoutSelectedCount = layoutSelection.size;
   const isDragging = Object.keys(dragPositions).length > 0;
   const marqueeRect = marquee ? normalizeRect(marquee.x1, marquee.y1, marquee.x2, marquee.y2) : null;
-  const capturePad = 240;
-  const captureX = layout.bounds.minX - capturePad;
-  const captureY = layout.bounds.minY - capturePad;
-  const captureW = layout.bounds.maxX - layout.bounds.minX + capturePad * 2;
-  const captureH = layout.bounds.maxY - layout.bounds.minY + capturePad * 2;
 
   return (
     <div
@@ -490,9 +492,10 @@ export function TreeView() {
               id="tree-export-root"
               width={svgW}
               height={svgH}
-              className="tree-svg"
+              className={`tree-svg${manualLayoutMode ? ' tree-svg--marquee' : ''}`}
               overflow="visible"
               onClick={handleBackgroundClick}
+              onPointerDown={startMarqueeFromPointer}
             >
               <defs>
                 {theme === 'forest' ? (
@@ -532,21 +535,6 @@ export function TreeView() {
                   active={manualLayoutMode}
                   dragging={isDragging}
                 />
-                {manualLayoutMode && (
-                  <rect
-                    className="layout-marquee-capture"
-                    x={captureX}
-                    y={captureY}
-                    width={captureW}
-                    height={captureH}
-                    fill="transparent"
-                    pointerEvents="all"
-                    onPointerDown={handleMarqueePointerDown}
-                    onPointerMove={handleMarqueePointerMove}
-                    onPointerUp={endMarquee}
-                    onPointerCancel={endMarquee}
-                  />
-                )}
                 <EditableTreeConnections
                   edges={layout.edges}
                   theme={theme}

@@ -18,3 +18,15 @@ export function rectsIntersect(a: LayoutRect, b: LayoutRect): boolean {
   if (a.width < 1 || a.height < 1) return false;
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
+
+/** Пустое место на листе древа — не карточка и не редактируемая линия. */
+export function isMarqueePointerTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('.tree-edge-hit, .tree-edge-handle')) return false;
+  if (target.closest('.person-card-html')) return false;
+  const foreignObject = target.closest('foreignObject');
+  if (foreignObject?.parentElement?.classList.contains('person-card')) return false;
+  if (target.closest('.person-card')) return false;
+  if (target.classList.contains('layout-marquee')) return false;
+  return true;
+}

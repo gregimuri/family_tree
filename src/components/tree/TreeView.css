@@ -173,6 +173,10 @@
   filter: drop-shadow(0 0 3px rgba(234, 179, 8, 0.65));
 }
 
+.tree-svg--marquee {
+  cursor: crosshair;
+}
+
 .layout-marquee-capture {
   cursor: crosshair;
 }
