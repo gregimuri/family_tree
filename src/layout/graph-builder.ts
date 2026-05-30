@@ -405,7 +405,85 @@ export function buildGraph(
     addPerson(personId, 0, 'right', 99);
   }
 
+  if (limits.showAll) {
+    syncAllFamilyLinks();
+  }
+
   return { nodes, edges, personToNode };
+
+  function getPersonNode(personId: string) {
+    const nodeId = personToNode.get(personId);
+    if (!nodeId) return null;
+    const node = nodes.find((n) => n.id === nodeId);
+    return node?.kind === 'person' ? node : null;
+  }
+
+  /** Добавляет parent-child рёбра и unionId/parentUnionId для всех видимых персон. */
+  function syncAllFamilyLinks() {
+    for (const personId of Object.keys(project.persons)) {
+      const person = project.persons[personId];
+      if (!person || !shouldIncludePerson(person, settings)) continue;
+      if (!personToNode.has(personId)) {
+        addPerson(personId, 0, 'right', 99);
+      }
+    }
+
+    for (const [personId, childNodeId] of personToNode) {
+      const person = project.persons[personId];
+      if (!person) continue;
+      const childNode = getPersonNode(personId);
+      if (!childNode) continue;
+
+      for (const unionId of person.parentUnionIds) {
+        childNode.parentUnionId = childNode.parentUnionId ?? unionId;
+        const union = project.unions[unionId];
+        if (!union) continue;
+
+        for (const parentId of union.partnerIds) {
+          const parent = project.persons[parentId];
+          if (!parent || !shouldIncludePerson(parent, settings)) continue;
+          if (!personToNode.has(parentId)) {
+            addPerson(parentId, childNode.layer - 1, 'main', 0, unionId);
+          }
+          const parentNodeId = personToNode.get(parentId);
+          if (parentNodeId) linkParentChild(parentNodeId, childNodeId);
+          const parentNode = getPersonNode(parentId);
+          if (parentNode) parentNode.unionId = parentNode.unionId ?? unionId;
+        }
+      }
+
+      for (const unionId of person.unionIds) {
+        const union = project.unions[unionId];
+        if (!union) continue;
+
+        for (const partnerId of union.partnerIds) {
+          const partner = project.persons[partnerId];
+          if (!partner || !shouldIncludePerson(partner, settings)) continue;
+          if (!personToNode.has(partnerId)) {
+            addPerson(partnerId, childNode.layer, 'main', 0, unionId);
+          }
+          const partnerNode = getPersonNode(partnerId);
+          if (partnerNode) partnerNode.unionId = partnerNode.unionId ?? unionId;
+        }
+
+        for (const childId of union.childIds) {
+          const child = project.persons[childId];
+          if (!child || !shouldIncludePerson(child, settings)) continue;
+          if (!personToNode.has(childId)) {
+            addPerson(childId, childNode.layer + 1, 'main', 0, undefined, undefined, unionId);
+          }
+          const childGraphId = personToNode.get(childId);
+          if (!childGraphId) continue;
+          for (const partnerId of union.partnerIds) {
+            const partnerNodeId = personToNode.get(partnerId);
+            if (partnerNodeId) linkParentChild(partnerNodeId, childGraphId);
+          }
+          const childGraphNode = getPersonNode(childId);
+          if (childGraphNode) childGraphNode.parentUnionId = childGraphNode.parentUnionId ?? unionId;
+        }
+      }
+    }
+  }
 }
 
 export function getCardScale(

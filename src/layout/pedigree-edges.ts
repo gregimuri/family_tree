@@ -205,6 +205,13 @@ export function buildPedigreeEdges(
   }
 
   const visibleUnions = new Set<string>();
+  for (const node of nodes) {
+    if (!node.personId) continue;
+    const person = project.persons[node.personId];
+    if (!person) continue;
+    for (const unionId of person.unionIds) visibleUnions.add(unionId);
+    for (const unionId of person.parentUnionIds) visibleUnions.add(unionId);
+  }
   for (const node of graph.nodes) {
     if (node.kind === 'person' && node.unionId) visibleUnions.add(node.unionId);
     if (node.kind === 'person' && node.parentUnionId) visibleUnions.add(node.parentUnionId);

@@ -646,6 +646,14 @@ describe('graph generations', () => {
     const full = buildGraph(project, { ...project.viewSettings, showAllPersons: true });
     expect(full.personToNode.has(cousinId)).toBe(true);
     expect(full.personToNode.has(parentId)).toBe(true);
+    const cousinNodeId = full.personToNode.get(cousinId)!;
+    expect(full.edges.some((e) => e.to === cousinNodeId)).toBe(true);
+
+    const layout = buildLayout({
+      ...project,
+      viewSettings: { ...project.viewSettings, showAllPersons: true },
+    });
+    expect(layout.edges.some((e) => e.id.includes(cousinId))).toBe(true);
   });
 });
 
