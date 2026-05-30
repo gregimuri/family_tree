@@ -64,7 +64,7 @@ export function getSymmetricTreeFrame(
   const focus = getCenterFocusPoint(project, layout);
   if (!focus) return null;
 
-  const content = getTreeSheetBounds(layout);
+  const content = getTreeSheetBounds(layout, project);
   const leftSpan = Math.max(focus.x - content.minX, 0);
   const rightSpan = Math.max(content.maxX - focus.x, 0);
   const topSpan = Math.max(focus.y - content.minY, 0);

@@ -1,10 +1,11 @@
-import type { LayoutEdge, LayoutResult } from '../types';
+import type { LayoutEdge, LayoutResult, Project } from '../types';
 import { CARD_H_TEXT } from './card-dimensions';
 import { LAYER_GAP } from './graph-builder';
 import { computeBounds } from './layered-layout';
 import {
   MARRIAGE_BOND_LABEL_GAP,
   MARRIAGE_BOND_LABEL_HEIGHT,
+  isBondEdge,
   marriageLabelTopY,
 } from './edge-router';
 
@@ -39,7 +40,7 @@ function getEdgeBounds(edges: LayoutEdge[]): LayoutResult['bounds'] | null {
       maxY = Math.max(maxY, point.y);
     }
 
-    if (edge.id.startsWith('bond-') && edge.points.length >= 2) {
+    if (isBondEdge(edge.id) && edge.points.length >= 2) {
       const start = edge.points[0];
       const end = edge.points[edge.points.length - 1];
       const labelX = (start.x + end.x) / 2;
@@ -71,15 +72,20 @@ function minHeightForLayers(layout: LayoutResult): number {
 }
 
 /** Границы всего содержимого листа: карточки и геометрия связей. */
-export function getTreeSheetBounds(layout: LayoutResult): LayoutResult['bounds'] {
+export function getTreeSheetBounds(layout: LayoutResult, project?: Project): LayoutResult['bounds'] {
   let bounds = computeBounds(layout.nodes);
   const edgeBounds = getEdgeBounds(layout.edges);
   if (edgeBounds) bounds = unionBounds(bounds, edgeBounds);
 
-  const minH = minHeightForLayers(layout);
-  const height = bounds.maxY - bounds.minY;
-  if (height + 0.5 < minH) {
-    bounds = { ...bounds, maxY: bounds.minY + minH };
+  const hasManualPositions = Boolean(
+    project?.manualLayout && Object.keys(project.manualLayout).length > 0,
+  );
+  if (!hasManualPositions) {
+    const minH = minHeightForLayers(layout);
+    const height = bounds.maxY - bounds.minY;
+    if (height + 0.5 < minH) {
+      bounds = { ...bounds, maxY: bounds.minY + minH };
+    }
   }
 
   return bounds;

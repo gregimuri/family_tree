@@ -5,6 +5,7 @@ import {
   coupleBondMidpoint,
   coupleBondPath,
   edgePath,
+  isBondEdge,
   MARRIAGE_BOND_LABEL_HEIGHT,
   marriageLabelTopY,
   parseBondUnionId,
@@ -89,8 +90,8 @@ export function TreeConnections({
   marriageDateFormat,
   highlightEdgeId,
 }: TreeConnectionsProps) {
-  const bondEdges = edges.filter((e) => e.id.startsWith('bond-'));
-  const otherEdges = edges.filter((e) => !e.id.startsWith('bond-'));
+  const bondEdges = edges.filter((e) => isBondEdge(e.id));
+  const otherEdges = edges.filter((e) => !isBondEdge(e.id));
 
   return (
     <g className="tree-connections">

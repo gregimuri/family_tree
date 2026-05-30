@@ -2,6 +2,7 @@ import type { LayoutResult, ManualLayoutEntry, Project } from '../types';
 import type { GraphResult } from './graph-builder';
 import { buildGraph } from './graph-builder';
 import { buildLayoutEdges, computeBounds, computeLayout } from './layered-layout';
+import { getTreeSheetBounds } from './content-bounds';
 import { applyManualEdgeRoutes } from './manual-edge-routes';
 
 /** Center coordinates for persons visible in layout but not yet pinned in manualLayout. */
@@ -41,10 +42,11 @@ function applyStoredPositions(
     return { ...n, x: entry.x - n.width / 2, y: entry.y - n.height / 2 };
   });
 
+  const edges = buildLayoutEdges(project, nodes, graph);
   return {
     nodes,
-    edges: buildLayoutEdges(project, nodes, graph),
-    bounds: computeBounds(nodes),
+    edges,
+    bounds: getTreeSheetBounds({ nodes, edges, bounds: layout.bounds }, project),
   };
 }
 
@@ -53,7 +55,8 @@ export function buildLayout(project: Project): LayoutResult {
   let layout = computeLayout(graph, project);
   layout = repositionOrphanNodes(layout, project);
   layout = applyStoredPositions(layout, project, graph);
-  return applyManualEdgeRoutes(layout, project);
+  layout = applyManualEdgeRoutes(layout, project);
+  return { ...layout, bounds: getTreeSheetBounds(layout, project) };
 }
 
 function repositionOrphanNodes(layout: LayoutResult, project: Project): LayoutResult {

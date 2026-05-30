@@ -9,8 +9,8 @@ import {
   mergeNuclearAndPedigreeNodes,
 } from './nuclear-tree-adapter';
 import { reconcileMergedLayout } from './merge-layout';
-import { routeCoupleBond } from './edge-router';
-import { buildPedigreeEdges } from './pedigree-edges';
+import { routeCoupleBond, bondEdgeId } from './edge-router';
+import { pickPartnersForUnion, buildPedigreeEdges } from './pedigree-edges';
 import { nodeSize, runPedigreeLayout } from './pedigree-layout';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
@@ -31,7 +31,7 @@ function normalizeLayoutToFocus(project: Project, layout: LayoutResult): LayoutR
   return {
     nodes,
     edges,
-    bounds: getTreeSheetBounds({ nodes, edges, bounds: layout.bounds }),
+    bounds: getTreeSheetBounds({ nodes, edges, bounds: layout.bounds }, project),
   };
 }
 
@@ -62,46 +62,54 @@ export function buildLayoutEdges(
 
   const coupleBonds: LayoutEdge[] = [];
   const seenBonds = new Set<string>();
-  const byUnion = new Map<string, LayoutNode[]>();
-
+  const nodeByPersonId = new Map<string, LayoutNode>();
   for (const node of layoutNodes) {
-    if (!node.unionId) continue;
-    const list = byUnion.get(node.unionId) ?? [];
-    list.push(node);
-    byUnion.set(node.unionId, list);
+    if (node.personId) nodeByPersonId.set(node.personId, node);
   }
 
-  for (const [unionId, members] of byUnion) {
-    if (members.length < 2) continue;
+  const visibleUnionIds = new Set<string>();
+  for (const node of layoutNodes) {
+    if (node.unionId) visibleUnionIds.add(node.unionId);
+    if (!node.personId) continue;
+    const person = project.persons[node.personId];
+    if (!person) continue;
+    for (const unionId of person.unionIds) visibleUnionIds.add(unionId);
+  }
 
-    const layerGroups = new Map<number, LayoutNode[]>();
-    for (const member of members) {
-      const list = layerGroups.get(member.layer) ?? [];
-      list.push(member);
-      layerGroups.set(member.layer, list);
-    }
+  for (const unionId of visibleUnionIds) {
+    const union = project.unions[unionId];
+    if (!union || union.partnerIds.length < 2) continue;
 
-    for (const group of layerGroups.values()) {
-      if (group.length < 2) continue;
-      const sorted = [...group].sort((a, b) => {
-        const pa = project.persons[a.personId!];
-        const pb = project.persons[b.personId!];
-        if (pa?.gender === 'male' && pb?.gender !== 'male') return -1;
-        if (pb?.gender === 'male' && pa?.gender !== 'male') return 1;
-        return a.x - b.x;
-      });
-      const left = sorted[0];
-      const right = sorted[1];
-      const bondId = `bond-${unionId}-${left.layer}`;
-      if (seenBonds.has(bondId)) continue;
-      seenBonds.add(bondId);
-      coupleBonds.push({
-        id: bondId,
-        from: left.id,
-        to: right.id,
-        points: routeCoupleBond(left, right),
-      });
-    }
+    const partners = union.partnerIds
+      .map((id) => nodeByPersonId.get(id))
+      .filter((n): n is LayoutNode => Boolean(n));
+    if (partners.length < 2) continue;
+
+    const children = union.childIds
+      .map((id) => nodeByPersonId.get(id))
+      .filter((n): n is LayoutNode => Boolean(n));
+
+    const bondPartners = pickPartnersForUnion(partners, children);
+    const sorted = [...(bondPartners.length >= 2 ? bondPartners : partners)].sort((a, b) => {
+      const pa = project.persons[a.personId!];
+      const pb = project.persons[b.personId!];
+      if (pa?.gender === 'male' && pb?.gender !== 'male') return -1;
+      if (pb?.gender === 'male' && pa?.gender !== 'male') return 1;
+      return a.x - b.x;
+    });
+    if (sorted.length < 2) continue;
+
+    const left = sorted[0];
+    const right = sorted[sorted.length - 1];
+    const id = bondEdgeId(unionId);
+    if (seenBonds.has(id)) continue;
+    seenBonds.add(id);
+    coupleBonds.push({
+      id,
+      from: left.id,
+      to: right.id,
+      points: routeCoupleBond(left, right),
+    });
   }
 
   return [...coupleBonds, ...pedigreeEdges];

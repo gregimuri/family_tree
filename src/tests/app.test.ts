@@ -20,6 +20,7 @@ import {
   removeMediaFromProject,
   validateProjectRelationships,
 } from '../models/person-utils';
+import { getTreeSheetBounds } from '../layout/content-bounds';
 import { getCenterFocusPoint, getSymmetricTreeFrame } from '../layout/center-focus';
 import { buildLayout } from '../layout';
 import { personToLayoutPerson } from '../layout/nuclear-tree-adapter';
@@ -29,7 +30,7 @@ import type { LayoutEdge, LayoutNode } from '../types';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
 import { CARD_H_TEXT, CARD_W } from '../layout/card-dimensions';
-import { parseBondUnionId, routeCoupleBond } from '../layout/edge-router';
+import { parseBondUnionId, routeCoupleBond, bondEdgeId } from '../layout/edge-router';
 import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
 import { validateViewSettings, canUseUniformCards } from '../models/validation';
 import { formatPlaceText, placeHasValue } from '../components/dossier/DossierFields';
@@ -101,7 +102,56 @@ describe('layout', () => {
       { x: 120, y: 80 },
     ]);
     const unionId = '325a9de7-bf1e-4ccf-b0d6-96d978901502';
+    expect(parseBondUnionId(bondEdgeId(unionId))).toBe(unionId);
     expect(parseBondUnionId(`bond-${unionId}-0`)).toBe(unionId);
+  });
+
+  it('shows parent marriage dates when a child is tree center', () => {
+    let project = createEmptyProject();
+    const unionId = Object.keys(project.unions)[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок', surname: 'Иванов', gender: 'male' });
+    project = {
+      ...project,
+      persons: { ...project.persons, [child.id]: child },
+      unions: {
+        ...project.unions,
+        [unionId]: {
+          ...project.unions[unionId],
+          childIds: [child.id],
+        },
+      },
+    };
+    project.persons[child.id] = {
+      ...child,
+      parentUnionIds: [unionId],
+    };
+    project.center = { type: 'person', id: child.id };
+    project.viewSettings = {
+      ...project.viewSettings,
+      cardFields: { ...project.viewSettings.cardFields, marriageDateFormat: 'years' },
+    };
+
+    const layout = buildLayout(project);
+    const bond = layout.edges.find((e) => e.id === bondEdgeId(unionId));
+    expect(bond).toBeTruthy();
+    expect(formatMarriageDates(project.unions[unionId], 'years')).toBe('2005');
+  });
+
+  it('expands sheet height after manual card move downward', () => {
+    const project = createEmptyProject();
+    const base = buildLayout(project);
+    const personId = Object.keys(project.persons)[0];
+    const node = base.nodes.find((n) => n.personId === personId)!;
+    const shifted = {
+      ...project,
+      manualLayout: {
+        [personId]: { x: node.x + node.width / 2, y: node.y + node.height / 2 + 400 },
+      },
+    };
+    const moved = buildLayout(shifted);
+    const baseSheet = getTreeSheetBounds(base, project);
+    const movedSheet = getTreeSheetBounds(moved, shifted);
+    expect(movedSheet.maxY).toBeGreaterThan(baseSheet.maxY + 300);
   });
 
   it('respects manual layout mode', () => {

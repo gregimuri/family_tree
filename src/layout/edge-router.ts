@@ -15,15 +15,24 @@ export function routeCoupleBond(left: LayoutNode, right: LayoutNode): { x: numbe
   ];
 }
 
-/** Union id from edge id `bond-{uuid}-{layer}`. */
+/** Union id from edge id `bond@{uuid}` (legacy: `bond-{uuid}-{layer}` with layer ≥ 0). */
 export function parseBondUnionId(bondEdgeId: string): string | null {
+  if (bondEdgeId.startsWith('bond@')) {
+    return bondEdgeId.slice('bond@'.length) || null;
+  }
   if (!bondEdgeId.startsWith('bond-')) return null;
   const rest = bondEdgeId.slice('bond-'.length);
-  const lastDash = rest.lastIndexOf('-');
-  if (lastDash <= 0) return rest || null;
-  const layerPart = rest.slice(lastDash + 1);
-  if (/^\d+$/.test(layerPart)) return rest.slice(0, lastDash);
-  return rest;
+  const legacyMatch = rest.match(/^(.+)-(\d+)$/);
+  if (legacyMatch) return legacyMatch[1];
+  return rest || null;
+}
+
+export function bondEdgeId(unionId: string): string {
+  return `bond@${unionId}`;
+}
+
+export function isBondEdge(edgeId: string): boolean {
+  return edgeId.startsWith('bond@') || edgeId.startsWith('bond-');
 }
 
 export function coupleBondMidpoint(points: { x: number; y: number }[]): { x: number; y: number } | null {

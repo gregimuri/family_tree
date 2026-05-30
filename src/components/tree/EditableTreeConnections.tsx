@@ -1,6 +1,6 @@
 import { useMemo, type PointerEvent as ReactPointerEvent } from 'react';
 import type { LayoutEdge, Project, DateDisplayFormat } from '../../types';
-import { branchPath, coupleBondPath, edgePath } from '../../layout/edge-router';
+import { branchPath, coupleBondPath, edgePath, isBondEdge } from '../../layout/edge-router';
 import { CARD_GRID_CELL, snapToGridCorner } from '../../layout/card-dimensions';
 import { TreeConnections } from './TreeConnections';
 
@@ -17,7 +17,7 @@ interface EditableTreeConnectionsProps {
 }
 
 function pathD(edge: LayoutEdge, theme: 'clean' | 'forest'): string {
-  const isBond = edge.id.startsWith('bond-');
+  const isBond = isBondEdge(edge.id);
   const isPedigree = edge.id.startsWith('fam-');
   if (isBond) return coupleBondPath(edge.points);
   return isPedigree || theme === 'clean' ? edgePath(edge.points) : branchPath(edge.points);
