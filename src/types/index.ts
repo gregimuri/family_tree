@@ -187,6 +187,8 @@ export interface LayoutEdge {
   from: string;
   to: string;
   points: { x: number; y: number }[];
+  /** Pre-built SVG path for multi-segment pedigree connectors (stem + bus + drops). */
+  pathD?: string;
 }
 
 export interface LayoutResult {

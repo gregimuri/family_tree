@@ -1,7 +1,11 @@
 import type { LayoutEdge, LayoutNode, Project, Union } from '../types';
 import type { GraphPersonNode, GraphResult } from './graph-builder';
 import { formatMarriageDates } from '../models/person-utils';
-import { marriageStemStartY } from './edge-router';
+import {
+  marriageStemStartY,
+  pedigreeFamilyConnectorPath,
+  snapEdgeCoord,
+} from './edge-router';
 
 function getGraphPerson(graph: GraphResult, personId: string): GraphPersonNode | undefined {
   const nodeId = graph.personToNode.get(personId);
@@ -127,10 +131,18 @@ function splitChildrenForConnector(
 ): { mainLine: LayoutNode[]; sideBranch: LayoutNode[] } {
   if (children.length === 0) return { mainLine: [], sideBranch: [] };
 
+  const sorted = sortChildren(children);
+  const parentLayer = Math.min(...partners.map((p) => p.layer));
+
+  // Siblings on the next layer always share one T-shaped connector (even collateral siblings).
+  if (sorted.length >= 2 && sorted.every((c) => c.layer === parentLayer + 1)) {
+    return { mainLine: sorted, sideBranch: [] };
+  }
+
   const mainLine: LayoutNode[] = [];
   const sideBranch: LayoutNode[] = [];
 
-  for (const child of children) {
+  for (const child of sorted) {
     if (childNeedsBranchRoute(partners, child, children, graph, project)) {
       sideBranch.push(child);
     } else {
@@ -151,20 +163,23 @@ function buildBranchChildConnector(
   if (partners.length === 0) return [];
 
   const anchor = getCoupleStemAnchor(partners, project, union);
-  const childCx = child.x + child.width / 2;
-  const forkY = anchor.y + (child.y - anchor.y) * 0.45;
+  const childCx = snapEdgeCoord(child.x + child.width / 2);
+  const forkY = snapEdgeCoord(anchor.y + (child.y - anchor.y) * 0.45);
+  const stemX = snapEdgeCoord(anchor.x);
+  const stemY = snapEdgeCoord(anchor.y);
+  const childY = snapEdgeCoord(child.y);
 
   const points =
-    Math.abs(childCx - anchor.x) < 6
+    Math.abs(childCx - stemX) < 6
       ? [
-          { x: anchor.x, y: anchor.y },
-          { x: childCx, y: child.y },
+          { x: stemX, y: stemY },
+          { x: childCx, y: childY },
         ]
       : [
-          { x: anchor.x, y: anchor.y },
-          { x: anchor.x, y: forkY },
+          { x: stemX, y: stemY },
+          { x: stemX, y: forkY },
           { x: childCx, y: forkY },
-          { x: childCx, y: child.y },
+          { x: childCx, y: childY },
         ];
 
   return [
@@ -209,50 +224,35 @@ function buildFamilyConnector(
       ? marriageStemStartY(bondY, showMarriageLabel)
       : leftBottom;
   const childTop = Math.min(...sortedChildren.map((c) => c.y));
-  const forkY = stemStartY + (childTop - stemStartY) * 0.55;
+  const forkY = snapEdgeCoord(stemStartY + (childTop - stemStartY) * 0.55);
+  const stemY = snapEdgeCoord(stemStartY);
+  const midX = snapEdgeCoord(coupleMidX);
 
-  const childCenters = sortedChildren.map((c) => c.x + c.width / 2);
-  const busMin = Math.min(coupleMidX, ...childCenters);
-  const busMax = Math.max(coupleMidX, ...childCenters);
+  const childCenters = sortedChildren.map((c) => snapEdgeCoord(c.x + c.width / 2));
+  const busMin = snapEdgeCoord(Math.min(midX, ...childCenters));
+  const busMax = snapEdgeCoord(Math.max(midX, ...childCenters));
 
-  const edges: LayoutEdge[] = [];
+  const trunk = [
+    { x: midX, y: stemY },
+    { x: midX, y: forkY },
+    { x: busMin, y: forkY },
+    { x: busMax, y: forkY },
+  ];
 
-  edges.push({
-    id: `fam-stem-${unionId}`,
-    from: left.id,
-    to: sortedChildren[0].id,
-    points: [
-      { x: coupleMidX, y: stemStartY },
-      { x: coupleMidX, y: forkY },
-    ],
-  });
+  const drops = sortedChildren.map((child, i) => [
+    { x: childCenters[i], y: forkY },
+    { x: childCenters[i], y: snapEdgeCoord(child.y) },
+  ]);
 
-  if (busMax - busMin > 1) {
-    edges.push({
-      id: `fam-bus-${unionId}`,
+  return [
+    {
+      id: `fam-tree-${unionId}`,
       from: left.id,
       to: sortedChildren[sortedChildren.length - 1].id,
-      points: [
-        { x: busMin, y: forkY },
-        { x: busMax, y: forkY },
-      ],
-    });
-  }
-
-  for (const child of sortedChildren) {
-    const cx = child.x + child.width / 2;
-    edges.push({
-      id: `fam-drop-${unionId}-${child.personId}`,
-      from: left.id,
-      to: child.id,
-      points: [
-        { x: cx, y: forkY },
-        { x: cx, y: child.y },
-      ],
-    });
-  }
-
-  return edges;
+      points: [...trunk, ...drops.flat()],
+      pathD: pedigreeFamilyConnectorPath(trunk, drops),
+    },
+  ];
 }
 
 export function buildPedigreeEdges(

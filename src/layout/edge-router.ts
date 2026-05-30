@@ -82,9 +82,39 @@ export function routeEdges(rawEdges: RawEdge[]): LayoutEdge[] {
   });
 }
 
+export function snapEdgeCoord(value: number): number {
+  return Math.round(value * 2) / 2;
+}
+
 export function edgePath(points: { x: number; y: number }[]): string {
   if (points.length < 2) return '';
   return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+}
+
+/** Single SVG path: vertical stem + horizontal bus + vertical drops to each child. */
+export function pedigreeFamilyConnectorPath(
+  trunk: { x: number; y: number }[],
+  drops: { x: number; y: number }[][],
+): string {
+  if (trunk.length < 2) return '';
+  let d = edgePath(trunk);
+  for (const drop of drops) {
+    if (drop.length >= 2) {
+      d += ` M ${drop[0].x} ${drop[0].y}${drop.slice(1).map((p) => ` L ${p.x} ${p.y}`).join('')}`;
+    }
+  }
+  return d;
+}
+
+export function familyConnectorBusSpan(edge: { id: string; points: { x: number; y: number }[] }): number {
+  if (edge.id.startsWith('fam-bus-')) {
+    const xs = edge.points.map((p) => p.x);
+    return Math.max(...xs) - Math.min(...xs);
+  }
+  if (edge.id.startsWith('fam-tree-') && edge.points.length >= 4) {
+    return Math.abs(edge.points[3].x - edge.points[2].x);
+  }
+  return 0;
 }
 
 export function branchPath(points: { x: number; y: number }[]): string {

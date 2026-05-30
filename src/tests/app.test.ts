@@ -30,7 +30,7 @@ import type { LayoutEdge, LayoutNode } from '../types';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
 import { CARD_H_TEXT, CARD_W } from '../layout/card-dimensions';
-import { parseBondUnionId, routeCoupleBond, bondEdgeId } from '../layout/edge-router';
+import { parseBondUnionId, routeCoupleBond, bondEdgeId, familyConnectorBusSpan } from '../layout/edge-router';
 import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
 import { validateViewSettings, canUseUniformCards } from '../models/validation';
 import { formatPlaceText, placeHasValue } from '../components/dossier/DossierFields';
@@ -68,12 +68,7 @@ describe('layout', () => {
   }
 
   function maxBusSpan(edges: LayoutEdge[]): number {
-    return edges
-      .filter((e) => e.id.startsWith('fam-bus-'))
-      .reduce((max, edge) => {
-        const xs = edge.points.map((p) => p.x);
-        return Math.max(max, Math.max(...xs) - Math.min(...xs));
-      }, 0);
+    return edges.reduce((max, edge) => Math.max(max, familyConnectorBusSpan(edge)), 0);
   }
 
   it('builds layout for default project', () => {
@@ -507,7 +502,7 @@ describe('layout', () => {
     project.center = { type: 'family', id: 'F1' };
     const layout = buildLayout(project);
     const hasPedigreeConnector =
-      layout.edges.some((e) => e.id.startsWith('fam-stem-')) ||
+      layout.edges.some((e) => e.id.startsWith('fam-tree-')) ||
       layout.edges.some((e) => e.id.startsWith('fam-branch-'));
     expect(hasPedigreeConnector).toBe(true);
     expect(layout.edges.some((e) => e.id.includes('p-I1-p-C1'))).toBe(false);
@@ -655,8 +650,63 @@ describe('graph generations', () => {
       ...project,
       viewSettings: { ...project.viewSettings, showAllPersons: true },
     });
-    expect(layout.edges.some((e) => e.id.includes(cousinId))).toBe(true);
-    expect(layout.edges.some((e) => e.id.startsWith('fam-branch-'))).toBe(true);
+    expect(layout.nodes.some((n) => n.personId === cousinId)).toBe(true);
+    expect(
+      layout.edges.some((e) => e.id.startsWith('fam-tree-') || e.id.startsWith('fam-branch-')),
+    ).toBe(true);
+  });
+
+  it('draws siblings with one aligned fam-tree connector in showAllPersons', () => {
+    const project = createEmptyProject();
+    const father = createId();
+    const mother = createId();
+    const child1 = createId();
+    const child2 = createId();
+    const unionId = createId();
+
+    project.persons[father] = createEmptyPerson({ id: father, givenName: 'Отец', gender: 'male' });
+    project.persons[mother] = createEmptyPerson({ id: mother, givenName: 'Мать', gender: 'female' });
+    project.persons[child1] = createEmptyPerson({
+      id: child1,
+      givenName: 'Сын1',
+      gender: 'male',
+      birth: { date: { year: 2000 } },
+    });
+    project.persons[child2] = createEmptyPerson({
+      id: child2,
+      givenName: 'Сын2',
+      gender: 'male',
+      birth: { date: { year: 2002 } },
+    });
+    project.unions[unionId] = {
+      id: unionId,
+      partnerIds: [father, mother],
+      childIds: [child1, child2],
+      marriageStart: { year: 1995 },
+    };
+    for (const id of [father, mother]) project.persons[id].unionIds = [unionId];
+    project.persons[child1].parentUnionIds = [unionId];
+    project.persons[child2].parentUnionIds = [unionId];
+    project.center = { type: 'person', id: child1 };
+    project.viewSettings = {
+      ...project.viewSettings,
+      showAllPersons: true,
+      cardFields: { ...project.viewSettings.cardFields, marriageDateFormat: 'years' },
+    };
+
+    const layout = buildLayout(project);
+    const tree = layout.edges.find((e) => e.id === `fam-tree-${unionId}`);
+    expect(tree).toBeTruthy();
+    expect(tree!.pathD).toBeTruthy();
+    expect(layout.edges.some((e) => e.id.startsWith('fam-drop-'))).toBe(false);
+
+    const forkY = tree!.points[1].y;
+    expect(tree!.points[2].y).toBe(forkY);
+    expect(tree!.points[3].y).toBe(forkY);
+    for (let i = 4; i < tree!.points.length; i += 2) {
+      expect(tree!.points[i].y).toBe(forkY);
+    }
+    expect(tree!.points.length).toBeGreaterThanOrEqual(8);
   });
 
   it('uses branch connectors for distant children when showAllPersons is enabled', () => {
@@ -708,10 +758,9 @@ describe('graph generations', () => {
     expect(leftBranch).toBeTruthy();
     expect(rightBranch).toBeTruthy();
 
-    const wideBus = layout.edges.filter((e) => e.id.startsWith('fam-bus-'));
+    const wideBus = layout.edges.filter((e) => familyConnectorBusSpan(e) > 0);
     for (const bus of wideBus) {
-      const xs = bus.points.map((p) => p.x);
-      expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(700);
+      expect(familyConnectorBusSpan(bus)).toBeLessThan(700);
     }
   });
 });

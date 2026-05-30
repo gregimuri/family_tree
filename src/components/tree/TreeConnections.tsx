@@ -103,7 +103,8 @@ export function TreeConnections({
         const highlighted = edge.id === highlightEdgeId;
         const strokeExtra = highlighted ? 1.5 : 0;
         const d =
-          isPedigree || theme === 'clean' ? edgePath(edge.points) : branchPath(edge.points);
+          edge.pathD ??
+          (isPedigree || theme === 'clean' ? edgePath(edge.points) : branchPath(edge.points));
         return (
           <path
             key={edge.id}

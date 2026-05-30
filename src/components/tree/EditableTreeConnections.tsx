@@ -20,7 +20,7 @@ function pathD(edge: LayoutEdge, theme: 'clean' | 'forest'): string {
   const isBond = isBondEdge(edge.id);
   const isPedigree = edge.id.startsWith('fam-');
   if (isBond) return coupleBondPath(edge.points);
-  return isPedigree || theme === 'clean' ? edgePath(edge.points) : branchPath(edge.points);
+  return edge.pathD ?? (isPedigree || theme === 'clean' ? edgePath(edge.points) : branchPath(edge.points));
 }
 
 export function EditableTreeConnections({

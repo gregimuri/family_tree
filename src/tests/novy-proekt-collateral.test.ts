@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Project, LayoutEdge } from '../types';
 import { buildLayout } from '../layout';
+import { familyConnectorBusSpan } from '../layout/edge-router';
 import { getTreeSheetBounds } from '../layout/content-bounds';
 import { computeExportViewport } from '../services/export/image-export';
 import { getSymmetricTreeFrame } from '../layout/center-focus';
@@ -25,7 +26,7 @@ function maxHorizontalEdgeSpan(edges: LayoutEdge[]): number {
 }
 
 function maxBusSpan(edges: LayoutEdge[]): number {
-  return maxHorizontalEdgeSpan(edges.filter((e) => e.id.startsWith('fam-bus-')));
+  return edges.reduce((max, edge) => Math.max(max, familyConnectorBusSpan(edge)), 0);
 }
 
 describe('collateral center regression', () => {
