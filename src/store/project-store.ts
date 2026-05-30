@@ -82,6 +82,8 @@ interface ProjectState {
   openMediaViewer: (mediaId: string) => void;
   closeMediaViewer: () => void;
   setManualLayoutMode: (enabled: boolean) => void;
+  beginLayoutEditGesture: () => void;
+  endLayoutEditGesture: () => void;
 
   addPerson: (person?: Partial<Person>) => Person;
   addPersonWithLink: (
@@ -119,6 +121,18 @@ interface ProjectState {
 
 function layoutHistoryMode(get: () => ProjectState): HistoryMode {
   return get().manualLayoutMode ? 'skip' : 'immediate';
+}
+
+let layoutGestureRecorded = false;
+
+function beginLayoutEditGesture(get: () => ProjectState, set: (partial: Partial<ProjectState>) => void) {
+  if (!get().manualLayoutMode || layoutGestureRecorded) return;
+  recordHistory(get, set, 'immediate');
+  layoutGestureRecorded = true;
+}
+
+function endLayoutEditGesture() {
+  layoutGestureRecorded = false;
 }
 let historyMuted = false;
 let lastHistoryPushAt = 0;
@@ -350,7 +364,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (enabled && !get().manualLayoutMode) {
       recordHistory(get, set, 'immediate');
     }
+    if (!enabled) {
+      endLayoutEditGesture();
+    }
     set({ manualLayoutMode: enabled });
+  },
+
+  beginLayoutEditGesture: () => {
+    beginLayoutEditGesture(get, set);
+  },
+
+  endLayoutEditGesture: () => {
+    endLayoutEditGesture();
   },
 
   addPerson: (partial) => {

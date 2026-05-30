@@ -383,12 +383,22 @@ export function buildGraph(
   } else if (startPersonId) {
     addPerson(startPersonId, 0, 'main', 0);
     const centered = project.persons[startPersonId];
+    const layer0PersonIds = new Set<string>([startPersonId]);
     if (centered) {
       for (const unionId of centered.unionIds) {
         addCoupleUnion(unionId, 0, 'main');
+        const union = project.unions[unionId];
+        if (!union) continue;
+        for (const partnerId of union.partnerIds) {
+          layer0PersonIds.add(partnerId);
+        }
       }
     }
-    if (limits.allowUp) expandAncestors(startPersonId, 0, 'main');
+    if (limits.allowUp) {
+      for (const personId of layer0PersonIds) {
+        expandAncestors(personId, 0, 'main');
+      }
+    }
     if (limits.allowDown) expandDescendants(startPersonId, 0, limits.maxDown, 'main', 0);
   }
 

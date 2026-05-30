@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createEmptyPerson } from '../models/defaults';
+import { buildLayout } from '../layout';
 import { useProjectStore } from '../store/project-store';
 
 describe('project undo', () => {
@@ -72,6 +73,26 @@ describe('project undo', () => {
 
     store.undo();
     expect(useProjectStore.getState().project!.manualLayout?.[personId]).toBeUndefined();
+  });
+
+  it('undoes manual edge route edit gesture', () => {
+    const store = useProjectStore.getState();
+    store.setManualLayoutMode(true);
+    const layout = buildLayout(store.project!);
+    const edge = layout.edges.find((e) => e.points.length >= 2) ?? layout.edges[0];
+    expect(edge).toBeTruthy();
+
+    const custom = edge.points.map((p) => ({ ...p }));
+    custom[0] = { x: custom[0].x + 40, y: custom[0].y + 40 };
+
+    store.beginLayoutEditGesture();
+    store.setManualEdgeRoute(edge.id, custom);
+    store.endLayoutEditGesture();
+
+    expect(useProjectStore.getState().project!.manualEdgeRoutes?.[edge.id]).toBeTruthy();
+
+    store.undo();
+    expect(useProjectStore.getState().project!.manualEdgeRoutes?.[edge.id]).toBeUndefined();
   });
 
   it('records structural link changes separately', () => {

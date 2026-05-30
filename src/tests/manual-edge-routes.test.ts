@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { createEmptyProject } from '../models/defaults';
 import { buildLayout } from '../layout';
-import { applyManualEdgeRoutes } from '../layout/manual-edge-routes';
+import {
+  applyManualEdgeRoutes,
+  constrainManualRoutePoint,
+  rebuildEdgePathD,
+} from '../layout/manual-edge-routes';
 import { getPresetDimensions, mmToPx, orientPageDimensions, resolveExportResolution } from '../services/export/image-export';
 
 describe('manual edge routes', () => {
@@ -23,6 +27,63 @@ describe('manual edge routes', () => {
 
     const updated = next.edges.find((e) => e.id === edge.id);
     expect(updated?.points).toEqual(custom);
+  });
+
+  it('rebuilds pathD for fam-tree overrides', () => {
+    const points = [
+      { x: 10, y: 0 },
+      { x: 10, y: 40 },
+      { x: 0, y: 40 },
+      { x: 20, y: 40 },
+      { x: 5, y: 40 },
+      { x: 5, y: 80 },
+    ];
+    const pathD = rebuildEdgePathD('fam-tree-u1', points);
+    expect(pathD).toContain('M 10 0');
+    expect(pathD).toContain('M 5 40');
+  });
+
+  it('keeps fam-tree bus and drops aligned when moving forkY', () => {
+    const points = [
+      { x: 10, y: 0 },
+      { x: 10, y: 40 },
+      { x: 0, y: 40 },
+      { x: 20, y: 40 },
+      { x: 5, y: 40 },
+      { x: 5, y: 80 },
+      { x: 15, y: 40 },
+      { x: 15, y: 90 },
+    ];
+    const next = constrainManualRoutePoint(
+      { id: 'fam-tree-u1', points },
+      1,
+      { x: 10, y: 50 },
+    );
+    expect(next[1].y).toBe(50);
+    expect(next[2].y).toBe(50);
+    expect(next[3].y).toBe(50);
+    expect(next[4].y).toBe(50);
+    expect(next[6].y).toBe(50);
+    expect(next[5].x).toBe(5);
+    expect(next[7].x).toBe(15);
+  });
+
+  it('keeps fam-tree drop vertical when moving child endpoint', () => {
+    const points = [
+      { x: 10, y: 0 },
+      { x: 10, y: 40 },
+      { x: 0, y: 40 },
+      { x: 20, y: 40 },
+      { x: 5, y: 40 },
+      { x: 5, y: 80 },
+    ];
+    const next = constrainManualRoutePoint(
+      { id: 'fam-tree-u1', points },
+      5,
+      { x: 99, y: 100 },
+    );
+    expect(next[5]).toEqual({ x: 5, y: 100 });
+    expect(next[4].x).toBe(5);
   });
 });
 

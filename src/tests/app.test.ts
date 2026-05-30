@@ -605,6 +605,50 @@ describe('graph generations', () => {
     expect(graph.personToNode.has(childId)).toBe(true);
   });
 
+  it('shows partner ancestors when center is a person', () => {
+    const project = createEmptyProject();
+    const [centerId, spouseId] = Object.keys(project.persons);
+    const centerParentId = createId();
+    const spouseParentId = createId();
+    const centerParentUnionId = createId();
+    const spouseParentUnionId = createId();
+
+    project.persons[centerParentId] = createEmptyPerson({
+      id: centerParentId,
+      givenName: 'Отец',
+      surname: 'Центра',
+    });
+    project.persons[spouseParentId] = createEmptyPerson({
+      id: spouseParentId,
+      givenName: 'Отец',
+      surname: 'Супруга',
+    });
+    project.unions[centerParentUnionId] = {
+      id: centerParentUnionId,
+      partnerIds: [centerParentId],
+      childIds: [centerId],
+    };
+    project.unions[spouseParentUnionId] = {
+      id: spouseParentUnionId,
+      partnerIds: [spouseParentId],
+      childIds: [spouseId],
+    };
+    project.persons[centerId] = {
+      ...project.persons[centerId],
+      parentUnionIds: [centerParentUnionId],
+    };
+    project.persons[spouseId] = {
+      ...project.persons[spouseId],
+      parentUnionIds: [spouseParentUnionId],
+    };
+    project.center = { type: 'person', id: centerId };
+    project.viewSettings = { ...project.viewSettings, generationsUp: 1, generationsDown: 0 };
+
+    const graph = buildGraph(project, project.viewSettings);
+    expect(graph.personToNode.has(centerParentId)).toBe(true);
+    expect(graph.personToNode.has(spouseParentId)).toBe(true);
+  });
+
   it('shows all persons when showAllPersons is enabled', () => {
     const project = createEmptyProject();
     const centerId = Object.values(project.unions)[0].partnerIds[0];

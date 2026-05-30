@@ -2,6 +2,8 @@ import { useMemo, type PointerEvent as ReactPointerEvent } from 'react';
 import type { LayoutEdge, Project, DateDisplayFormat } from '../../types';
 import { branchPath, coupleBondPath, edgePath, isBondEdge } from '../../layout/edge-router';
 import { CARD_GRID_CELL, snapToGridCorner } from '../../layout/card-dimensions';
+import { constrainManualRoutePoint } from '../../layout/manual-edge-routes';
+import { useProjectStore } from '../../store/project-store';
 import { TreeConnections } from './TreeConnections';
 
 interface EditableTreeConnectionsProps {
@@ -34,13 +36,16 @@ export function EditableTreeConnections({
   onUpdateRoute,
   screenToLayout,
 }: EditableTreeConnectionsProps) {
+  const beginLayoutEditGesture = useProjectStore((s) => s.beginLayoutEditGesture);
+  const endLayoutEditGesture = useProjectStore((s) => s.endLayoutEditGesture);
+
   const selectedEdge = useMemo(
     () => edges.find((e) => e.id === selectedEdgeId) ?? null,
     [edges, selectedEdgeId],
   );
 
   const startPointDrag = (
-    edgeId: string,
+    edge: LayoutEdge,
     pointIndex: number,
     initialPoints: { x: number; y: number }[],
     e: ReactPointerEvent<SVGCircleElement>,
@@ -49,16 +54,21 @@ export function EditableTreeConnections({
     e.preventDefault();
     e.stopPropagation();
 
+    beginLayoutEditGesture();
+
     const target = e.currentTarget;
     target.setPointerCapture(e.pointerId);
 
     const move = (ev: globalThis.PointerEvent) => {
       const pt = screenToLayout(ev.clientX, ev.clientY);
       if (!pt) return;
-      const grid = CARD_GRID_CELL;
-      const snapped = snapToGridCorner(pt.x, pt.y, grid);
-      const next = initialPoints.map((p, i) => (i === pointIndex ? snapped : { ...p }));
-      onUpdateRoute(edgeId, next);
+      const snapped = snapToGridCorner(pt.x, pt.y, CARD_GRID_CELL);
+      const next = constrainManualRoutePoint(
+        { id: edge.id, points: initialPoints },
+        pointIndex,
+        snapped,
+      );
+      onUpdateRoute(edge.id, next);
     };
 
     const up = (ev: globalThis.PointerEvent) => {
@@ -66,6 +76,7 @@ export function EditableTreeConnections({
       target.removeEventListener('pointermove', move);
       target.removeEventListener('pointerup', up);
       target.removeEventListener('pointercancel', up);
+      endLayoutEditGesture();
     };
 
     target.addEventListener('pointermove', move);
@@ -109,7 +120,7 @@ export function EditableTreeConnections({
             cy={point.y}
             r={5}
             className="tree-edge-handle"
-            onPointerDown={(e) => startPointDrag(selectedEdge.id, index, selectedEdge.points, e)}
+            onPointerDown={(e) => startPointDrag(selectedEdge, index, selectedEdge.points, e)}
           />
         ))}
     </g>
