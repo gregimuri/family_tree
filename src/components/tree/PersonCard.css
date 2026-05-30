@@ -16,11 +16,6 @@
   padding: 0;
 }
 
-.person-card-html.manual-placed {
-  outline: 2px dashed rgba(45, 106, 79, 0.45);
-  outline-offset: 2px;
-}
-
 .person-card-html__drag-hint {
   position: absolute;
   top: 4px;

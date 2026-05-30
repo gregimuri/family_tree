@@ -64,6 +64,7 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
           sizeMode,
           widthMm: sizeMode === 'fixed' ? widthMm : undefined,
           heightMm: sizeMode === 'fixed' ? heightMm : undefined,
+          theme: project?.viewSettings.theme ?? 'clean',
         },
       );
     } finally {

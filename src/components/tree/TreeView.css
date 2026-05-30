@@ -15,9 +15,7 @@
 }
 
 .tree-view.theme-clean {
-  background:
-    radial-gradient(circle at 50% 50%, rgba(45, 106, 79, 0.04) 0%, transparent 70%),
-    #eceae4;
+  background: #ffffff;
 }
 
 .tree-view.theme-forest {
@@ -186,9 +184,4 @@
   stroke: #2d6a4f;
   stroke-width: 1.5;
   stroke-dasharray: 6 4;
-}
-
-.person-card.layout-selected .person-card-html {
-  outline: 2px dashed rgba(234, 179, 8, 0.85);
-  outline-offset: 2px;
 }

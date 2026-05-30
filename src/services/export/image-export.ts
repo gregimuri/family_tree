@@ -15,6 +15,7 @@ export interface ExportOptions {
   widthMm?: number;
   heightMm?: number;
   pixelRatio?: number;
+  theme?: 'clean' | 'forest';
 }
 
 export interface ExportResolution {
@@ -348,9 +349,9 @@ export async function exportTreeElement(
   source: TreeExportSource,
   options: ExportOptions,
 ): Promise<void> {
-  const { format, sizeMode } = options;
+  const { format, sizeMode, theme = 'clean' } = options;
   const { svg, layout, frame } = source;
-  const backgroundColor = '#f7f3eb';
+  const backgroundColor = theme === 'forest' ? '#f3e9dc' : '#ffffff';
 
   await waitForImages(svg);
   await embedImages(svg);

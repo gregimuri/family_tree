@@ -510,14 +510,7 @@ export function TreeView() {
                     />
                     <circle cx="130" cy="130" r="8" fill="#a1887f" opacity="0.2" />
                   </pattern>
-                ) : (
-                  <pattern id="tree-bg" width="80" height="80" patternUnits="userSpaceOnUse">
-                    <rect width="80" height="80" fill="#f7f3eb" />
-                    <circle cx="12" cy="18" r="1.2" fill="#d6cfc0" opacity="0.6" />
-                    <circle cx="52" cy="44" r="1" fill="#d6cfc0" opacity="0.5" />
-                    <circle cx="68" cy="12" r="0.8" fill="#d6cfc0" opacity="0.4" />
-                  </pattern>
-                )}
+                ) : null}
               </defs>
               <rect
                 x={TREE_SHEET_STROKE_PAD}
@@ -525,8 +518,8 @@ export function TreeView() {
                 width={svgW - TREE_SHEET_STROKE_PAD * 2}
                 height={svgH - TREE_SHEET_STROKE_PAD * 2}
                 rx={theme === 'forest' ? 12 : 8}
-                fill="url(#tree-bg)"
-                stroke={theme === 'forest' ? '#7f1d1d' : '#d4cfc4'}
+                fill={theme === 'forest' ? 'url(#tree-bg)' : '#ffffff'}
+                stroke={theme === 'forest' ? '#7f1d1d' : '#e7e5e4'}
                 strokeWidth={theme === 'forest' ? 6 : 2}
               />
               <g ref={layoutGroupRef} transform={`translate(${offsetX}, ${offsetY})`}>

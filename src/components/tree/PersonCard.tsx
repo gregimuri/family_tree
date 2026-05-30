@@ -32,6 +32,19 @@ interface PersonCardProps {
   onDragEnd?: (centerX: number, centerY: number) => void;
 }
 
+function buildCardBoxShadow(manualPlaced: boolean, showSelection: boolean): string | undefined {
+  const parts: string[] = ['0 2px 10px rgba(28, 25, 23, 0.08)'];
+  if (showSelection) {
+    parts.unshift('0 4px 14px rgba(28, 25, 23, 0.12)');
+    parts.unshift('0 0 0 2px #eab308');
+  } else if (manualPlaced) {
+    parts.unshift('0 0 0 2px rgba(45, 106, 79, 0.45)');
+  } else {
+    return undefined;
+  }
+  return parts.join(', ');
+}
+
 function cardNameLine(text: string | undefined): string {
   return text?.trim() ?? '';
 }
@@ -203,7 +216,7 @@ export function PersonCardWithMedia({
             width,
             height,
             borderColor: showSelection ? '#eab308' : borderColor,
-            boxShadow: showSelection ? '0 0 0 2px #eab308, 0 4px 14px rgba(28, 25, 23, 0.12)' : undefined,
+            boxShadow: buildCardBoxShadow(!!manualPlaced, !!showSelection),
           }}
           onPointerDown={handlePointerDown}
         >
