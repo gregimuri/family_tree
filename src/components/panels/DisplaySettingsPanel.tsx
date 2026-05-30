@@ -207,13 +207,21 @@ export function DisplaySettingsPanel() {
             />
             Фотография
           </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={s.cardFields.showMarriageYears}
-              onChange={(e) => updateFields({ showMarriageYears: e.target.checked })}
-            />
+          <label>
             Годы брака
+            <select
+              value={s.cardFields.marriageDateFormat}
+              onChange={(e) =>
+                updateFields({
+                  marriageDateFormat: e.target.value as ViewSettings['cardFields']['marriageDateFormat'],
+                })
+              }
+            >
+              <option value="full">Полная дата</option>
+              <option value="years">Только годы</option>
+              <option value="hidden">Не показывать</option>
+            </select>
+            <small className="hint">Без развода — только дата брака; при разводе — период</small>
           </label>
         </fieldset>
       </div>

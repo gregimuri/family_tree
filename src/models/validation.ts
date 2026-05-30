@@ -1,4 +1,5 @@
 import type { ViewSettings } from '../types';
+import { normalizeCardFields } from './defaults';
 
 export function validateViewSettings(settings: ViewSettings): ViewSettings {
   const next = { ...settings };
@@ -6,6 +7,7 @@ export function validateViewSettings(settings: ViewSettings): ViewSettings {
   if (next.generationsDown < 0) next.generationsDown = 0;
   if (next.sideBranchDepth < 0) next.sideBranchDepth = 0;
   if (next.allowExternalMedia === undefined) next.allowExternalMedia = false;
+  next.cardFields = normalizeCardFields(next.cardFields);
   return next;
 }
 

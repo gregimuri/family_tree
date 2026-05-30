@@ -296,7 +296,7 @@ export function TreeView() {
                   edges={layout.edges}
                   theme={theme}
                   project={project}
-                  showMarriageYears={project.viewSettings.cardFields.showMarriageYears}
+                  marriageDateFormat={project.viewSettings.cardFields.marriageDateFormat}
                   active={manualLayoutMode}
                   selectedEdgeId={selectedEdgeId}
                   onSelectEdge={setSelectedEdgeId}

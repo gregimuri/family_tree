@@ -106,7 +106,9 @@ export interface CardFieldSettings {
   showAge: boolean;
   showLocation: boolean;
   showPhoto: boolean;
-  showMarriageYears: boolean;
+  /** @deprecated migrated to marriageDateFormat */
+  showMarriageYears?: boolean;
+  marriageDateFormat: DateDisplayFormat;
 }
 
 export interface ViewSettings {

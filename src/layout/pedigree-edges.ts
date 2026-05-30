@@ -127,8 +127,14 @@ function buildFamilyConnector(
 
   const left = sortedPartners[0];
   const right = sortedPartners[sortedPartners.length - 1];
-  const coupleMidX = (left.x + left.width / 2 + right.x + right.width / 2) / 2;
-  const parentBottom = Math.max(left.y + left.height, right.y + right.height);
+  const leftBottom = left.y + left.height;
+  const rightBottom = right.y + right.height;
+  const bondY = Math.max(leftBottom, rightBottom);
+  const coupleMidX =
+    sortedPartners.length > 1
+      ? (left.x + left.width + right.x) / 2
+      : left.x + left.width / 2;
+  const parentBottom = sortedPartners.length > 1 ? bondY : leftBottom;
   const childTop = Math.min(...sortedChildren.map((c) => c.y));
   const forkY = parentBottom + (childTop - parentBottom) * 0.55;
 
@@ -138,19 +144,14 @@ function buildFamilyConnector(
 
   const edges: LayoutEdge[] = [];
 
-  const stemPoints = [
-    { x: coupleMidX, y: partners.length > 1 ? left.y + left.height / 2 : parentBottom },
-    { x: coupleMidX, y: forkY },
-  ];
-  if (partners.length > 1 && Math.abs(stemPoints[0].y - parentBottom) > 2) {
-    stemPoints.splice(1, 0, { x: coupleMidX, y: parentBottom });
-  }
-
   edges.push({
     id: `fam-stem-${unionId}`,
     from: left.id,
     to: sortedChildren[0].id,
-    points: stemPoints,
+    points: [
+      { x: coupleMidX, y: parentBottom },
+      { x: coupleMidX, y: forkY },
+    ],
   });
 
   if (busMax - busMin > 1) {

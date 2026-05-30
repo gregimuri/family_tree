@@ -7,11 +7,30 @@ interface RawEdge {
 }
 
 export function routeCoupleBond(left: LayoutNode, right: LayoutNode): { x: number; y: number }[] {
-  const y = left.y + left.height / 2;
+  const leftBottom = left.y + left.height;
+  const rightBottom = right.y + right.height;
   return [
-    { x: left.x + left.width, y },
-    { x: right.x, y },
+    { x: left.x + left.width, y: leftBottom },
+    { x: right.x, y: rightBottom },
   ];
+}
+
+/** Union id from edge id `bond-{uuid}-{layer}`. */
+export function parseBondUnionId(bondEdgeId: string): string | null {
+  if (!bondEdgeId.startsWith('bond-')) return null;
+  const rest = bondEdgeId.slice('bond-'.length);
+  const lastDash = rest.lastIndexOf('-');
+  if (lastDash <= 0) return rest || null;
+  const layerPart = rest.slice(lastDash + 1);
+  if (/^\d+$/.test(layerPart)) return rest.slice(0, lastDash);
+  return rest;
+}
+
+export function coupleBondMidpoint(points: { x: number; y: number }[]): { x: number; y: number } | null {
+  if (points.length < 2) return null;
+  const start = points[0];
+  const end = points[points.length - 1];
+  return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
 }
 
 export function routeEdges(rawEdges: RawEdge[]): LayoutEdge[] {

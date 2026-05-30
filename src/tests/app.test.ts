@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyProject, createEmptyPerson } from '../models/defaults';
+import { createEmptyProject, createEmptyPerson, normalizeCardFields } from '../models/defaults';
 import {
   dateToText,
   formatLifeDates,
+  formatMarriageDates,
   getAllChildren,
+  getCardBirthSuffix,
   getExcludedIdsForLink,
   getParents,
   linkChild,
@@ -27,6 +29,7 @@ import type { LayoutEdge, LayoutNode } from '../types';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
 import { CARD_H_TEXT, CARD_W } from '../layout/card-dimensions';
+import { parseBondUnionId, routeCoupleBond } from '../layout/edge-router';
 import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
 import { validateViewSettings, canUseUniformCards } from '../models/validation';
 import { formatPlaceText, placeHasValue } from '../components/dossier/DossierFields';
@@ -77,6 +80,28 @@ describe('layout', () => {
     const layout = buildLayout(project);
     expect(layout.nodes.length).toBeGreaterThan(0);
     expect(layout.bounds.maxX).toBeGreaterThan(layout.bounds.minX);
+  });
+
+  it('routes couple bond along card bottoms and parses bond union id', () => {
+    const left: LayoutNode = {
+      id: 'l',
+      kind: 'person',
+      layer: 0,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 80,
+      scale: 1,
+      isSideBranch: false,
+    };
+    const right: LayoutNode = { ...left, id: 'r', x: 120 };
+    const bond = routeCoupleBond(left, right);
+    expect(bond).toEqual([
+      { x: 100, y: 80 },
+      { x: 120, y: 80 },
+    ]);
+    const unionId = '325a9de7-bf1e-4ccf-b0d6-96d978901502';
+    expect(parseBondUnionId(`bond-${unionId}-0`)).toBe(unionId);
   });
 
   it('respects manual layout mode', () => {
@@ -482,6 +507,11 @@ describe('validation', () => {
     expect(next.generationsUp).toBe(0);
     expect(next.generationsDown).toBe(0);
   });
+
+  it('migrates legacy showMarriageYears to marriageDateFormat', () => {
+    expect(normalizeCardFields({ showMarriageYears: true }).marriageDateFormat).toBe('years');
+    expect(normalizeCardFields({ showMarriageYears: false }).marriageDateFormat).toBe('hidden');
+  });
 });
 
 describe('graph generations', () => {
@@ -588,6 +618,35 @@ describe('dates', () => {
   it('appends old-style suffix for julian dates', () => {
     expect(dateToText({ year: 1897, month: 7, day: 1, julian: true })).toBe('01.07.1897 ст.');
     expect(dateToText({ text: 'ок. 1875', julian: true })).toBe('ок. 1875 ст.');
+  });
+
+  it('formats marriage dates: start only without divorce', () => {
+    const union = {
+      id: 'u1',
+      partnerIds: ['a', 'b'],
+      childIds: [],
+      marriageStart: { year: 2005, month: 6, day: 12 },
+    };
+    expect(formatMarriageDates(union, 'years')).toBe('2005');
+    expect(formatMarriageDates(union, 'full')).toBe('12.06.2005');
+  });
+
+  it('formats marriage dates: full range when divorced', () => {
+    const union = {
+      id: 'u1',
+      partnerIds: ['a', 'b'],
+      childIds: [],
+      marriageStart: { year: 2005 },
+      marriageEnd: { year: 2012, month: 3 },
+    };
+    expect(formatMarriageDates(union, 'years')).toBe('2005–2012');
+    expect(formatMarriageDates(union, 'full')).toBe('2005 – 03.2012');
+  });
+
+  it('returns birth suffix only when different from current name', () => {
+    expect(getCardBirthSuffix('Иванова', 'Петрова', true)).toBe('Петрова');
+    expect(getCardBirthSuffix('Иванова', 'Иванова', true)).toBeNull();
+    expect(getCardBirthSuffix('Иванова', 'Петрова', false)).toBeNull();
   });
 });
 

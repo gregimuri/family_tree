@@ -11,8 +11,25 @@ export const defaultCardFields = (): CardFieldSettings => ({
   showAge: false,
   showLocation: true,
   showPhoto: true,
-  showMarriageYears: false,
+  marriageDateFormat: 'hidden',
 });
+
+/** Migrates legacy showMarriageYears and fills missing card field keys. */
+export function normalizeCardFields(raw: Partial<CardFieldSettings> & { showMarriageYears?: boolean }): CardFieldSettings {
+  const base = defaultCardFields();
+  const merged: CardFieldSettings = { ...base, ...raw };
+
+  if (raw.marriageDateFormat === undefined && raw.showMarriageYears !== undefined) {
+    merged.marriageDateFormat = raw.showMarriageYears ? 'years' : 'hidden';
+  }
+
+  if (!merged.marriageDateFormat) {
+    merged.marriageDateFormat = 'hidden';
+  }
+
+  delete merged.showMarriageYears;
+  return merged;
+}
 
 export const defaultViewSettings = (): ViewSettings => ({
   generationsUp: 3,

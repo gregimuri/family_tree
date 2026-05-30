@@ -1,4 +1,5 @@
-import type { DateValue, Person, Place, Project, ProjectCenter, Union } from '../types';
+import type { DateDisplayFormat, DateValue, Person, Place, Project, ProjectCenter, Union } from '../types';
+import { normalizeCardFields } from './defaults';
 import { createId } from '../utils/create-id';
 
 export function formatPersonName(person: Person, useNickname = false): string {
@@ -781,11 +782,33 @@ export function getAllChildren(project: Project, person: Person): Person[] {
   return sortChildrenByAge(children);
 }
 
-export function formatMarriageDates(union: Union): string {
+function hasDateValue(date?: DateValue): boolean {
+  if (!date) return false;
+  return Boolean(date.year || date.month || date.day || date.text?.trim());
+}
+
+export function formatMarriageDates(union: Union, format: DateDisplayFormat = 'full'): string {
+  if (format === 'hidden') return '';
+  if (!hasDateValue(union.marriageStart) && !hasDateValue(union.marriageEnd)) return '';
+
+  const divorced = hasDateValue(union.marriageEnd);
+
+  if (format === 'years') {
+    const start = formatDateForYearsMode(union.marriageStart);
+    if (!divorced) return start;
+    const end = formatDateForYearsMode(union.marriageEnd);
+    if (start && end) return `${start}–${end}`;
+    if (start) return `${start}–`;
+    if (end) return `–${end}`;
+    return '';
+  }
+
   const start = dateToText(union.marriageStart);
+  if (!divorced) return start;
   const end = dateToText(union.marriageEnd);
-  if (!start && !end) return '';
-  return `${start || '—'} – ${end || 'н.в.'}`;
+  if (start && end) return `${start} – ${end}`;
+  if (start) return `${start} –`;
+  return end ? `– ${end}` : '';
 }
 
 /** Verify union ↔ person references are symmetric. */
@@ -915,7 +938,13 @@ export function repairProjectRelationships(project: Project): Project {
     }
   }
 
-  return touchProjectMeta(next);
+  return touchProjectMeta({
+    ...next,
+    viewSettings: {
+      ...next.viewSettings,
+      cardFields: normalizeCardFields(next.viewSettings.cardFields),
+    },
+  });
 }
 
 /** Удаляет медиафайл из проекта и очищает все ссылки на него. */

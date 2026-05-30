@@ -36,9 +36,12 @@ function getEdgeBounds(edges: LayoutEdge[]): LayoutResult['bounds'] | null {
     }
 
     if (edge.id.startsWith('bond-') && edge.points.length >= 2) {
-      const labelY = edge.points[0].y - 10;
-      const labelX = (edge.points[0].x + edge.points[edge.points.length - 1].x) / 2;
+      const start = edge.points[0];
+      const end = edge.points[edge.points.length - 1];
+      const labelX = (start.x + end.x) / 2;
+      const labelY = (start.y + end.y) / 2;
       minY = Math.min(minY, labelY - MARRIAGE_LABEL_PAD_Y);
+      maxY = Math.max(maxY, labelY + MARRIAGE_LABEL_PAD_Y);
       minX = Math.min(minX, labelX - MARRIAGE_LABEL_HALF_W);
       maxX = Math.max(maxX, labelX + MARRIAGE_LABEL_HALF_W);
     }

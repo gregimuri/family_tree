@@ -3,6 +3,7 @@ import {
   calcAge,
   formatLifeDates,
   formatPersonName,
+  getCardBirthSuffix,
   getPersonLocation,
 } from '../../models/person-utils';
 import { personShowsCardPhoto } from '../../layout/card-dimensions';
@@ -31,6 +32,31 @@ interface PersonCardProps {
 
 function cardNameLine(text: string | undefined): string {
   return text?.trim() ?? '';
+}
+
+function CardNameLine({
+  current,
+  birth,
+  showBirth,
+  className,
+}: {
+  current: string | undefined;
+  birth: string | undefined;
+  showBirth: boolean;
+  className: string;
+}) {
+  const main = cardNameLine(current);
+  const suffix = getCardBirthSuffix(current, birth, showBirth);
+  if (!main && !suffix) return null;
+  if (!main && suffix) {
+    return <div className={className}>({suffix})</div>;
+  }
+  return (
+    <div className={className}>
+      {main}
+      {suffix ? <span className="person-card-html__birth-name"> ({suffix})</span> : null}
+    </div>
+  );
 }
 
 export function PersonCardWithMedia({
@@ -76,15 +102,6 @@ export function PersonCardWithMedia({
     : undefined;
 
   const showBirth = cf.showBirthName;
-  const surname = showBirth
-    ? cardNameLine(person.birthSurname) || cardNameLine(person.surname)
-    : cardNameLine(person.surname);
-  const givenName = showBirth
-    ? cardNameLine(person.birthGivenName) || cardNameLine(person.givenName)
-    : cardNameLine(person.givenName);
-  const patronymic = showBirth
-    ? cardNameLine(person.birthPatronymic) || cardNameLine(person.patronymic)
-    : cardNameLine(person.patronymic);
   const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
 
   const className = [
@@ -193,10 +210,27 @@ export function PersonCardWithMedia({
                 <div className="person-card-html__nickname-primary">{person.nickname}</div>
               ) : (
                 <>
-                  {surname && <div className="person-card-html__surname">{surname}</div>}
-                  {givenName && <div className="person-card-html__given">{givenName}</div>}
-                  {patronymic && <div className="person-card-html__patronymic">{patronymic}</div>}
-                  {!surname && !givenName && !patronymic && (
+                  <CardNameLine
+                    current={person.surname}
+                    birth={person.birthSurname}
+                    showBirth={showBirth}
+                    className="person-card-html__surname"
+                  />
+                  <CardNameLine
+                    current={person.givenName}
+                    birth={person.birthGivenName}
+                    showBirth={showBirth}
+                    className="person-card-html__given"
+                  />
+                  <CardNameLine
+                    current={person.patronymic}
+                    birth={person.birthPatronymic}
+                    showBirth={showBirth}
+                    className="person-card-html__patronymic"
+                  />
+                  {!person.surname?.trim() &&
+                    !person.givenName?.trim() &&
+                    !person.patronymic?.trim() && (
                     <div className="person-card-html__given">{formatPersonName(person)}</div>
                   )}
                 </>

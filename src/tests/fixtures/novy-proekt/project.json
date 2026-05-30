@@ -249,7 +249,7 @@
       "showAge": false,
       "showLocation": true,
       "showPhoto": true,
-      "showMarriageYears": false
+      "marriageDateFormat": "hidden"
     },
     "allowExternalMedia": false
   },
