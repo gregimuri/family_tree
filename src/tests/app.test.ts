@@ -506,8 +506,10 @@ describe('layout', () => {
     const project = importGedcom(ged, 'Pedigree');
     project.center = { type: 'family', id: 'F1' };
     const layout = buildLayout(project);
-    expect(layout.edges.some((e) => e.id.startsWith('fam-stem-'))).toBe(true);
-    expect(layout.edges.some((e) => e.id.startsWith('fam-drop-'))).toBe(true);
+    const hasPedigreeConnector =
+      layout.edges.some((e) => e.id.startsWith('fam-stem-')) ||
+      layout.edges.some((e) => e.id.startsWith('fam-branch-'));
+    expect(hasPedigreeConnector).toBe(true);
     expect(layout.edges.some((e) => e.id.includes('p-I1-p-C1'))).toBe(false);
   });
 });
@@ -654,6 +656,63 @@ describe('graph generations', () => {
       viewSettings: { ...project.viewSettings, showAllPersons: true },
     });
     expect(layout.edges.some((e) => e.id.includes(cousinId))).toBe(true);
+    expect(layout.edges.some((e) => e.id.startsWith('fam-branch-'))).toBe(true);
+  });
+
+  it('uses branch connectors for distant children when showAllPersons is enabled', () => {
+    const project = createEmptyProject();
+    const leftParentA = createId();
+    const leftParentB = createId();
+    const rightParentA = createId();
+    const rightParentB = createId();
+    const leftChild = createId();
+    const rightChild = createId();
+    const leftUnionId = createId();
+    const rightUnionId = createId();
+
+    project.persons[leftParentA] = createEmptyPerson({ id: leftParentA, givenName: 'Отец', surname: 'Лев', gender: 'male' });
+    project.persons[leftParentB] = createEmptyPerson({ id: leftParentB, givenName: 'Мать', surname: 'Левая', gender: 'female' });
+    project.persons[rightParentA] = createEmptyPerson({ id: rightParentA, givenName: 'Отец', surname: 'Прав', gender: 'male' });
+    project.persons[rightParentB] = createEmptyPerson({ id: rightParentB, givenName: 'Мать', surname: 'Правая', gender: 'female' });
+    project.persons[leftChild] = createEmptyPerson({ id: leftChild, givenName: 'Сын', surname: 'Лев', gender: 'male' });
+    project.persons[rightChild] = createEmptyPerson({ id: rightChild, givenName: 'Дочь', surname: 'Прав', gender: 'female' });
+
+    project.unions[leftUnionId] = {
+      id: leftUnionId,
+      partnerIds: [leftParentA, leftParentB],
+      childIds: [leftChild],
+      marriageStart: { year: 1977 },
+    };
+    project.unions[rightUnionId] = {
+      id: rightUnionId,
+      partnerIds: [rightParentA, rightParentB],
+      childIds: [rightChild],
+      marriageStart: { year: 1975 },
+    };
+
+    for (const id of [leftParentA, leftParentB, rightParentA, rightParentB]) {
+      project.persons[id].unionIds = [id === leftParentA || id === leftParentB ? leftUnionId : rightUnionId];
+    }
+    project.persons[leftChild].parentUnionIds = [leftUnionId];
+    project.persons[rightChild].parentUnionIds = [rightUnionId];
+    project.center = { type: 'person', id: leftChild };
+    project.viewSettings = {
+      ...project.viewSettings,
+      showAllPersons: true,
+      cardFields: { ...project.viewSettings.cardFields, marriageDateFormat: 'years' },
+    };
+
+    const layout = buildLayout(project);
+    const leftBranch = layout.edges.find((e) => e.id === `fam-branch-${leftUnionId}-${leftChild}`);
+    const rightBranch = layout.edges.find((e) => e.id === `fam-branch-${rightUnionId}-${rightChild}`);
+    expect(leftBranch).toBeTruthy();
+    expect(rightBranch).toBeTruthy();
+
+    const wideBus = layout.edges.filter((e) => e.id.startsWith('fam-bus-'));
+    for (const bus of wideBus) {
+      const xs = bus.points.map((p) => p.x);
+      expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(700);
+    }
   });
 });
 
