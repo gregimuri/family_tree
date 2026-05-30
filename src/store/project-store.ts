@@ -25,6 +25,7 @@ import {
   unlinkPartner as unlinkPartnerInProject,
   type LinkKind,
 } from '../models/person-utils';
+import { buildLayout, collectMissingLayoutPositions } from '../layout';
 import { addRecent, saveProjectToDb } from '../services/project-io/db';
 import { saveProjectToHandle, saveProjectAs } from '../services/project-io/zip-project';
 import { isExternalMediaUrl } from '../utils/media-url';
@@ -112,6 +113,7 @@ interface ProjectState {
   setManualEdgeRoute: (edgeId: string, points: { x: number; y: number }[]) => void;
   clearManualEdgeRoute: (edgeId: string) => void;
   clearManualEdgeRoutes: () => void;
+  syncLayoutPositions: (personIds?: string[]) => void;
 }
 
 function layoutHistoryMode(get: () => ProjectState): HistoryMode {
@@ -333,12 +335,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   setCenter: (center) => {
-    get().updateProject((p) => ({
-      ...p,
-      center,
-      manualLayout: undefined,
-      manualEdgeRoutes: undefined,
-    }));
+    get().updateProject((p) => ({ ...p, center }));
     set({ selection: null });
   },
 
@@ -380,6 +377,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       { history: 'immediate' },
     );
     get().setSelection({ type: 'person', id: person.id });
+    get().syncLayoutPositions([person.id]);
     return person;
   },
 
@@ -467,6 +465,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   placeNewPersonNear: (newPersonId, nearPersonId) => {
     void nearPersonId;
+    get().syncLayoutPositions([newPersonId]);
     get().setSelection({ type: 'person', id: newPersonId });
   },
 
@@ -626,6 +625,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     get().updateProject(
       (p) => ({ ...p, manualEdgeRoutes: undefined }),
       { history: layoutHistoryMode(get) },
+    );
+  },
+
+  syncLayoutPositions: (personIds) => {
+    const project = get().project;
+    if (!project) return;
+    const layout = buildLayout(project);
+    const patch = collectMissingLayoutPositions(project, layout, personIds);
+    if (Object.keys(patch).length === 0) return;
+    get().updateProject(
+      (p) => ({
+        ...p,
+        manualLayout: { ...(p.manualLayout ?? {}), ...patch },
+      }),
+      { history: 'skip' },
     );
   },
 }));

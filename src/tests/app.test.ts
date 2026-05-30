@@ -207,24 +207,27 @@ describe('layout', () => {
     expect(Math.abs(parentCenter - childCenter)).toBeLessThan(5);
   });
 
-  it('keeps partners close after recenter without stale manual positions', () => {
+  it('keeps stored card positions when center changes', () => {
     let project = createEmptyProject();
     const [idA, idB] = Object.keys(project.persons);
     const layout1 = buildLayout(project);
     const nodeA = layout1.nodes.find((n) => n.personId === idA)!;
+    const nodeB = layout1.nodes.find((n) => n.personId === idB)!;
     const cy = nodeA.y + nodeA.height / 2;
-    project.manualLayout = { [idA]: { x: nodeA.x + nodeA.width / 2 + 3000, y: cy } };
 
-    const drifted = buildLayout(project);
-    const driftA = drifted.nodes.find((n) => n.personId === idA)!;
-    const driftB = drifted.nodes.find((n) => n.personId === idB)!;
-    expect(Math.abs(driftA.x + driftA.width / 2 - (driftB.x + driftB.width / 2))).toBeGreaterThan(500);
+    project.manualLayout = {
+      [idA]: { x: nodeA.x + nodeA.width / 2 + 3000, y: cy },
+      [idB]: { x: nodeB.x + nodeB.width / 2, y: nodeB.y + nodeB.height / 2 },
+    };
 
-    project = { ...project, center: { type: 'person', id: idA }, manualLayout: undefined };
+    project = { ...project, center: { type: 'person', id: idB } };
     const layout2 = buildLayout(project);
-    const na = layout2.nodes.find((n) => n.personId === idA)!;
-    const nb = layout2.nodes.find((n) => n.personId === idB)!;
-    expect(Math.abs(na.x + na.width / 2 - (nb.x + nb.width / 2))).toBeLessThan(300);
+    const movedA = layout2.nodes.find((n) => n.personId === idA)!;
+    const movedB = layout2.nodes.find((n) => n.personId === idB)!;
+
+    expect(movedA.x + movedA.width / 2).toBeCloseTo(project.manualLayout![idA].x, 0);
+    expect(movedB.x + movedB.width / 2).toBeCloseTo(project.manualLayout![idB].x, 0);
+    expect(Math.abs(movedA.x + movedA.width / 2 - (movedB.x + movedB.width / 2))).toBeGreaterThan(500);
   });
 
   it('pickPartnersForUnion ignores partners on different layers', () => {

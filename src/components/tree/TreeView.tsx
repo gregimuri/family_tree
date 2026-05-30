@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { buildLayout } from '../../layout';
@@ -39,6 +39,7 @@ export function TreeView() {
   const clearManualLayout = useProjectStore((s) => s.clearManualLayout);
   const setManualEdgeRoute = useProjectStore((s) => s.setManualEdgeRoute);
   const clearManualEdgeRoute = useProjectStore((s) => s.clearManualEdgeRoute);
+  const syncLayoutPositions = useProjectStore((s) => s.syncLayoutPositions);
   const dossierPersonId = useProjectStore((s) => s.dossierPersonId);
   const mediaViewerId = useProjectStore((s) => s.mediaViewerId);
   const exportOpen = useUiStore((s) => s.exportOpen);
@@ -58,6 +59,11 @@ export function TreeView() {
     if (!treeFrame) return null;
     return { layout: built, frame: treeFrame };
   }, [project]);
+
+  useEffect(() => {
+    if (!project) return;
+    syncLayoutPositions();
+  }, [project, syncLayoutPositions]);
 
   const layout = treeLayout?.layout ?? null;
   const frame = treeLayout?.frame ?? null;

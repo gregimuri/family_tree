@@ -1,10 +1,32 @@
-import type { LayoutResult, Project } from '../types';
+import type { LayoutResult, ManualLayoutEntry, Project } from '../types';
 import type { GraphResult } from './graph-builder';
 import { buildGraph } from './graph-builder';
 import { buildLayoutEdges, computeBounds, computeLayout } from './layered-layout';
 import { applyManualEdgeRoutes } from './manual-edge-routes';
 
-export function applyManualLayout(
+/** Center coordinates for persons visible in layout but not yet pinned in manualLayout. */
+export function collectMissingLayoutPositions(
+  project: Project,
+  layout: LayoutResult,
+  personIds?: string[],
+): Record<string, ManualLayoutEntry> {
+  const manual = project.manualLayout ?? {};
+  const filter = personIds ? new Set(personIds) : null;
+  const patch: Record<string, ManualLayoutEntry> = {};
+
+  for (const node of layout.nodes) {
+    if (!node.personId || manual[node.personId]) continue;
+    if (filter && !filter.has(node.personId)) continue;
+    patch[node.personId] = {
+      x: node.x + node.width / 2,
+      y: node.y + node.height / 2,
+    };
+  }
+
+  return patch;
+}
+
+function applyStoredPositions(
   layout: LayoutResult,
   project: Project,
   graph: GraphResult,
@@ -30,17 +52,20 @@ export function buildLayout(project: Project): LayoutResult {
   const graph = buildGraph(project, project.viewSettings);
   let layout = computeLayout(graph, project);
   layout = repositionOrphanNodes(layout, project);
-  layout = applyManualLayout(layout, project, graph);
+  layout = applyStoredPositions(layout, project, graph);
   return applyManualEdgeRoutes(layout, project);
 }
 
 function repositionOrphanNodes(layout: LayoutResult, project: Project): LayoutResult {
+  const manual = project.manualLayout ?? {};
   const linked = new Set<string>();
   for (const p of Object.values(project.persons)) {
     if (p.unionIds.length > 0 || p.parentUnionIds.length > 0) linked.add(p.id);
   }
 
-  const orphans = layout.nodes.filter((n) => n.personId && !linked.has(n.personId));
+  const orphans = layout.nodes.filter(
+    (n) => n.personId && !linked.has(n.personId) && !manual[n.personId],
+  );
   if (orphans.length === 0) return layout;
 
   const y = layout.bounds.maxY + 64;
@@ -63,7 +88,16 @@ function repositionOrphanNodes(layout: LayoutResult, project: Project): LayoutRe
   };
 }
 
-/** @deprecated use applyManualLayout */
+/** @deprecated use applyStoredPositions via buildLayout */
+export function applyManualLayout(
+  layout: LayoutResult,
+  project: Project,
+  graph: GraphResult,
+): LayoutResult {
+  return applyStoredPositions(layout, project, graph);
+}
+
+/** @deprecated use applyStoredPositions */
 export function mergeManualLayout(layout: LayoutResult, project: Project): LayoutResult {
   if (!project.manualLayout) return layout;
   const nodes = layout.nodes.map((n) => {

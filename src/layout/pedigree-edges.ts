@@ -1,5 +1,7 @@
 import type { LayoutEdge, LayoutNode, Project } from '../types';
 import type { GraphPersonNode, GraphResult } from './graph-builder';
+import { formatMarriageDates } from '../models/person-utils';
+import { marriageStemStartY } from './edge-router';
 
 function getGraphPerson(graph: GraphResult, personId: string): GraphPersonNode | undefined {
   const nodeId = graph.personToNode.get(personId);
@@ -134,9 +136,19 @@ function buildFamilyConnector(
     sortedPartners.length > 1
       ? (left.x + left.width + right.x) / 2
       : left.x + left.width / 2;
-  const parentBottom = sortedPartners.length > 1 ? bondY : leftBottom;
+  const union = project.unions[unionId];
+  const marriageFormat = project.viewSettings.cardFields.marriageDateFormat;
+  const showMarriageLabel =
+    sortedPartners.length > 1 &&
+    marriageFormat !== 'hidden' &&
+    !!union &&
+    !!formatMarriageDates(union, marriageFormat);
+  const stemStartY =
+    sortedPartners.length > 1
+      ? marriageStemStartY(bondY, showMarriageLabel)
+      : leftBottom;
   const childTop = Math.min(...sortedChildren.map((c) => c.y));
-  const forkY = parentBottom + (childTop - parentBottom) * 0.55;
+  const forkY = stemStartY + (childTop - stemStartY) * 0.55;
 
   const childCenters = sortedChildren.map((c) => c.x + c.width / 2);
   const busMin = Math.min(coupleMidX, ...childCenters);
@@ -149,7 +161,7 @@ function buildFamilyConnector(
     from: left.id,
     to: sortedChildren[0].id,
     points: [
-      { x: coupleMidX, y: parentBottom },
+      { x: coupleMidX, y: stemStartY },
       { x: coupleMidX, y: forkY },
     ],
   });

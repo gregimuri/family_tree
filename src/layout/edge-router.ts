@@ -33,6 +33,20 @@ export function coupleBondMidpoint(points: { x: number; y: number }[]): { x: num
   return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
 }
 
+/** Marriage date label sits below the horizontal bond line. */
+export const MARRIAGE_BOND_LABEL_HEIGHT = 14;
+export const MARRIAGE_BOND_LABEL_GAP = 4;
+export const MARRIAGE_STEM_GAP = 4;
+
+export function marriageLabelTopY(bondY: number): number {
+  return bondY + MARRIAGE_BOND_LABEL_GAP;
+}
+
+export function marriageStemStartY(bondY: number, showLabel: boolean): number {
+  if (!showLabel) return bondY;
+  return bondY + MARRIAGE_BOND_LABEL_GAP + MARRIAGE_BOND_LABEL_HEIGHT + MARRIAGE_STEM_GAP;
+}
+
 export function routeEdges(rawEdges: RawEdge[]): LayoutEdge[] {
   return rawEdges.map(({ id, from, to }) => {
     const childBelow = from.y < to.y;
