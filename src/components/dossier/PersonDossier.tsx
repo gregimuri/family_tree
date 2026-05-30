@@ -8,6 +8,7 @@ import {
 import { useProjectStore } from '../../store/project-store';
 import { createId } from '../../utils/create-id';
 import { AvatarEditor } from './AvatarEditor';
+import { MediaListThumb } from './MediaListThumb';
 import { DateField, GenderSelect, LocationSourceSelect, PlaceField, formatPlaceText, getPlaceForLocationSource, placeHasValue } from './DossierFields';
 import { PersonRelationships } from './PersonRelationships';
 import './DossierFields.css';
@@ -72,7 +73,7 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   const avatarUrl = avatarMedia ? getMediaUrl(avatarMedia.filename) : undefined;
   const mediaItems = person.mediaIds.map((id) => project.media[id]).filter(Boolean);
   const personCount = Object.keys(project.persons).length;
-  const canEditMedia = mode === 'edit';
+  const canEditMedia = mode === 'edit' && editMode;
 
   const saveField = (patch: Partial<Person>) => {
     if (editMode && draft) {
@@ -160,9 +161,9 @@ export function PersonDossier({ personId }: PersonDossierProps) {
           }}
           onContextMenu={(e) => {
             e.preventDefault();
-            if (mode === 'edit') setAvatarEdit(true);
+            if (canEditMedia) setAvatarEdit(true);
           }}
-          title="Двойной клик — центр древа; ПКМ — замена фото"
+          title={canEditMedia ? 'Двойной клик — центр древа; ПКМ — замена фото' : 'Двойной клик — центр древа'}
         >
           {avatarUrl ? (
             <img src={avatarUrl} alt="" />
@@ -341,10 +342,12 @@ export function PersonDossier({ personId }: PersonDossierProps) {
               {mediaItems.length === 0 && !canEditMedia && (
                 <li className="media-list__empty">Нет прикреплённых файлов</li>
               )}
-              {mediaItems.map((m) => (
+              {mediaItems.map((m) => {
+                const mediaUrl = getMediaUrl(m.filename);
+                return (
                 <li
                   key={m.id}
-                  className={canEditMedia ? 'media-edit' : undefined}
+                  className={canEditMedia ? 'media-edit' : 'media-item'}
                   onDoubleClick={() => !canEditMedia && openMediaViewer(m.id)}
                   onContextMenu={(e) => {
                     if (canEditMedia) return;
@@ -352,25 +355,35 @@ export function PersonDossier({ personId }: PersonDossierProps) {
                     openMediaViewer(m.id);
                   }}
                 >
-                  {canEditMedia ? (
-                    <>
-                      <div className="media-edit-meta">
-                        {m.type}: {m.filename}
-                      </div>
-                      <div className="media-edit-row">
-                        <input value={m.description} onChange={(e) => updateMedia({ ...m, description: e.target.value })} placeholder="Описание" />
-                        <button type="button" className="btn tiny danger" onClick={() => removeMedia(m.id)} title="Удалить из проекта">
-                          Удалить
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {m.type}: {m.description || m.filename}
-                    </>
-                  )}
+                  <MediaListThumb media={m} url={mediaUrl} />
+                  <div className="media-list__body">
+                    {canEditMedia ? (
+                      <>
+                        <div className="media-edit-meta">
+                          {m.type}: {m.filename}
+                        </div>
+                        <div className="media-edit-row">
+                          <input value={m.description} onChange={(e) => updateMedia({ ...m, description: e.target.value })} placeholder="Описание" />
+                          <button
+                            type="button"
+                            className="media-list__delete"
+                            onClick={() => removeMedia(m.id)}
+                            title="Удалить из проекта"
+                            aria-label="Удалить из проекта"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <span className="media-list__label">
+                        {m.type}: {m.description || m.filename}
+                      </span>
+                    )}
+                  </div>
                 </li>
-              ))}
+              );
+              })}
               {canEditMedia && (
                 <li className="media-edit">
                   <label className="media-upload">

@@ -47,4 +47,38 @@ describe('PersonDossier edit session', () => {
     expect(getParents(project, project.persons[personId]).length).toBe(0);
     expect(useProjectStore.getState().dossierPersonId).toBeNull();
   });
+
+  it('shows media controls only while editing the dossier', () => {
+    const personId = openDefaultDossier();
+    const store = useProjectStore.getState();
+    const mediaId = 'media-test-1';
+    store.updateProject((p) => ({
+      ...p,
+      media: {
+        ...p.media,
+        [mediaId]: {
+          id: mediaId,
+          type: 'photo',
+          filename: 'portrait.jpg',
+          description: 'Портрет',
+          personIds: [personId],
+        },
+      },
+      persons: {
+        ...p.persons,
+        [personId]: { ...p.persons[personId], mediaIds: [mediaId] },
+      },
+    }));
+
+    render(<PersonDossier personId={personId} />);
+
+    expect(screen.queryByText('Добавить файл')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Удалить из проекта' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
+
+    expect(screen.getByText('Добавить файл')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Удалить из проекта' })).toBeTruthy();
+    expect(screen.getByPlaceholderText('Описание')).toBeTruthy();
+  });
 });
