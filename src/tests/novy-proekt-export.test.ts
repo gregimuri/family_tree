@@ -8,6 +8,7 @@ import {
   computeExportViewport,
   configureSvgForExport,
   resolveExportResolution,
+  viewportSizeMm,
 } from '../services/export/image-export';
 import { CARD_H_TEXT } from '../layout/card-dimensions';
 import { TREE_SHEET_PAD } from '../layout/tree-sheet';
@@ -21,7 +22,7 @@ describe('novy-proekt export viewport', () => {
     const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
     const sheet = getTreeSheetBounds(layout);
     const viewport = computeExportViewport(frame, layout);
-    const resolution = resolveExportResolution({ format: 'png', sizeMode: 'tree', quality: 'high' }, viewport);
+    const resolution = resolveExportResolution({ format: 'png', sizeMode: 'tree' }, viewport);
 
     const layers = layout.nodes.map((n) => n.layer);
     const spread = Math.max(...layers) - Math.min(...layers);
@@ -32,6 +33,19 @@ describe('novy-proekt export viewport', () => {
     expect(viewport.width / viewport.height).toBeLessThan(2.15);
     expect(resolution.widthPx / resolution.heightPx).toBeGreaterThan(0.5);
     expect(resolution.widthPx / resolution.heightPx).toBeLessThan(2.15);
+  });
+
+  it('reports tree export size in millimeters', () => {
+    const project = repairProjectRelationships(projectJson as Project);
+    const layout = buildLayout(project);
+    const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
+    const viewport = computeExportViewport(frame, layout);
+    const mm = viewportSizeMm(viewport);
+
+    expect(mm.widthMm).toBeGreaterThan(0);
+    expect(mm.heightMm).toBeGreaterThan(0);
+    expect(mm.widthMm).toBeCloseTo((viewport.width * 25.4) / 96, 0);
+    expect(mm.heightMm).toBeCloseTo((viewport.height * 25.4) / 96, 0);
   });
 
   it('export SVG background matches viewport crop', () => {

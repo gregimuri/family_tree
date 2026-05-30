@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { RefObject } from 'react';
 import type { LayoutResult } from '../../types';
 import type { TreeFrame } from '../../layout/center-focus';
 import {
+  computeExportViewport,
   exportTreeElement,
   getPresetDimensions,
-  orientPageDimensions,
   PRESET_SIZES,
+  viewportSizeMm,
   type ExportImageFormat,
   type ExportOrientation,
-  type ExportQuality,
   type ExportSizeMode,
 } from '../../services/export/image-export';
 import { downloadGedcom } from '../../services/gedcom/export';
@@ -29,15 +29,19 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
   const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const [format, setFormat] = useState<ExportImageFormat>('png');
   const [sizeMode, setSizeMode] = useState<ExportSizeMode>('tree');
-  const [quality, setQuality] = useState<ExportQuality>('high');
   const [orientation, setOrientation] = useState<ExportOrientation>('landscape');
   const [preset, setPreset] = useState('A4');
   const [widthMm, setWidthMm] = useState(297);
   const [heightMm, setHeightMm] = useState(210);
   const [busy, setBusy] = useState(false);
 
+  const isStandardPreset = sizeMode === 'fixed' && preset !== 'custom';
+  const treeViewport = useMemo(() => computeExportViewport(frame, layout), [frame, layout]);
+  const treeSizeMm = useMemo(() => viewportSizeMm(treeViewport), [treeViewport]);
+
   const applyPreset = (label: string, orient: ExportOrientation = orientation) => {
     setPreset(label);
+    if (label === 'custom') return;
     const dims = getPresetDimensions(label, orient);
     setWidthMm(dims.widthMm);
     setHeightMm(dims.heightMm);
@@ -45,13 +49,7 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
 
   const changeOrientation = (next: ExportOrientation) => {
     setOrientation(next);
-    if (preset !== 'custom') {
-      applyPreset(preset, next);
-    } else {
-      const swapped = orientPageDimensions(widthMm, heightMm, next);
-      setWidthMm(swapped.widthMm);
-      setHeightMm(swapped.heightMm);
-    }
+    applyPreset(preset, next);
   };
 
   const exportImage = async () => {
@@ -59,19 +57,13 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
     if (!el) return;
     setBusy(true);
     try {
-      const page =
-        sizeMode === 'fixed'
-          ? orientPageDimensions(widthMm, heightMm, orientation)
-          : undefined;
       await exportTreeElement(
         { svg: el, layout, frame },
         {
           format,
           sizeMode,
-          quality,
-          orientation,
-          widthMm: page?.widthMm,
-          heightMm: page?.heightMm,
+          widthMm: sizeMode === 'fixed' ? widthMm : undefined,
+          heightMm: sizeMode === 'fixed' ? heightMm : undefined,
         },
       );
     } finally {
@@ -95,30 +87,17 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
             </select>
           </label>
           <label>
-            Качество
-            <select value={quality} onChange={(e) => setQuality(e.target.value as ExportQuality)}>
-              <option value="standard">Стандарт (150 DPI)</option>
-              <option value="high">Высокое (200 DPI)</option>
-              <option value="print">Печать (300 DPI)</option>
-            </select>
-          </label>
-          <label>
-            Ориентация листа
-            <select
-              value={orientation}
-              onChange={(e) => changeOrientation(e.target.value as ExportOrientation)}
-            >
-              <option value="landscape">Альбомная</option>
-              <option value="portrait">Книжная</option>
-            </select>
-          </label>
-          <label>
             Размер холста
             <select value={sizeMode} onChange={(e) => setSizeMode(e.target.value as ExportSizeMode)}>
               <option value="tree">По размеру дерева</option>
               <option value="fixed">Фиксированный лист</option>
             </select>
           </label>
+          {sizeMode === 'tree' && (
+            <p className="export-dialog__dims-hint">
+              Размер листа: {treeSizeMm.widthMm} × {treeSizeMm.heightMm} мм
+            </p>
+          )}
           {sizeMode === 'fixed' && (
             <>
               <label>
@@ -132,6 +111,18 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
                   <option value="custom">Свой размер</option>
                 </select>
               </label>
+              {isStandardPreset && (
+                <label>
+                  Ориентация листа
+                  <select
+                    value={orientation}
+                    onChange={(e) => changeOrientation(e.target.value as ExportOrientation)}
+                  >
+                    <option value="landscape">Альбомная</option>
+                    <option value="portrait">Книжная</option>
+                  </select>
+                </label>
+              )}
               {preset === 'custom' && (
                 <>
                   <label>
@@ -144,17 +135,17 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
                   </label>
                 </>
               )}
-              {preset !== 'custom' && (
+              {isStandardPreset && (
                 <p className="export-dialog__dims-hint">
                   {widthMm} × {heightMm} мм
                 </p>
               )}
+              {preset === 'custom' && (
+                <p className="export-dialog__dims-hint">
+                  Экспорт: {widthMm} × {heightMm} мм
+                </p>
+              )}
             </>
-          )}
-          {sizeMode === 'tree' && format === 'pdf' && (
-            <p className="export-dialog__dims-hint">
-              PDF: {orientation === 'landscape' ? 'A4 альбомная' : 'A4 книжная'}, дерево вписывается на страницу
-            </p>
           )}
           <button type="button" className="btn primary" disabled={busy} onClick={exportImage}>
             Экспортировать лист

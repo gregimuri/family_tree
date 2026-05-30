@@ -41,15 +41,13 @@ describe('export orientation', () => {
 });
 
 describe('export resolution', () => {
-  it('uses 300 dpi for print quality on fixed A4', () => {
+  it('uses 300 dpi for fixed A4', () => {
     const res = resolveExportResolution(
       {
         format: 'png',
         sizeMode: 'fixed',
-        quality: 'print',
         widthMm: 297,
         heightMm: 210,
-        orientation: 'landscape',
       },
       { width: 1000, height: 800 },
     );
@@ -59,15 +57,15 @@ describe('export resolution', () => {
     expect(res.cardRasterRatio).toBeGreaterThanOrEqual(3);
   });
 
-  it('supersamples tree export at high quality', () => {
+  it('uses 300 dpi for tree export', () => {
     const res = resolveExportResolution(
-      { format: 'png', sizeMode: 'tree', quality: 'high' },
+      { format: 'png', sizeMode: 'tree' },
       { width: 1200, height: 900 },
     );
-    expect(res.dpi).toBe(200);
+    expect(res.dpi).toBe(300);
     expect(res.pixelRatio).toBe(1);
-    expect(res.widthPx).toBe(Math.round(1200 * (200 / 96)));
-    expect(res.heightPx).toBe(Math.round(900 * (200 / 96)));
+    expect(res.widthPx).toBe(Math.round(1200 * (300 / 96)));
+    expect(res.heightPx).toBe(Math.round(900 * (300 / 96)));
     expect(res.cardRasterRatio).toBeGreaterThanOrEqual(3);
   });
 });

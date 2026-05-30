@@ -8,16 +8,13 @@ import { getTreeContentRect } from '../../hooks/tree-viewport';
 export type ExportImageFormat = 'png' | 'jpeg' | 'pdf';
 export type ExportSizeMode = 'tree' | 'fixed';
 export type ExportOrientation = 'landscape' | 'portrait';
-export type ExportQuality = 'standard' | 'high' | 'print';
 
 export interface ExportOptions {
   format: ExportImageFormat;
   sizeMode: ExportSizeMode;
-  orientation?: ExportOrientation;
   widthMm?: number;
   heightMm?: number;
   pixelRatio?: number;
-  quality?: ExportQuality;
 }
 
 export interface ExportResolution {
@@ -37,33 +34,34 @@ export interface TreeExportSource {
 const EXPORT_PAD = 32;
 const MAX_CARD_RASTER_RATIO = 6;
 
-const QUALITY_PRESETS: Record<ExportQuality, { dpi: number; pixelRatio: number }> = {
-  standard: { dpi: 150, pixelRatio: 2 },
-  high: { dpi: 200, pixelRatio: 3 },
-  print: { dpi: 300, pixelRatio: 2 },
-};
+export const EXPORT_DPI = 300;
 
-export function mmToPx(mm: number, dpi: number): number {
+export function mmToPx(mm: number, dpi: number = EXPORT_DPI): number {
   return Math.round((mm / 25.4) * dpi);
+}
+
+/** Физический размер экспорта «по дереву» при заданном DPI. */
+export function viewportSizeMm(
+  viewport: { width: number; height: number },
+  dpi: number = EXPORT_DPI,
+): { widthMm: number; heightMm: number } {
+  const widthPx = Math.max(1, Math.round(viewport.width * (dpi / 96)));
+  const heightPx = Math.max(1, Math.round(viewport.height * (dpi / 96)));
+  return {
+    widthMm: Math.round((widthPx / dpi) * 25.4 * 10) / 10,
+    heightMm: Math.round((heightPx / dpi) * 25.4 * 10) / 10,
+  };
 }
 
 export function resolveExportResolution(
   options: ExportOptions,
   viewport: { width: number; height: number },
 ): ExportResolution {
-  const quality = options.quality ?? 'high';
-  const preset = QUALITY_PRESETS[quality];
-  const dpi = preset.dpi;
-  const pixelRatio = options.pixelRatio ?? preset.pixelRatio;
+  const dpi = EXPORT_DPI;
 
   if (options.sizeMode === 'fixed' && options.widthMm && options.heightMm) {
-    const page = orientPageDimensions(
-      options.widthMm,
-      options.heightMm,
-      options.orientation ?? 'landscape',
-    );
-    const widthPx = mmToPx(page.widthMm, dpi);
-    const heightPx = mmToPx(page.heightMm, dpi);
+    const widthPx = mmToPx(options.widthMm, dpi);
+    const heightPx = mmToPx(options.heightMm, dpi);
     const layoutScale = Math.max(widthPx / viewport.width, heightPx / viewport.height);
     const cardRasterRatio = Math.min(
       MAX_CARD_RASTER_RATIO,
@@ -77,7 +75,7 @@ export function resolveExportResolution(
   const heightPx = Math.max(1, Math.round(viewport.height * layoutScale));
   const cardRasterRatio = Math.min(
     MAX_CARD_RASTER_RATIO,
-    Math.max(2, Math.ceil(layoutScale * pixelRatio)),
+    Math.max(2, Math.ceil(layoutScale * 2)),
   );
   return { widthPx, heightPx, pixelRatio: 1, cardRasterRatio, dpi };
 }
@@ -351,7 +349,6 @@ export async function exportTreeElement(
   options: ExportOptions,
 ): Promise<void> {
   const { format, sizeMode } = options;
-  const orientation = options.orientation ?? 'landscape';
   const { svg, layout, frame } = source;
   const backgroundColor = '#f7f3eb';
 
@@ -359,10 +356,7 @@ export async function exportTreeElement(
   await embedImages(svg);
 
   const viewport = computeExportViewport(frame, layout);
-  const resolution = resolveExportResolution(
-    { ...options, orientation },
-    viewport,
-  );
+  const resolution = resolveExportResolution(options, viewport);
   const { widthPx, heightPx, pixelRatio, cardRasterRatio } = resolution;
 
   const prepared = prepareSvgClone(svg);
@@ -373,7 +367,6 @@ export async function exportTreeElement(
   });
 
   const rasterFormat = format === 'jpeg' ? 'jpeg' : 'png';
-  const jpegQuality = resolution.dpi >= 300 ? 0.98 : 0.95;
   const dataUrl = await svgToRaster(
     prepared,
     widthPx,
@@ -381,20 +374,18 @@ export async function exportTreeElement(
     pixelRatio,
     backgroundColor,
     rasterFormat,
-    jpegQuality,
+    0.98,
   );
 
   if (format === 'pdf') {
-    const baseW = options.widthMm ?? 210;
-    const baseH = options.heightMm ?? 297;
     const page =
-      sizeMode === 'fixed'
-        ? orientPageDimensions(baseW, baseH, orientation)
-        : orientPageDimensions(210, 297, orientation);
+      sizeMode === 'fixed' && options.widthMm && options.heightMm
+        ? { widthMm: options.widthMm, heightMm: options.heightMm }
+        : viewportSizeMm(viewport);
     const pdf = new jsPDF({
       orientation: page.widthMm > page.heightMm ? 'landscape' : 'portrait',
       unit: 'mm',
-      format: sizeMode === 'fixed' ? [page.widthMm, page.heightMm] : 'a4',
+      format: [page.widthMm, page.heightMm],
     });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
