@@ -172,3 +172,19 @@
 .tree-edge--selected {
   filter: drop-shadow(0 0 3px rgba(234, 179, 8, 0.65));
 }
+
+.layout-marquee-capture {
+  cursor: crosshair;
+}
+
+.layout-marquee {
+  fill: rgba(45, 106, 79, 0.12);
+  stroke: #2d6a4f;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.person-card.layout-selected .person-card-html {
+  outline: 2px dashed rgba(234, 179, 8, 0.85);
+  outline-offset: 2px;
+}

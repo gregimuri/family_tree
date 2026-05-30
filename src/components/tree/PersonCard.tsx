@@ -25,7 +25,9 @@ interface PersonCardProps {
   onDoubleClick: () => void;
   draggable?: boolean;
   manualPlaced?: boolean;
+  layoutSelected?: boolean;
   screenToLayout?: (clientX: number, clientY: number) => { x: number; y: number } | null;
+  onLayoutPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
   onDragMove?: (centerX: number, centerY: number) => void;
   onDragEnd?: (centerX: number, centerY: number) => void;
 }
@@ -75,7 +77,9 @@ export function PersonCardWithMedia({
   onDoubleClick,
   draggable,
   manualPlaced,
+  layoutSelected,
   screenToLayout,
+  onLayoutPointerDown,
   onDragMove,
   onDragEnd,
 }: PersonCardProps) {
@@ -104,10 +108,13 @@ export function PersonCardWithMedia({
   const showBirth = cf.showBirthName;
   const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
 
+  const showSelection = selected || layoutSelected;
+
   const className = [
     'person-card',
     theme === 'forest' ? 'person-card--forest' : '',
-    selected ? 'selected' : '',
+    showSelection ? 'selected' : '',
+    layoutSelected ? 'layout-selected' : '',
     highlighted ? 'highlighted' : '',
     draggable ? 'person-card--draggable' : '',
     manualPlaced ? 'person-card--manual' : '',
@@ -121,6 +128,7 @@ export function PersonCardWithMedia({
     hasPhoto ? 'person-card-html--with-photo' : 'person-card-html--text-only',
     theme === 'forest' ? 'person-card-html--forest' : '',
     selected ? 'selected' : '',
+    layoutSelected ? 'layout-selected' : '',
     manualPlaced ? 'manual-placed' : '',
     draggable ? 'person-card-html--draggable' : '',
   ]
@@ -129,7 +137,12 @@ export function PersonCardWithMedia({
 
   const handlePointerDown = draggable
     ? (e: React.PointerEvent<HTMLDivElement>) => {
-        if (e.button !== 0 || !screenToLayout) return;
+        if (e.button !== 0) return;
+        if (onLayoutPointerDown) {
+          onLayoutPointerDown(e);
+          return;
+        }
+        if (!screenToLayout) return;
         e.preventDefault();
         e.stopPropagation();
 
@@ -189,8 +202,8 @@ export function PersonCardWithMedia({
           style={{
             width,
             height,
-            borderColor: selected ? '#eab308' : borderColor,
-            boxShadow: selected ? '0 0 0 2px #eab308, 0 4px 14px rgba(28, 25, 23, 0.12)' : undefined,
+            borderColor: showSelection ? '#eab308' : borderColor,
+            boxShadow: showSelection ? '0 0 0 2px #eab308, 0 4px 14px rgba(28, 25, 23, 0.12)' : undefined,
           }}
           onPointerDown={handlePointerDown}
         >

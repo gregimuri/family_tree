@@ -23,6 +23,19 @@ import { MediaViewer } from '../media/MediaViewer';
 import { Icons } from '../ui/Icons';
 import './TreeView.css';
 import { snapCardCenterToGridCorners } from '../../layout/card-dimensions';
+import { normalizeRect, rectsIntersect } from './layout-selection-utils';
+import type { LayoutNode } from '../../types';
+
+const MARQUEE_MIN_SIZE = 4;
+
+function getNodeCenter(
+  node: LayoutNode,
+  dragPositions: Record<string, { x: number; y: number }>,
+): { x: number; y: number } {
+  const drag = node.personId ? dragPositions[node.personId] : undefined;
+  if (drag) return drag;
+  return { x: node.x + node.width / 2, y: node.y + node.height / 2 };
+}
 
 export function TreeView() {
   const project = useProjectStore((s) => s.project);
@@ -35,6 +48,7 @@ export function TreeView() {
   const manualLayoutMode = useProjectStore((s) => s.manualLayoutMode);
   const setManualLayoutMode = useProjectStore((s) => s.setManualLayoutMode);
   const setManualPosition = useProjectStore((s) => s.setManualPosition);
+  const setManualPositions = useProjectStore((s) => s.setManualPositions);
   const clearManualPosition = useProjectStore((s) => s.clearManualPosition);
   const clearManualLayout = useProjectStore((s) => s.clearManualLayout);
   const setManualEdgeRoute = useProjectStore((s) => s.setManualEdgeRoute);
@@ -51,6 +65,11 @@ export function TreeView() {
   const layoutGroupRef = useRef<SVGGElement>(null);
   const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [layoutSelection, setLayoutSelection] = useState<Set<string>>(() => new Set());
+  const [marquee, setMarquee] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(
+    null,
+  );
+  const marqueePointerIdRef = useRef<number | null>(null);
 
   const treeLayout = useMemo(() => {
     if (!project) return null;
@@ -65,15 +84,97 @@ export function TreeView() {
     syncLayoutPositions();
   }, [project, syncLayoutPositions]);
 
+  const toggleManualLayoutMode = useCallback(() => {
+    if (manualLayoutMode) {
+      setLayoutSelection(new Set());
+      setMarquee(null);
+      setSelectedEdgeId(null);
+    }
+    setManualLayoutMode(!manualLayoutMode);
+  }, [manualLayoutMode, setManualLayoutMode]);
+
   const layout = treeLayout?.layout ?? null;
   const frame = treeLayout?.frame ?? null;
 
   const screenToLayout = useScreenToLayout(svgRef, layoutGroupRef);
 
   const handleBackgroundClick = () => {
+    if (marquee) return;
     setSelection(null);
-    if (manualLayoutMode) setSelectedEdgeId(null);
+    if (manualLayoutMode) {
+      setSelectedEdgeId(null);
+      setLayoutSelection(new Set());
+    }
   };
+
+  const finishMarquee = useCallback(
+    (box: { x1: number; y1: number; x2: number; y2: number }) => {
+      if (!layout) return;
+      const rect = normalizeRect(box.x1, box.y1, box.x2, box.y2);
+      if (rect.width < MARQUEE_MIN_SIZE && rect.height < MARQUEE_MIN_SIZE) {
+        setLayoutSelection(new Set());
+        setSelection(null);
+        return;
+      }
+
+      const ids = layout.nodes
+        .filter((node) => {
+          if (node.kind !== 'person' || !node.personId) return false;
+          const drag = dragPositions[node.personId];
+          const x = drag ? drag.x - node.width / 2 : node.x;
+          const y = drag ? drag.y - node.height / 2 : node.y;
+          return rectsIntersect(rect, { x, y, width: node.width, height: node.height });
+        })
+        .map((node) => node.personId!);
+
+      setLayoutSelection(new Set(ids));
+      if (ids.length === 1) setSelection({ type: 'person', id: ids[0] });
+      else setSelection(null);
+    },
+    [layout, dragPositions, setSelection],
+  );
+
+  const handleMarqueePointerDown = useCallback(
+    (e: React.PointerEvent<SVGRectElement>) => {
+      if (!manualLayoutMode || e.button !== 0 || !screenToLayout) return;
+      const target = e.target as Element;
+      if (target.closest('.person-card') || target.closest('.tree-edge-hit')) return;
+
+      const pt = screenToLayout(e.clientX, e.clientY);
+      if (!pt) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      marqueePointerIdRef.current = e.pointerId;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setMarquee({ x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y });
+      setSelectedEdgeId(null);
+    },
+    [manualLayoutMode, screenToLayout],
+  );
+
+  const handleMarqueePointerMove = useCallback(
+    (e: React.PointerEvent<SVGRectElement>) => {
+      if (marqueePointerIdRef.current !== e.pointerId || !screenToLayout) return;
+      const pt = screenToLayout(e.clientX, e.clientY);
+      if (!pt) return;
+      setMarquee((prev) => (prev ? { ...prev, x2: pt.x, y2: pt.y } : null));
+    },
+    [screenToLayout],
+  );
+
+  const endMarquee = useCallback(
+    (e: React.PointerEvent<SVGRectElement>) => {
+      if (marqueePointerIdRef.current !== e.pointerId) return;
+      marqueePointerIdRef.current = null;
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      setMarquee((prev) => {
+        if (prev) finishMarquee(prev);
+        return null;
+      });
+    },
+    [finishMarquee],
+  );
 
   const makeCenter = () => {
     if (!selection) return;
@@ -85,22 +186,133 @@ export function TreeView() {
     }
   };
 
-  const handleDragMove = useCallback((personId: string, centerX: number, centerY: number) => {
-    setDragPositions((prev) => ({ ...prev, [personId]: { x: centerX, y: centerY } }));
+  const handleGroupDragMove = useCallback((updates: Record<string, { x: number; y: number }>) => {
+    setDragPositions((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  const handleDragEnd = useCallback(
-    (personId: string, centerX: number, centerY: number, width: number, height: number) => {
-      const gridSize = width / 6;
-      const snapped = snapCardCenterToGridCorners(centerX, centerY, width, height, gridSize);
-      setManualPosition(personId, snapped.x, snapped.y);
+  const snapAndSavePositions = useCallback(
+    (
+      ids: string[],
+      centers: Record<string, { x: number; y: number }>,
+      sizes: Record<string, { width: number; height: number }>,
+    ) => {
+      const patch: Record<string, { x: number; y: number }> = {};
+      for (const id of ids) {
+        const center = centers[id];
+        const size = sizes[id];
+        if (!center || !size) continue;
+        const gridSize = size.width / 6;
+        patch[id] = snapCardCenterToGridCorners(
+          center.x,
+          center.y,
+          size.width,
+          size.height,
+          gridSize,
+        );
+      }
+      if (Object.keys(patch).length === 1) {
+        const [id, pos] = Object.entries(patch)[0];
+        setManualPosition(id, pos.x, pos.y);
+      } else {
+        setManualPositions(patch);
+      }
       setDragPositions((prev) => {
         const next = { ...prev };
-        delete next[personId];
+        for (const id of ids) delete next[id];
         return next;
       });
     },
-    [setManualPosition],
+    [setManualPosition, setManualPositions],
+  );
+
+  const handleLayoutCardPointerDown = useCallback(
+    (personId: string, e: React.PointerEvent<HTMLDivElement>) => {
+      if (!manualLayoutMode || e.button !== 0 || !screenToLayout || !layout) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      let dragIds: string[];
+      if (e.shiftKey) {
+        const next = new Set(layoutSelection);
+        if (next.has(personId)) next.delete(personId);
+        else next.add(personId);
+        setLayoutSelection(next);
+        dragIds = [...next];
+        if (dragIds.length === 0) return;
+      } else if (layoutSelection.has(personId) && layoutSelection.size > 1) {
+        dragIds = [...layoutSelection];
+      } else {
+        dragIds = [personId];
+        setLayoutSelection(new Set([personId]));
+      }
+
+      setSelection({ type: 'person', id: personId });
+      setSelectedEdgeId(null);
+
+      const startPointer = screenToLayout(e.clientX, e.clientY);
+      if (!startPointer) return;
+
+      const startCenters: Record<string, { x: number; y: number }> = {};
+      const sizes: Record<string, { width: number; height: number }> = {};
+      for (const id of dragIds) {
+        const n = layout.nodes.find((item) => item.personId === id);
+        if (!n?.personId) continue;
+        startCenters[id] = getNodeCenter(n, dragPositions);
+        sizes[id] = { width: n.width, height: n.height };
+      }
+
+      const anchorCenter = startCenters[personId];
+      if (!anchorCenter) return;
+
+      const target = e.currentTarget;
+      target.setPointerCapture(e.pointerId);
+
+      const move = (ev: PointerEvent) => {
+        const pt = screenToLayout(ev.clientX, ev.clientY);
+        if (!pt) return;
+        const dx = pt.x - startPointer.x;
+        const dy = pt.y - startPointer.y;
+        const updates: Record<string, { x: number; y: number }> = {};
+        for (const id of dragIds) {
+          const base = startCenters[id];
+          if (!base) continue;
+          updates[id] = { x: base.x + dx, y: base.y + dy };
+        }
+        handleGroupDragMove(updates);
+      };
+
+      const up = (ev: PointerEvent) => {
+        target.releasePointerCapture(ev.pointerId);
+        target.removeEventListener('pointermove', move);
+        target.removeEventListener('pointerup', up);
+        target.removeEventListener('pointercancel', up);
+        const pt = screenToLayout(ev.clientX, ev.clientY);
+        if (!pt) return;
+        const dx = pt.x - startPointer.x;
+        const dy = pt.y - startPointer.y;
+        const finalCenters: Record<string, { x: number; y: number }> = {};
+        for (const id of dragIds) {
+          const base = startCenters[id];
+          if (!base) continue;
+          finalCenters[id] = { x: base.x + dx, y: base.y + dy };
+        }
+        snapAndSavePositions(dragIds, finalCenters, sizes);
+      };
+
+      target.addEventListener('pointermove', move);
+      target.addEventListener('pointerup', up);
+      target.addEventListener('pointercancel', up);
+    },
+    [
+      manualLayoutMode,
+      screenToLayout,
+      layout,
+      layoutSelection,
+      dragPositions,
+      setSelection,
+      handleGroupDragMove,
+      snapAndSavePositions,
+    ],
   );
 
   useKeyboardNav({ transformRef, enabled: !manualLayoutMode });
@@ -113,7 +325,14 @@ export function TreeView() {
   const { svgW, svgH, offsetX, offsetY } = frame;
   const manualCount = Object.keys(project.manualLayout ?? {}).length;
   const manualEdgeCount = Object.keys(project.manualEdgeRoutes ?? {}).length;
+  const layoutSelectedCount = layoutSelection.size;
   const isDragging = Object.keys(dragPositions).length > 0;
+  const marqueeRect = marquee ? normalizeRect(marquee.x1, marquee.y1, marquee.x2, marquee.y2) : null;
+  const capturePad = 240;
+  const captureX = layout.bounds.minX - capturePad;
+  const captureY = layout.bounds.minY - capturePad;
+  const captureW = layout.bounds.maxX - layout.bounds.minX + capturePad * 2;
+  const captureH = layout.bounds.maxY - layout.bounds.minY + capturePad * 2;
 
   return (
     <div
@@ -131,8 +350,11 @@ export function TreeView() {
         <div className="manual-layout-bar">
           <Icons.Move size={16} />
           <span>
-            Карточки — перетаскивание; линии — клик и узлы маршрута. ПКМ / колёсико — прокрутка.
+            Карточки — перетаскивание; рамкой — выбор нескольких; Shift+клик — добавить в выбор.
           </span>
+          {layoutSelectedCount > 0 && (
+            <span className="manual-layout-bar__count">Выбрано: {layoutSelectedCount}</span>
+          )}
           {(manualCount > 0 || manualEdgeCount > 0) && (
             <span className="manual-layout-bar__count">
               Карточек: {manualCount}
@@ -151,7 +373,21 @@ export function TreeView() {
               Сбросить линию
             </button>
           )}
-          {selection?.type === 'person' && project.manualLayout?.[selection.id] && (
+          {layoutSelectedCount > 0 && (
+            <button
+              type="button"
+              className="btn small"
+              onClick={() => {
+                for (const id of layoutSelection) clearManualPosition(id);
+                setLayoutSelection(new Set());
+              }}
+            >
+              Сбросить выбранные
+            </button>
+          )}
+          {selection?.type === 'person' &&
+            layoutSelectedCount <= 1 &&
+            project.manualLayout?.[selection.id] && (
             <button
               type="button"
               className="btn small"
@@ -185,10 +421,7 @@ export function TreeView() {
           <button
             type="button"
             className={`btn tree-action-btn${manualLayoutMode ? ' accent' : ''}`}
-            onClick={() => {
-              if (manualLayoutMode) setSelectedEdgeId(null);
-              setManualLayoutMode(!manualLayoutMode);
-            }}
+            onClick={toggleManualLayoutMode}
             title="Перетаскивание карточек по сетке"
           >
             <Icons.Move size={16} />
@@ -206,10 +439,11 @@ export function TreeView() {
       <div className="tree-hints">
         {manualLayoutMode ? (
           <>
-            <span>ЛКМ на карточке — перемещение</span>
+            <span>ЛКМ на пустом месте — выделить область</span>
+            <span>ЛКМ на карточке — перемещение (несколько, если выбраны)</span>
+            <span>Shift+клик — добавить/убрать из выбора</span>
             <span>ЛКМ на линии — редактирование маршрута</span>
             <span>ПКМ / колёсико — прокрутка</span>
-            <span>Ctrl+Z — отмена (вся сессия расположения)</span>
           </>
         ) : (
           <>
@@ -298,6 +532,21 @@ export function TreeView() {
                   active={manualLayoutMode}
                   dragging={isDragging}
                 />
+                {manualLayoutMode && (
+                  <rect
+                    className="layout-marquee-capture"
+                    x={captureX}
+                    y={captureY}
+                    width={captureW}
+                    height={captureH}
+                    fill="transparent"
+                    pointerEvents="all"
+                    onPointerDown={handleMarqueePointerDown}
+                    onPointerMove={handleMarqueePointerMove}
+                    onPointerUp={endMarquee}
+                    onPointerCancel={endMarquee}
+                  />
+                )}
                 <EditableTreeConnections
                   edges={layout.edges}
                   theme={theme}
@@ -315,6 +564,7 @@ export function TreeView() {
                     if (!person) return null;
                     const selected =
                       selection?.type === 'person' && selection.id === node.personId;
+                    const layoutSelected = layoutSelection.has(node.personId);
                     const drag = dragPositions[node.personId];
                     const displayX = drag ? drag.x - node.width / 2 : node.x;
                     const displayY = drag ? drag.y - node.height / 2 : node.y;
@@ -326,6 +576,7 @@ export function TreeView() {
                         project={project}
                         settings={project.viewSettings}
                         selected={selected}
+                        layoutSelected={layoutSelected}
                         highlighted={highlightedPersonId === node.personId}
                         x={displayX}
                         y={displayY}
@@ -336,15 +587,30 @@ export function TreeView() {
                         draggable={manualLayoutMode}
                         manualPlaced={manualPlaced}
                         screenToLayout={screenToLayout}
-                        onDragMove={(cx, cy) => handleDragMove(node.personId!, cx, cy)}
-                        onDragEnd={(cx, cy) => handleDragEnd(node.personId!, cx, cy, node.width, node.height)}
-                        onClick={() => setSelection({ type: 'person', id: node.personId! })}
+                        onLayoutPointerDown={(e) =>
+                          handleLayoutCardPointerDown(node.personId!, e)
+                        }
+                        onClick={() => {
+                          if (!manualLayoutMode) {
+                            setSelection({ type: 'person', id: node.personId! });
+                          }
+                        }}
                         onDoubleClick={() => !manualLayoutMode && openDossier(node.personId!)}
                       />
                     );
                   }
                   return null;
                 })}
+                {marqueeRect && (
+                  <rect
+                    className="layout-marquee"
+                    x={marqueeRect.x}
+                    y={marqueeRect.y}
+                    width={marqueeRect.width}
+                    height={marqueeRect.height}
+                    pointerEvents="none"
+                  />
+                )}
               </g>
             </svg>
           </TransformComponent>
@@ -355,6 +621,7 @@ export function TreeView() {
         onZoomIn={() => transformRef.current?.zoomIn()}
         onZoomOut={() => transformRef.current?.zoomOut()}
         onReset={() => resetTreeView(transformRef, frame, layout)}
+        onToggleManualLayout={toggleManualLayoutMode}
       />
 
       {exportOpen && (

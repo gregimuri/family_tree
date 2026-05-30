@@ -7,9 +7,10 @@ interface ZoomControlsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onReset: () => void;
+  onToggleManualLayout?: () => void;
 }
 
-export function ZoomControls({ onZoomIn, onZoomOut, onReset }: ZoomControlsProps) {
+export function ZoomControls({ onZoomIn, onZoomOut, onReset, onToggleManualLayout }: ZoomControlsProps) {
   const setFullscreen = useUiStore((s) => s.setFullscreen);
   const fullscreen = useUiStore((s) => s.fullscreen);
   const mode = useProjectStore((s) => s.mode);
@@ -43,7 +44,7 @@ export function ZoomControls({ onZoomIn, onZoomOut, onReset }: ZoomControlsProps
             type="button"
             className={`zoom-btn ${manualLayoutMode ? 'active' : ''}`}
             title="Редактировать расположение карточек (режим edit)"
-            onClick={() => setManualLayoutMode(!manualLayoutMode)}
+            onClick={onToggleManualLayout ?? (() => setManualLayoutMode(!manualLayoutMode))}
           >
             <Icons.Move size={18} />
           </button>

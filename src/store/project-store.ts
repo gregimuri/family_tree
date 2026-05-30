@@ -108,6 +108,7 @@ interface ProjectState {
   saveProject: () => Promise<boolean>;
   saveProjectAs: () => Promise<boolean>;
   setManualPosition: (personId: string, x: number, y: number) => void;
+  setManualPositions: (positions: Record<string, { x: number; y: number }>) => void;
   clearManualPosition: (personId: string) => void;
   clearManualLayout: () => void;
   setManualEdgeRoute: (edgeId: string, points: { x: number; y: number }[]) => void;
@@ -569,6 +570,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       (p) => ({
         ...p,
         manualLayout: { ...(p.manualLayout ?? {}), [personId]: { x, y } },
+      }),
+      { history: layoutHistoryMode(get) },
+    );
+  },
+
+  setManualPositions: (positions) => {
+    if (Object.keys(positions).length === 0) return;
+    get().updateProject(
+      (p) => ({
+        ...p,
+        manualLayout: { ...(p.manualLayout ?? {}), ...positions },
       }),
       { history: layoutHistoryMode(get) },
     );
