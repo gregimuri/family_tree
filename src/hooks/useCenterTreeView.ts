@@ -90,6 +90,7 @@ export function useCenterTreeView({
       project.viewSettings.sideBranchesAt,
       project.viewSettings.sideBranchDepth,
       project.viewSettings.cardSizeMode,
+      !!project.viewSettings.showAllPersons,
     );
 
     if (viewportKeyRef.current === key) return;

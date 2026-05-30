@@ -607,6 +607,46 @@ describe('graph generations', () => {
     expect(graph.personToNode.has(parentId)).toBe(false);
     expect(graph.personToNode.has(childId)).toBe(true);
   });
+
+  it('shows all persons when showAllPersons is enabled', () => {
+    const project = createEmptyProject();
+    const centerId = Object.values(project.unions)[0].partnerIds[0];
+    const cousinId = createId();
+    const parentId = createId();
+    const parentUnionId = createId();
+
+    project.persons[parentId] = createEmptyPerson({ id: parentId, givenName: 'Родитель' });
+    project.persons[cousinId] = createEmptyPerson({ id: cousinId, givenName: 'Двоюродный' });
+    project.unions[parentUnionId] = {
+      id: parentUnionId,
+      partnerIds: [parentId],
+      childIds: [centerId, cousinId],
+    };
+    project.persons[centerId] = {
+      ...project.persons[centerId],
+      parentUnionIds: [parentUnionId],
+    };
+    project.persons[cousinId] = {
+      ...project.persons[cousinId],
+      parentUnionIds: [parentUnionId],
+    };
+    project.center = { type: 'person', id: centerId };
+    project.viewSettings = {
+      ...project.viewSettings,
+      generationsUp: 0,
+      generationsDown: 0,
+      sideBranchesAt: 0,
+      showAllPersons: false,
+    };
+
+    const limited = buildGraph(project, project.viewSettings);
+    expect(limited.personToNode.has(cousinId)).toBe(false);
+    expect(limited.personToNode.has(parentId)).toBe(false);
+
+    const full = buildGraph(project, { ...project.viewSettings, showAllPersons: true });
+    expect(full.personToNode.has(cousinId)).toBe(true);
+    expect(full.personToNode.has(parentId)).toBe(true);
+  });
 });
 
 describe('link eligibility', () => {

@@ -148,6 +148,7 @@ export function buildViewportKey(
   sideBranchesAt: number,
   sideBranchDepth: number,
   cardSizeMode: string,
+  showAllPersons: boolean,
 ): string {
   const b = getTreeSheetBounds(layout);
   return [
@@ -160,6 +161,7 @@ export function buildViewportKey(
     sideBranchesAt,
     sideBranchDepth,
     cardSizeMode,
+    showAllPersons ? 1 : 0,
     frame.svgW,
     frame.svgH,
     b.minX.toFixed(1),

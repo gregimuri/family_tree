@@ -9,9 +9,11 @@ import { Icons } from '../ui/Icons';
 function InfinityInput({
   value,
   onChange,
+  disabled,
 }: {
   value: number;
   onChange: (v: number) => void;
+  disabled?: boolean;
 }) {
   const isInf = value >= 999;
   return (
@@ -21,7 +23,7 @@ function InfinityInput({
         className="infinity-input__field"
         min={0}
         max={20}
-        disabled={isInf}
+        disabled={disabled || isInf}
         value={isInf ? 3 : value}
         onChange={(e) => {
           const raw = e.target.value;
@@ -37,6 +39,7 @@ function InfinityInput({
         className={`infinity-input__toggle ${isInf ? 'active' : ''}`}
         title="Без ограничения"
         aria-pressed={isInf}
+        disabled={disabled}
         onClick={() => onChange(isInf ? 3 : 999)}
       >
         ∞
@@ -73,46 +76,32 @@ export function DisplaySettingsPanel() {
       docked
     >
       <div className="settings-grid">
-        <label>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={!!s.showAllPersons}
+            onChange={(e) => update({ showAllPersons: e.target.checked })}
+          />
+          Показать всех персон
+          <small className="hint">Без ограничения по поколениям и боковым ветвям</small>
+        </label>
+        <label className={s.showAllPersons ? 'settings-disabled' : undefined}>
           Поколения вверх
-          <InfinityInput value={s.generationsUp} onChange={(v) => update({ generationsUp: v })} />
+          <InfinityInput
+            value={s.generationsUp}
+            disabled={!!s.showAllPersons}
+            onChange={(v) => update({ generationsUp: v })}
+          />
           <small className="hint">0 — не показывать родителей и предков</small>
         </label>
-        <label>
+        <label className={s.showAllPersons ? 'settings-disabled' : undefined}>
           Поколения вниз
-          <InfinityInput value={s.generationsDown} onChange={(v) => update({ generationsDown: v })} />
+          <InfinityInput
+            value={s.generationsDown}
+            disabled={!!s.showAllPersons}
+            onChange={(v) => update({ generationsDown: v })}
+          />
           <small className="hint">0 — не показывать детей и потомков</small>
-        </label>
-        <label>
-          Боковые ветви (поколение)
-          <input
-            type="number"
-            min={0}
-            max={10}
-            value={s.sideBranchesAt}
-            onChange={(e) => update({ sideBranchesAt: +e.target.value })}
-          />
-          <small className="hint">1 — братья/сёстры родителей; 2 — братья/сёстры дедов</small>
-        </label>
-        <label>
-          Глубина боковых ветвей
-          <input
-            type="number"
-            min={0}
-            max={10}
-            value={s.sideBranchDepth}
-            onChange={(e) => update({ sideBranchDepth: +e.target.value })}
-          />
-        </label>
-        <label>
-          Размер карточек
-          <select
-            value={s.cardSizeMode}
-            onChange={(e) => update({ cardSizeMode: e.target.value as ViewSettings['cardSizeMode'] })}
-          >
-            <option value="uniform">Одинаковый</option>
-            <option value="diminish">Уменьшаемый</option>
-          </select>
         </label>
         <label className="checkbox-label">
           <input

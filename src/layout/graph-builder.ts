@@ -111,6 +111,22 @@ function childContinuesMainLine(
   return false;
 }
 
+function graphExpansionLimits(settings: ViewSettings) {
+  const showAll = !!settings.showAllPersons;
+  return {
+    showAll,
+    maxUp: showAll || settings.generationsUp >= 999 ? 100 : settings.generationsUp,
+    maxDown: showAll ? 999 : settings.generationsDown,
+    maxSideDepth: showAll ? 999 : settings.sideBranchDepth,
+    allowUp: showAll || settings.generationsUp > 0,
+    allowDown: showAll || settings.generationsDown > 0,
+    shouldExpandCollateralSiblings: (personLayer: number, isSide: boolean) =>
+      !isSide &&
+      (showAll ||
+        (settings.sideBranchesAt > 0 && Math.abs(personLayer) === settings.sideBranchesAt)),
+  };
+}
+
 export function buildGraph(
   project: Project,
   settings: ViewSettings,
@@ -141,6 +157,8 @@ export function buildGraph(
       useFamilyCenter = !!startUnionId && center.type === 'family';
     }
   }
+
+  const limits = graphExpansionLimits(settings);
 
   const linkParentChild = (parentNodeId: string, childNodeId: string) => {
     const edgeId = `${parentNodeId}-${childNodeId}`;
@@ -243,8 +261,7 @@ export function buildGraph(
 
   const expandAncestors = (personId: string, personLayer: number, branchSide: BranchSide) => {
     const isSide = branchSide !== 'main';
-    const maxUp = settings.generationsUp >= 999 ? 100 : settings.generationsUp;
-    if (personLayer - 1 < -maxUp) return;
+    if (personLayer - 1 < -limits.maxUp) return;
     const person = project.persons[personId];
     if (!person) return;
 
@@ -258,11 +275,7 @@ export function buildGraph(
         for (const pn of partnerNodes) linkParentChild(pn, childNode);
       }
 
-      if (
-        !isSide &&
-        settings.sideBranchesAt > 0 &&
-        Math.abs(personLayer) === settings.sideBranchesAt
-      ) {
+      if (limits.shouldExpandCollateralSiblings(personLayer, isSide)) {
         const siblingSide = collateralSideForParent(personId);
         for (const sibId of union.childIds) {
           if (sibId === personId) continue;
@@ -278,8 +291,14 @@ export function buildGraph(
           if (sid) {
             for (const pn of partnerNodes) linkParentChild(pn, sid);
           }
-          if (sid && settings.generationsDown > 0) {
-            expandDescendants(sibId, personLayer, settings.sideBranchDepth, siblingSide, 1);
+          if (sid && limits.allowDown) {
+            expandDescendants(
+              sibId,
+              personLayer,
+              limits.maxSideDepth,
+              siblingSide,
+              1,
+            );
           }
         }
       }
@@ -301,8 +320,8 @@ export function buildGraph(
     branchDepth: number,
   ) => {
     const isSide = branchSide !== 'main';
-    if (!isSide && personLayer >= settings.generationsDown) return;
-    if (isSide && branchDepth > settings.sideBranchDepth) return;
+    if (!isSide && !limits.showAll && personLayer >= settings.generationsDown) return;
+    if (isSide && branchDepth > limits.maxSideDepth) return;
     const person = project.persons[personId];
     if (!person) return;
 
@@ -346,7 +365,7 @@ export function buildGraph(
         if (childSide !== 'main') {
           expandDescendants(child.id, childLayer, depthLeft, childSide, childDepth + 1);
         } else {
-          expandDescendants(child.id, childLayer, settings.generationsDown, 'main', 0);
+          expandDescendants(child.id, childLayer, limits.maxDown, 'main', 0);
         }
       });
     }
@@ -357,8 +376,8 @@ export function buildGraph(
     const union = project.unions[startUnionId];
     if (union) {
       for (const pid of union.partnerIds) {
-        if (settings.generationsUp > 0) expandAncestors(pid, 0, 'main');
-        if (settings.generationsDown > 0) expandDescendants(pid, 0, settings.generationsDown, 'main', 0);
+        if (limits.allowUp) expandAncestors(pid, 0, 'main');
+        if (limits.allowDown) expandDescendants(pid, 0, limits.maxDown, 'main', 0);
       }
     }
   } else if (startPersonId) {
@@ -369,14 +388,18 @@ export function buildGraph(
         addCoupleUnion(unionId, 0, 'main');
       }
     }
-    if (settings.generationsUp > 0) expandAncestors(startPersonId, 0, 'main');
-    if (settings.generationsDown > 0) expandDescendants(startPersonId, 0, settings.generationsDown, 'main', 0);
+    if (limits.allowUp) expandAncestors(startPersonId, 0, 'main');
+    if (limits.allowDown) expandDescendants(startPersonId, 0, limits.maxDown, 'main', 0);
   }
 
   for (const personId of Object.keys(project.persons)) {
     if (personToNode.has(personId)) continue;
     const person = project.persons[personId];
     if (!person || !shouldIncludePerson(person, settings)) continue;
+    if (limits.showAll) {
+      addPerson(personId, 0, 'right', 99);
+      continue;
+    }
     if (person.parentUnionIds.length > 0 || person.unionIds.length > 0) continue;
     if (isLinkedToFamilyTree(person, project)) continue;
     addPerson(personId, 0, 'right', 99);

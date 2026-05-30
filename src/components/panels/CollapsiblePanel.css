@@ -301,6 +301,11 @@
   color: var(--color-text-muted);
 }
 
+.settings-grid label.settings-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .search-results {
   list-style: none;
   padding: 0;

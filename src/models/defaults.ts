@@ -37,6 +37,7 @@ export const defaultViewSettings = (): ViewSettings => ({
   sideBranchesAt: 2,
   sideBranchDepth: 1,
   cardSizeMode: 'uniform',
+  showAllPersons: false,
   showDiedBefore18: true,
   theme: 'clean',
   cardFields: defaultCardFields(),

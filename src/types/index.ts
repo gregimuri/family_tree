@@ -117,6 +117,8 @@ export interface ViewSettings {
   sideBranchesAt: number;
   sideBranchDepth: number;
   cardSizeMode: CardSizeMode;
+  /** Показать всех персон проекта без ограничения поколений и боковых ветвей. */
+  showAllPersons?: boolean;
   showDiedBefore18: boolean;
   theme: TreeTheme;
   cardFields: CardFieldSettings;
