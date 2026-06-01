@@ -7,8 +7,7 @@ export type LocationDisplaySource =
   | 'birth'
   | 'death'
   | 'burial'
-  | 'current'
-  | 'longestResidence';
+  | `residence:${string}`;
 export type MediaType = 'photo' | 'video' | 'audio' | 'document';
 export type CenterType = 'person' | 'family';
 
@@ -36,6 +35,13 @@ export interface AvatarCrop {
   scale: number;
 }
 
+export interface ResidenceEntry {
+  id: string;
+  place: Place;
+  fromDate?: DateValue;
+  toDate?: DateValue;
+}
+
 export interface Person {
   id: string;
   gender: Gender;
@@ -50,9 +56,13 @@ export interface Person {
   birth?: { date?: DateValue; place?: Place };
   death?: { date?: DateValue; cause?: string; place?: Place };
   burial?: Place;
+  /** @deprecated migrated to residences */
   currentResidence?: Place;
+  /** @deprecated migrated to residences */
   longestResidence?: Place;
+  /** @deprecated migrated to residences */
   mainResidence?: Place;
+  residences?: ResidenceEntry[];
   cardLocationSource: LocationDisplaySource;
   avatar?: AvatarCrop;
   biography: string;

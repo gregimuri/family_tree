@@ -1,5 +1,12 @@
 import type { DateDisplayFormat, DateValue, Person, Place, Project, ProjectCenter, Union } from '../types';
+import {
+  formatResidenceCardText,
+  getResidenceById,
+  isResidenceSource,
+  residenceSourceId,
+} from './residences';
 import { normalizeCardFields } from './defaults';
+import { migrateProjectResidences } from './residences';
 import { createId } from '../utils/create-id';
 
 export function formatPersonName(person: Person, useNickname = false): string {
@@ -100,6 +107,12 @@ export function diedBefore18(person: Person): boolean {
 }
 
 export function getPersonLocation(person: Person): Place | undefined {
+  if (isResidenceSource(person.cardLocationSource)) {
+    const id = residenceSourceId(person.cardLocationSource);
+    if (!id) return undefined;
+    const entry = getResidenceById(person, id);
+    return entry?.place;
+  }
   switch (person.cardLocationSource) {
     case 'birth':
       return person.birth?.place;
@@ -107,13 +120,22 @@ export function getPersonLocation(person: Person): Place | undefined {
       return person.death?.place;
     case 'burial':
       return person.burial;
-    case 'current':
-      return person.currentResidence ?? person.mainResidence;
-    case 'longestResidence':
-      return person.longestResidence ?? person.mainResidence;
     default:
-      return person.mainResidence;
+      return undefined;
   }
+}
+
+/** Text shown on the person card for location field. */
+export function getPersonLocationCardText(person: Person): string | undefined {
+  if (isResidenceSource(person.cardLocationSource)) {
+    const id = residenceSourceId(person.cardLocationSource);
+    if (!id) return undefined;
+    const entry = getResidenceById(person, id);
+    if (!entry) return undefined;
+    const text = formatResidenceCardText(entry);
+    return text || undefined;
+  }
+  return getPersonLocation(person)?.name;
 }
 
 export function getParents(project: Project, person: Person): Person[] {
@@ -938,8 +960,11 @@ export function repairProjectRelationships(project: Project): Project {
     }
   }
 
+  const migratedPersons = migrateProjectResidences(next).persons;
+
   return touchProjectMeta({
     ...next,
+    persons: migratedPersons,
     viewSettings: {
       ...next.viewSettings,
       cardFields: normalizeCardFields(next.viewSettings.cardFields),

@@ -4,7 +4,7 @@ import {
   formatLifeDates,
   formatPersonName,
   getCardBirthSuffix,
-  getPersonLocation,
+  getPersonLocationCardText,
 } from '../../models/person-utils';
 import { personShowsCardPhoto } from '../../layout/card-dimensions';
 import './PersonCard.css';
@@ -109,7 +109,7 @@ export function PersonCardWithMedia({
         : '#78716c';
   const dates = formatLifeDates(person, cf.dateFormat);
   const age = cf.showAge ? calcAge(person) : null;
-  const location = cf.showLocation ? getPersonLocation(person)?.name : null;
+  const location = cf.showLocation ? getPersonLocationCardText(person) : null;
   const hasPhoto = personShowsCardPhoto(project, person, settings);
   const avatarUrl = hasPhoto
     ? (() => {
@@ -122,6 +122,8 @@ export function PersonCardWithMedia({
   const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
 
   const showSelection = selected || layoutSelected;
+  const exportBorderColor = borderColor;
+  const exportBoxShadow = buildCardBoxShadow(!!manualPlaced, false);
 
   const className = [
     'person-card',
@@ -212,6 +214,8 @@ export function PersonCardWithMedia({
       <foreignObject x={0} y={0} width={width} height={height} overflow="hidden">
         <div
           className={htmlClassName}
+          data-export-border={exportBorderColor}
+          data-export-box-shadow={exportBoxShadow ?? ''}
           style={{
             width,
             height,

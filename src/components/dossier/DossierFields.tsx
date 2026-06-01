@@ -1,5 +1,14 @@
-import type { DateValue, Gender, LocationDisplaySource, Person, Place } from '../../types';
+import type { DateValue, Gender, LocationDisplaySource, Person, Place, ResidenceEntry } from '../../types';
 import { dateToText } from '../../models/person-utils';
+import {
+  formatResidenceLabel,
+  getPersonResidences,
+  isResidenceSource,
+  placeHasContent,
+  residenceCardSource,
+  residenceSourceId,
+} from '../../models/residences';
+import { createId } from '../../utils/create-id';
 import { setDateJulianFlag } from '../../utils/julian-calendar';
 
 interface DateFieldProps {
@@ -163,32 +172,102 @@ export function GenderSelect({ value, onChange }: GenderSelectProps) {
 }
 
 interface LocationSourceSelectProps {
+  person: Person;
   value: LocationDisplaySource;
   onChange: (value: LocationDisplaySource) => void;
 }
 
-const LOCATION_SOURCES: { value: LocationDisplaySource; label: string }[] = [
+const STATIC_LOCATION_SOURCES: { value: LocationDisplaySource; label: string }[] = [
   { value: 'birth', label: 'Место рождения' },
   { value: 'death', label: 'Место смерти' },
   { value: 'burial', label: 'Место захоронения' },
-  { value: 'current', label: 'Текущее проживание' },
-  { value: 'longestResidence', label: 'Самое длительное проживание' },
 ];
 
-export function LocationSourceSelect({ value, onChange }: LocationSourceSelectProps) {
+export function LocationSourceSelect({ person, value, onChange }: LocationSourceSelectProps) {
+  const residences = getPersonResidences(person).filter((entry) => placeHasContent(entry.place));
   return (
     <select value={value} onChange={(e) => onChange(e.target.value as LocationDisplaySource)}>
-      {LOCATION_SOURCES.map((opt) => (
+      {STATIC_LOCATION_SOURCES.map((opt) => (
         <option key={opt.value} value={opt.value}>
           {opt.label}
         </option>
       ))}
+      {residences.length > 0 && (
+        <optgroup label="Адреса проживания">
+          {residences.map((entry) => (
+            <option key={entry.id} value={residenceCardSource(entry.id)}>
+              {formatResidenceLabel(entry)}
+            </option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 }
 
+interface ResidencesEditorProps {
+  entries: ResidenceEntry[];
+  onChange: (entries: ResidenceEntry[]) => void;
+}
+
+export function ResidencesEditor({ entries, onChange }: ResidencesEditorProps) {
+  const updateEntry = (id: string, patch: Partial<ResidenceEntry>) => {
+    onChange(entries.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)));
+  };
+
+  const removeEntry = (id: string) => {
+    onChange(entries.filter((entry) => entry.id !== id));
+  };
+
+  const addEntry = () => {
+    onChange([
+      ...entries,
+      { id: createId(), place: { name: '' } },
+    ]);
+  };
+
+  return (
+    <div className="residences-editor">
+      {entries.map((entry, index) => (
+        <div key={entry.id} className="residence-entry">
+          <div className="residence-entry__header">
+            <span className="residence-entry__title">Адрес {index + 1}</span>
+            <button type="button" className="btn tiny" onClick={() => removeEntry(entry.id)} title="Удалить адрес">
+              ×
+            </button>
+          </div>
+          <PlaceField
+            value={entry.place}
+            onChange={(place) => {
+              if (!place || !placeHasContent(place)) {
+                removeEntry(entry.id);
+                return;
+              }
+              updateEntry(entry.id, { place });
+            }}
+            namePlaceholder="Населённый пункт, адрес"
+          />
+          <DateField
+            label="Переезд (с)"
+            value={entry.fromDate}
+            onChange={(fromDate) => updateEntry(entry.id, { fromDate })}
+          />
+          <DateField
+            label="Переезд (по)"
+            value={entry.toDate}
+            onChange={(toDate) => updateEntry(entry.id, { toDate })}
+          />
+        </div>
+      ))}
+      <button type="button" className="btn tiny residences-editor__add" onClick={addEntry}>
+        + Добавить адрес
+      </button>
+    </div>
+  );
+}
+
 function hasPlace(p?: Place): boolean {
-  return !!(p?.name?.trim() || p?.details?.trim());
+  return placeHasContent(p);
 }
 
 export function placeHasValue(p?: Place): boolean {
@@ -204,6 +283,11 @@ export function formatPlaceText(p?: Place): string | null {
 }
 
 export function getPlaceForLocationSource(person: Person, source: LocationDisplaySource): Place | undefined {
+  if (isResidenceSource(source)) {
+    const id = residenceSourceId(source);
+    if (!id) return undefined;
+    return getPersonResidences(person).find((entry) => entry.id === id)?.place;
+  }
   switch (source) {
     case 'birth':
       return person.birth?.place;
@@ -211,11 +295,41 @@ export function getPlaceForLocationSource(person: Person, source: LocationDispla
       return person.death?.place;
     case 'burial':
       return person.burial;
-    case 'current':
-      return person.currentResidence;
-    case 'longestResidence':
-      return person.longestResidence;
     default:
       return undefined;
   }
+}
+
+export function getLocationSourceLabel(person: Person, source: LocationDisplaySource): string {
+  if (isResidenceSource(source)) {
+    const id = residenceSourceId(source);
+    const entry = id ? getPersonResidences(person).find((item) => item.id === id) : undefined;
+    return entry ? formatResidenceLabel(entry) : 'Адрес проживания';
+  }
+  const labels: Record<'birth' | 'death' | 'burial', string> = {
+    birth: 'Место рождения',
+    death: 'Место смерти',
+    burial: 'Место захоронения',
+  };
+  return labels[source as 'birth' | 'death' | 'burial'] ?? 'Место на карточке';
+}
+
+export function personHasResidences(person: Person): boolean {
+  return getPersonResidences(person).some((entry) => placeHasContent(entry.place));
+}
+
+export function reconcileCardLocationSource(
+  person: Person,
+  residences: ResidenceEntry[] | undefined,
+): LocationDisplaySource {
+  const list = residences ?? [];
+  if (isResidenceSource(person.cardLocationSource)) {
+    const id = residenceSourceId(person.cardLocationSource);
+    if (id && list.some((entry) => entry.id === id)) return person.cardLocationSource;
+  }
+  if (person.cardLocationSource === 'birth' || person.cardLocationSource === 'death' || person.cardLocationSource === 'burial') {
+    return person.cardLocationSource;
+  }
+  if (list.length > 0) return residenceCardSource(list[list.length - 1].id);
+  return 'birth';
 }

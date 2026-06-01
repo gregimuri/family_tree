@@ -134,3 +134,55 @@
   font-size: 12px;
   color: var(--color-text-muted);
 }
+
+.residences-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.residence-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+}
+
+.residence-entry__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.residence-entry__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.residence-entry__dates {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.residence-entry__dates > * {
+  flex: 1;
+  min-width: 120px;
+}
+
+.residences-view {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.residences-view li {
+  font-size: 14px;
+}

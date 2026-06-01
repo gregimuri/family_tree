@@ -75,10 +75,13 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
   return (
     <div className="export-dialog-overlay" onClick={onClose}>
       <div className="export-dialog" onClick={(e) => e.stopPropagation()}>
-        <h3>Экспорт</h3>
+        <div className="export-dialog__header">
+          <h3>Экспорт</h3>
+        </div>
 
-        <fieldset>
-          <legend>Лист древа</legend>
+        <div className="export-dialog__body">
+          <fieldset>
+            <legend>Лист древа</legend>
           <label>
             Формат
             <select value={format} onChange={(e) => setFormat(e.target.value as ExportImageFormat)}>
@@ -165,10 +168,13 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
             Экспорт GEDCOM
           </button>
         </fieldset>
+        </div>
 
-        <button type="button" className="btn" onClick={onClose}>
-          Закрыть
-        </button>
+        <div className="export-dialog__footer">
+          <button type="button" className="btn" onClick={onClose}>
+            Закрыть
+          </button>
+        </div>
       </div>
     </div>
   );

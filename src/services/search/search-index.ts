@@ -29,6 +29,7 @@ export function searchPersons(project: Project, query: string): SearchResult[] {
       person.birth?.place?.name,
       person.death?.place?.name,
       person.burial?.name,
+      ...(person.residences?.map((entry) => entry.place.name) ?? []),
       person.currentResidence?.name,
       person.longestResidence?.name,
       person.mainResidence?.name,

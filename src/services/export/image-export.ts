@@ -196,10 +196,63 @@ function inlineStylesFromSource(source: Element, clone: Element): void {
   }
 }
 
+const SELECTION_YELLOW = /#eab308|rgb\(234,\s*179,\s*8\)/i;
+
+function isSelectionColor(value: string): boolean {
+  return SELECTION_YELLOW.test(value);
+}
+
+/** Remove selection/highlight chrome from a person card DOM subtree before raster export. */
+export function stripPersonCardSelectionChrome(root: HTMLElement): void {
+  root.classList.remove('selected', 'layout-selected', 'highlighted');
+
+  const html = root.classList.contains('person-card-html')
+    ? root
+    : (root.querySelector('.person-card-html') as HTMLElement | null);
+  if (!html) return;
+
+  html.classList.remove('selected', 'layout-selected');
+
+  const exportBorder = html.dataset.exportBorder;
+  if (exportBorder) {
+    html.style.borderColor = exportBorder;
+  } else if (isSelectionColor(html.style.borderColor)) {
+    html.style.removeProperty('border-color');
+  }
+
+  const exportShadow = html.dataset.exportBoxShadow;
+  if (exportShadow !== undefined) {
+    html.style.boxShadow = exportShadow || '0 2px 10px rgba(28, 25, 23, 0.08)';
+  } else if (isSelectionColor(html.style.boxShadow)) {
+    html.style.boxShadow = '0 2px 10px rgba(28, 25, 23, 0.08)';
+  }
+}
+
+/** Remove selection styling from SVG clone (edges and card groups). */
+export function stripSvgSelectionChrome(svg: SVGSVGElement): void {
+  svg.querySelectorAll('.person-card').forEach((node) => {
+    node.classList.remove('selected', 'layout-selected', 'highlighted');
+  });
+
+  svg.querySelectorAll('.tree-edge--selected').forEach((node) => {
+    node.classList.remove('tree-edge--selected');
+    node.querySelectorAll('path, line, polyline').forEach((edge) => {
+      if (edge.getAttribute('stroke') === '#eab308') {
+        edge.removeAttribute('stroke');
+      }
+    });
+  });
+
+  svg.querySelectorAll('.tree-edge-hit.selected').forEach((node) => {
+    node.classList.remove('selected');
+  });
+}
+
 function prepareSvgClone(source: SVGSVGElement): SVGSVGElement {
   const clone = source.cloneNode(true) as SVGSVGElement;
   clone.querySelectorAll('.person-card-html__drag-hint').forEach((el) => el.remove());
   clone.querySelectorAll('.manual-layout-grid').forEach((el) => el.remove());
+  stripSvgSelectionChrome(clone);
   return clone;
 }
 
@@ -238,6 +291,7 @@ async function rasterizePersonCards(
     host.appendChild(cardCopy);
     document.body.appendChild(host);
     inlineStylesFromSource(card, cardCopy);
+    stripPersonCardSelectionChrome(cardCopy);
 
     let dataUrl: string;
     try {

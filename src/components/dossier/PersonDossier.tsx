@@ -9,7 +9,8 @@ import { useProjectStore } from '../../store/project-store';
 import { createId } from '../../utils/create-id';
 import { AvatarEditor } from './AvatarEditor';
 import { MediaListThumb } from './MediaListThumb';
-import { DateField, GenderSelect, LocationSourceSelect, PlaceField, formatPlaceText, getPlaceForLocationSource, placeHasValue } from './DossierFields';
+import { DateField, GenderSelect, LocationSourceSelect, PlaceField, ResidencesEditor, formatPlaceText, getLocationSourceLabel, getPlaceForLocationSource, personHasResidences, placeHasValue, reconcileCardLocationSource } from './DossierFields';
+import { getPersonResidences, residenceCardSource } from '../../models/residences';
 import { PersonRelationships } from './PersonRelationships';
 import './DossierFields.css';
 import './PersonDossier.css';
@@ -137,14 +138,15 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   };
 
   const genderLabels = { male: 'Мужской', female: 'Женский', unknown: 'Неизвестно' } as const;
-  const locationLabels = {
-    birth: 'Место рождения',
-    death: 'Место смерти',
-    burial: 'Место захоронения',
-    current: 'Текущее проживание',
-    longestResidence: 'Самое длительное проживание',
-  } as const;
   const cardLocationPlace = getPlaceForLocationSource(person, person.cardLocationSource);
+  const residences = getPersonResidences(person);
+
+  const saveResidences = (nextEntries: typeof residences) => {
+    saveField({
+      residences: nextEntries.length > 0 ? nextEntries : undefined,
+      cardLocationSource: reconcileCardLocationSource(person, nextEntries),
+    });
+  };
 
   return (
     <div className="dossier-overlay">
@@ -247,39 +249,33 @@ export function PersonDossier({ personId }: PersonDossierProps) {
               )}
             </FactRow>
 
-            <FactRow label="Основное место проживания" show={placeHasValue(person.mainResidence)} editMode={editMode}>
+            <FactRow label="Адреса проживания" show={personHasResidences(person)} editMode={editMode}>
               {editMode ? (
-                <PlaceField value={person.mainResidence} onChange={(mainResidence) => saveField({ mainResidence })} />
+                <ResidencesEditor entries={residences} onChange={saveResidences} />
               ) : (
-                formatPlaceText(person.mainResidence)
-              )}
-            </FactRow>
-
-            <FactRow label="Текущее проживание" show={placeHasValue(person.currentResidence)} editMode={editMode}>
-              {editMode ? (
-                <PlaceField value={person.currentResidence} onChange={(currentResidence) => saveField({ currentResidence })} />
-              ) : (
-                formatPlaceText(person.currentResidence)
-              )}
-            </FactRow>
-
-            <FactRow label="Самое длительное проживание" show={placeHasValue(person.longestResidence)} editMode={editMode}>
-              {editMode ? (
-                <PlaceField value={person.longestResidence} onChange={(longestResidence) => saveField({ longestResidence })} />
-              ) : (
-                formatPlaceText(person.longestResidence)
+                <ul className="residences-view">
+                  {residences
+                    .filter((entry) => placeHasValue(entry.place))
+                    .map((entry) => (
+                      <li key={entry.id}>{getLocationSourceLabel(person, residenceCardSource(entry.id))}</li>
+                    ))}
+                </ul>
               )}
             </FactRow>
 
             <FactRow
               label="Место на карточке"
-              show={placeHasValue(cardLocationPlace)}
+              show={placeHasValue(cardLocationPlace) || editMode}
               editMode={editMode}
             >
               {editMode ? (
-                <LocationSourceSelect value={person.cardLocationSource} onChange={(cardLocationSource) => saveField({ cardLocationSource })} />
+                <LocationSourceSelect
+                  person={person}
+                  value={person.cardLocationSource}
+                  onChange={(cardLocationSource) => saveField({ cardLocationSource })}
+                />
               ) : (
-                locationLabels[person.cardLocationSource]
+                getLocationSourceLabel(person, person.cardLocationSource)
               )}
             </FactRow>
 
