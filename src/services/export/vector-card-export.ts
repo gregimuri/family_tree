@@ -69,10 +69,11 @@ export async function replaceForeignObjectsWithVectorCards(
   const settings = project.viewSettings;
   const cf = settings.cardFields;
   const theme = settings.theme;
-  const foreignObjects = [...clone.querySelectorAll('foreignObject')];
+  const cardGroups = [...clone.querySelectorAll('g.person-card')];
 
-  for (let i = 0; i < foreignObjects.length; i++) {
-    const foreignObject = foreignObjects[i];
+  for (let i = 0; i < cardGroups.length; i++) {
+    const cardGroup = cardGroups[i];
+    const foreignObject = cardGroup?.querySelector('foreignObject');
     const node = personNodes[i];
     if (!foreignObject || !node?.personId) continue;
 
@@ -119,7 +120,7 @@ export async function replaceForeignObjectsWithVectorCards(
             reader.onerror = reject;
             reader.readAsDataURL(blob);
           });
-          const clipId = `card-photo-${node.id}`;
+          const clipId = `card-photo-${i}`;
           const defs =
             clone.querySelector('defs') ??
             (() => {

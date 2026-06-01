@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  sanitizeSvgForVectorExport,
   stripPersonCardSelectionChrome,
   stripSvgSelectionChrome,
 } from '../services/export/image-export';
@@ -33,5 +34,22 @@ describe('export selection chrome', () => {
 
     expect(group.classList.contains('tree-edge--selected')).toBe(false);
     expect(path.getAttribute('stroke')).toBeNull();
+  });
+
+  it('strips foreignObject and editor chrome before vector PDF export', () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hit.setAttribute('class', 'tree-edge-hit');
+    const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('font-family', 'var(--font-sans, system-ui, sans-serif)');
+    svg.append(hit, fo, text);
+
+    sanitizeSvgForVectorExport(svg);
+
+    expect(svg.querySelector('.tree-edge-hit')).toBeNull();
+    expect(svg.querySelector('foreignObject')).toBeNull();
+    expect(text.getAttribute('font-family')).toBe('system-ui, sans-serif');
+    expect(svg.getAttribute('xmlns')).toBe('http://www.w3.org/2000/svg');
   });
 });

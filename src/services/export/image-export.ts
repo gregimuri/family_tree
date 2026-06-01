@@ -1,6 +1,7 @@
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { svg2pdf } from 'svg2pdf.js';
+import 'svg2pdf.js';
 import type { LayoutResult, Project } from '../../types';
 import type { TreeFrame } from '../../layout/center-focus';
 import { getTreeSheetBounds } from '../../layout/content-bounds';
@@ -283,6 +284,39 @@ function prepareSvgClone(source: SVGSVGElement): SVGSVGElement {
   return clone;
 }
 
+/** svg2pdf requires a DOM tree without foreignObject/HTML and without editor chrome. */
+export function sanitizeSvgForVectorExport(svg: SVGSVGElement): void {
+  svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+
+  svg
+    .querySelectorAll(
+      '.tree-edge-hit, .tree-edge-handle, .layout-marquee, .manual-layout-grid, .person-card-html__drag-hint',
+    )
+    .forEach((el) => el.remove());
+
+  svg.querySelectorAll('foreignObject').forEach((el) => el.remove());
+
+  svg.querySelectorAll('text').forEach((text) => {
+    const fontFamily = text.getAttribute('font-family');
+    if (fontFamily?.includes('var(')) {
+      text.setAttribute('font-family', 'system-ui, sans-serif');
+    }
+  });
+}
+
+function mountSvgForExport(svg: SVGSVGElement): () => void {
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText =
+    'position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;pointer-events:none';
+  host.appendChild(svg);
+  document.body.appendChild(host);
+  return () => {
+    host.remove();
+  };
+}
+
 /** html-to-image не рисует foreignObject в SVG — растеризуем карточки в <image>. */
 async function rasterizePersonCards(
   source: SVGSVGElement,
@@ -434,6 +468,8 @@ async function exportVectorPdf(
   svg: SVGSVGElement,
   page: { widthMm: number; heightMm: number },
 ): Promise<void> {
+  sanitizeSvgForVectorExport(svg);
+
   const pdf = new jsPDF({
     orientation: page.widthMm > page.heightMm ? 'landscape' : 'portrait',
     unit: 'mm',
@@ -441,7 +477,18 @@ async function exportVectorPdf(
   });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
-  await svg2pdf(svg, pdf, { x: 0, y: 0, width: pageW, height: pageH });
+
+  const unmount = mountSvgForExport(svg);
+  try {
+    if (typeof pdf.svg === 'function') {
+      await pdf.svg(svg, { x: 0, y: 0, width: pageW, height: pageH });
+    } else {
+      await svg2pdf(svg, pdf, { x: 0, y: 0, width: pageW, height: pageH });
+    }
+  } finally {
+    unmount();
+  }
+
   pdf.save('drevo-export.pdf');
 }
 
