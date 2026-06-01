@@ -39,7 +39,7 @@ export interface GraphResult {
   personToNode: Map<string, string>;
 }
 
-import { CARD_H_FULL, CARD_W } from './card-dimensions';
+import { CARD_H_FULL, CARD_W, CARD_GRID_CELL } from './card-dimensions';
 
 const CARD_H = CARD_H_FULL;
 const FAMILY_W = 200;
@@ -47,7 +47,7 @@ const FAMILY_H = 110;
 /** Расстояние между центрами поколений: не меньше высоты карточки + зазор для линий */
 const LAYER_GAP = CARD_H + 48;
 const NODE_GAP = 48;
-const COUPLE_GAP = 10;
+const COUPLE_GAP = CARD_GRID_CELL * 2;
 /** Расстояние между группами карточек на одном слое */
 const GROUP_GAP = 64;
 

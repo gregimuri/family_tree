@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Project } from '../types';
 import { buildLayout } from '../layout';
+import { COUPLE_GAP } from '../layout/graph-builder';
 import { createEmptyProject } from '../models/defaults';
 import { importGedcom } from '../services/gedcom/import';
 import { repairProjectRelationships } from '../models/person-utils';
@@ -37,8 +38,8 @@ describe('family layout quality — novy-proekt fixture', () => {
     const ivan = layout.nodes.find((n) => n.personId === '92312a00-8c2a-42ea-8078-1b5d6507302b')!;
     const maria = layout.nodes.find((n) => n.personId === '2cf738cd-bf1e-4ccf-b0d6-96d978901502')!;
     const gap = maria.x - (ivan.x + ivan.width);
-    expect(gap).toBeGreaterThanOrEqual(10);
-    expect(gap).toBeLessThanOrEqual(14);
+    expect(gap).toBeGreaterThanOrEqual(COUPLE_GAP - 1);
+    expect(gap).toBeLessThanOrEqual(COUPLE_GAP + 4);
   });
 });
 

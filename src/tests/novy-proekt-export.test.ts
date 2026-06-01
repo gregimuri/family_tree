@@ -30,9 +30,9 @@ describe('novy-proekt export viewport', () => {
 
     expect(sheet.maxY - sheet.minY).toBeGreaterThanOrEqual(minH - 1);
     expect(viewport.width / viewport.height).toBeGreaterThan(0.5);
-    expect(viewport.width / viewport.height).toBeLessThan(2.15);
+    expect(viewport.width / viewport.height).toBeLessThan(2.2);
     expect(resolution.widthPx / resolution.heightPx).toBeGreaterThan(0.5);
-    expect(resolution.widthPx / resolution.heightPx).toBeLessThan(2.15);
+    expect(resolution.widthPx / resolution.heightPx).toBeLessThan(2.2);
   });
 
   it('reports tree export size in millimeters', () => {

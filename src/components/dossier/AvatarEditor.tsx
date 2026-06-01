@@ -27,9 +27,10 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
   const project = useProjectStore((s) => s.project);
   const updatePerson = useProjectStore((s) => s.updatePerson);
   const addMedia = useProjectStore((s) => s.addMedia);
-  const replaceMediaBlob = useProjectStore((s) => s.replaceMediaBlob);
   const getMediaUrl = useProjectStore((s) => s.getMediaUrl);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const AVATAR_MIN_ZOOM = 0.15;
 
   const [mediaId, setMediaId] = useState<string | null>(
     project?.persons[personId]?.avatar?.mediaId ?? null,
@@ -87,10 +88,21 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
     setError(null);
     try {
       const croppedBlob = await getCroppedImageBlob(imageUrl, croppedAreaPixels, rotation);
-      replaceMediaBlob(currentMedia.filename, croppedBlob);
+      const avatarMediaId = createId();
+      const extMatch = currentMedia.filename.match(/(\.[a-zA-Z0-9]+)$/);
+      const ext = extMatch?.[1] ?? '.jpg';
+      const avatarFilename = `avatar-${personId.slice(0, 8)}-${avatarMediaId}${ext}`;
+      const avatarItem: MediaItem = {
+        id: avatarMediaId,
+        type: 'photo',
+        filename: avatarFilename,
+        description: `Аватар ${currentPerson.givenName}`,
+        personIds: [personId],
+      };
+      addMedia(avatarItem, croppedBlob);
 
       const avatar: AvatarCrop = {
-        mediaId,
+        mediaId: avatarMediaId,
         x: 0,
         y: 0,
         width: croppedAreaPixels.width,
@@ -99,9 +111,13 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
         scale: 1,
       };
 
-      const mediaIds = currentPerson.mediaIds.includes(mediaId)
-        ? currentPerson.mediaIds
-        : [...currentPerson.mediaIds, mediaId];
+      const mediaIds = [...currentPerson.mediaIds];
+      if (mediaId !== avatarMediaId && !mediaIds.includes(mediaId)) {
+        mediaIds.push(mediaId);
+      }
+      if (!mediaIds.includes(avatarMediaId)) {
+        mediaIds.push(avatarMediaId);
+      }
 
       updatePerson({ ...currentPerson, avatar, mediaIds });
       onClose();
@@ -165,6 +181,7 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
               zoom={zoom}
               rotation={rotation}
               aspect={CARD_PHOTO_ASPECT}
+              minZoom={AVATAR_MIN_ZOOM}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onRotationChange={setRotation}
@@ -178,9 +195,9 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
               Масштаб
               <input
                 type="range"
-                min={1}
+                min={AVATAR_MIN_ZOOM}
                 max={3}
-                step={0.1}
+                step={0.05}
                 value={zoom}
                 onChange={(e) => setZoom(+e.target.value)}
               />

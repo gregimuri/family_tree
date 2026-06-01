@@ -1,6 +1,6 @@
 import type { Person, Project, ViewSettings } from '../../types';
 import {
-  calcAge,
+  formatCardAge,
   formatLifeDates,
   formatPersonName,
   getCardBirthSuffix,
@@ -108,7 +108,7 @@ export function PersonCardWithMedia({
           : '#db2777'
         : '#78716c';
   const dates = formatLifeDates(person, cf.dateFormat);
-  const age = cf.showAge ? calcAge(person) : null;
+  const ageLabel = cf.showAge ? formatCardAge(person) : null;
   const location = cf.showLocation ? getPersonLocationCardText(person) : null;
   const hasPhoto = personShowsCardPhoto(project, person, settings);
   const avatarUrl = hasPhoto
@@ -270,10 +270,10 @@ export function PersonCardWithMedia({
               )}
             </div>
             <div className="person-card-html__footer">
-              {(dates || age !== null) && (
+              {(dates || ageLabel) && (
                 <div className="person-card-html__meta">
                   {dates && <span>{dates}</span>}
-                  {age !== null && <span>{age} лет</span>}
+                  {ageLabel && <span>{dates ? ` (${ageLabel})` : `(${ageLabel})`}</span>}
                 </div>
               )}
               {location && <div className="person-card-html__location">{location}</div>}

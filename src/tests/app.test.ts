@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createEmptyProject, createEmptyPerson, defaultCardFields, normalizeCardFields } from '../models/defaults';
 import {
   dateToText,
+  formatAgeYears,
+  formatCardAge,
   formatLifeDates,
   formatMarriageDates,
   getAllChildren,
@@ -879,6 +881,28 @@ describe('dates', () => {
       death: { date: { year: 2010 } },
     });
     expect(formatLifeDates(person, 'years')).toBe('1951–2010');
+  });
+
+  it('shows living person birth without dash', () => {
+    const person = createEmptyPerson({ birth: { date: { year: 1980, month: 3, day: 1 } } });
+    expect(formatLifeDates(person, 'full')).toBe('01.03.1980');
+    expect(formatLifeDates(person, 'years')).toBe('1980');
+  });
+
+  it('shows death-only dates with um prefix', () => {
+    const person = createEmptyPerson({ death: { date: { year: 2010, month: 5, day: 2 } } });
+    expect(formatLifeDates(person, 'full')).toBe('ум. 02.05.2010');
+    expect(formatLifeDates(person, 'years')).toBe('ум. 2010');
+  });
+
+  it('formats age with russian declension and hides approximate dates', () => {
+    expect(formatAgeYears(71)).toBe('71 год');
+    expect(formatAgeYears(63)).toBe('63 года');
+    expect(formatAgeYears(80)).toBe('80 лет');
+    expect(formatAgeYears(11)).toBe('11 лет');
+    expect(formatAgeYears(21)).toBe('21 год');
+    const approximate = createEmptyPerson({ birth: { date: { text: 'ок. 1951', year: 1951 } } });
+    expect(formatCardAge(approximate)).toBeNull();
   });
 
   it('appends old-style suffix for julian dates', () => {

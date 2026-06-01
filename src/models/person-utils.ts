@@ -79,26 +79,31 @@ export function formatLifeDates(
   format: 'full' | 'years' | 'hidden',
 ): string {
   if (format === 'hidden') return '';
-  const birth = dateToText(person.birth?.date);
-  const death = dateToText(person.death?.date);
-  if (!birth && !death) return '';
+  const hasBirth = hasDateValue(person.birth?.date);
+  const hasDeath = hasDateValue(person.death?.date);
+  if (!hasBirth && !hasDeath) return '';
+
   if (format === 'years') {
     const birthYears = formatDateForYearsMode(person.birth?.date);
     const deathYears = formatDateForYearsMode(person.death?.date);
-    if (birthYears && deathYears) return `${birthYears}–${deathYears}`;
-    if (birthYears) return `${birthYears}–`;
-    if (deathYears) return `–${deathYears}`;
-    return '';
+    if (hasBirth && hasDeath) return `${birthYears}–${deathYears}`;
+    if (hasBirth) return birthYears;
+    return deathYears ? `ум. ${deathYears}` : '';
   }
-  if (birth && death) return `${birth} – ${death}`;
-  return birth ? `${birth} –` : `– ${death}`;
+
+  const birth = dateToText(person.birth?.date);
+  const death = dateToText(person.death?.date);
+  if (hasBirth && hasDeath) return `${birth} – ${death}`;
+  if (hasBirth) return birth;
+  return death ? `ум. ${death}` : '';
 }
 
 export function calcAge(person: Person, atYear = new Date().getFullYear()): number | null {
-  const by = person.birth?.date?.year;
-  if (!by) return null;
+  if (!canShowCardAge(person)) return null;
+  const by = person.birth!.date!.year!;
   const dy = person.death?.date?.year ?? atYear;
-  return dy - by;
+  const age = dy - by;
+  return age >= 0 ? age : null;
 }
 
 export function diedBefore18(person: Person): boolean {
@@ -807,6 +812,37 @@ export function getAllChildren(project: Project, person: Person): Person[] {
 function hasDateValue(date?: DateValue): boolean {
   if (!date) return false;
   return Boolean(date.year || date.month || date.day || date.text?.trim());
+}
+
+/** Birth/death year is exact enough for age (numeric year, no GEDCOM qualifier text). */
+function hasExactYear(date?: DateValue): boolean {
+  if (!date?.year) return false;
+  return !date.text?.trim();
+}
+
+export function canShowCardAge(person: Person): boolean {
+  if (!hasExactYear(person.birth?.date)) return false;
+  if (person.death?.date) {
+    if (!hasExactYear(person.death.date)) return false;
+    const age = person.death.date.year! - person.birth!.date!.year!;
+    return age >= 0;
+  }
+  return true;
+}
+
+export function formatAgeYears(age: number): string {
+  const mod100 = Math.abs(age) % 100;
+  const mod10 = mod100 % 10;
+  if (mod100 > 10 && mod100 < 20) return `${age} лет`;
+  if (mod10 > 1 && mod10 < 5) return `${age} года`;
+  if (mod10 === 1) return `${age} год`;
+  return `${age} лет`;
+}
+
+export function formatCardAge(person: Person, atYear = new Date().getFullYear()): string | null {
+  const age = calcAge(person, atYear);
+  if (age === null) return null;
+  return formatAgeYears(age);
 }
 
 export function formatMarriageDates(union: Union, format: DateDisplayFormat = 'full'): string {

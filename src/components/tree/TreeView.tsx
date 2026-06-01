@@ -89,6 +89,14 @@ export function TreeView() {
     syncLayoutPositions();
   }, [project, syncLayoutPositions]);
 
+  const handleSelectEdge = useCallback((edgeId: string | null) => {
+    setSelectedEdgeId((prev) => {
+      const next = prev === edgeId ? null : edgeId;
+      if (next) setLayoutSelection(new Set());
+      return next;
+    });
+  }, []);
+
   const toggleManualLayoutMode = useCallback(() => {
     if (manualLayoutMode) {
       setLayoutSelection(new Set());
@@ -255,8 +263,6 @@ export function TreeView() {
         setLayoutSelection(next);
         dragIds = [...next];
         if (dragIds.length === 0) return;
-      } else if (layoutSelection.has(personId) && layoutSelection.size > 1) {
-        dragIds = [...layoutSelection];
       } else {
         dragIds = [personId];
         setLayoutSelection(new Set([personId]));
@@ -594,7 +600,7 @@ export function TreeView() {
                   onUnionDoubleClick={setMarriageEditUnionId}
                   active={manualLayoutMode}
                   selectedEdgeId={selectedEdgeId}
-                  onSelectEdge={setSelectedEdgeId}
+                  onSelectEdge={handleSelectEdge}
                   onUpdateRoute={setManualEdgeRoute}
                   screenToLayout={screenToLayout}
                 />
