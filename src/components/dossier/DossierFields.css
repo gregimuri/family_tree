@@ -186,3 +186,20 @@
 .residences-view li {
   font-size: 14px;
 }
+
+.residences-editor__add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.residences-editor__add span {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.residences-editor__add .btn.tiny:hover {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}

@@ -259,9 +259,12 @@ export function ResidencesEditor({ entries, onChange }: ResidencesEditorProps) {
           />
         </div>
       ))}
-      <button type="button" className="btn tiny residences-editor__add" onClick={addEntry}>
-        + Добавить адрес
-      </button>
+      <div className="residences-editor__add">
+        <span>Добавить адрес</span>
+        <button type="button" className="btn tiny" onClick={addEntry} title="Добавить адрес">
+          +
+        </button>
+      </div>
     </div>
   );
 }
