@@ -13,7 +13,7 @@ interface EditableTreeConnectionsProps {
   onUnionDoubleClick?: (unionId: string) => void;
   active: boolean;
   selectedEdgeId: string | null;
-  onSelectEdge: (edgeId: string | null) => void;
+  onSelectEdge: (edgeId: string | null, additive?: boolean) => void;
   onUpdateRoute: (edgeId: string, points: { x: number; y: number }[]) => void;
   screenToLayout?: (clientX: number, clientY: number) => { x: number; y: number } | null;
 }
@@ -99,7 +99,7 @@ export function EditableTreeConnections({
             className={edge.id === selectedEdgeId ? 'tree-edge-hit selected' : 'tree-edge-hit'}
             onClick={(e) => {
               e.stopPropagation();
-              onSelectEdge(edge.id === selectedEdgeId ? null : edge.id);
+              onSelectEdge(edge.id === selectedEdgeId ? null : edge.id, e.shiftKey);
             }}
           />
         ))}

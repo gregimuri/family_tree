@@ -89,13 +89,16 @@ export function TreeView() {
     syncLayoutPositions();
   }, [project, syncLayoutPositions]);
 
-  const handleSelectEdge = useCallback((edgeId: string | null) => {
+  const handleSelectEdge = useCallback((edgeId: string | null, additive = false) => {
     setSelectedEdgeId((prev) => {
       const next = prev === edgeId ? null : edgeId;
-      if (next) setLayoutSelection(new Set());
+      if (next && !additive) {
+        setLayoutSelection(new Set());
+        setSelection(null);
+      }
       return next;
     });
-  }, []);
+  }, [setSelection]);
 
   const toggleManualLayoutMode = useCallback(() => {
     if (manualLayoutMode) {
