@@ -16,7 +16,6 @@ import './TreeConnections.css';
 interface PedigreeConnectionsProps {
   edges: LayoutEdge[];
   theme: 'clean' | 'forest';
-  project: Project;
   highlightEdgeId?: string | null;
   pointerEvents?: 'none' | 'auto';
 }
@@ -142,7 +141,6 @@ export function MarriageBondLinesBehindCards({
 export function PedigreeConnections({
   edges,
   theme,
-  project: _project,
   highlightEdgeId,
   pointerEvents = 'auto',
 }: PedigreeConnectionsProps) {
@@ -238,7 +236,7 @@ export function TreeConnections({
 }: TreeConnectionsProps) {
   return (
     <>
-      <PedigreeConnections edges={edges} theme={theme} project={project} highlightEdgeId={highlightEdgeId} pointerEvents={pointerEvents} />
+      <PedigreeConnections edges={edges} theme={theme} highlightEdgeId={highlightEdgeId} pointerEvents={pointerEvents} />
       <MarriageBonds
         edges={edges}
         theme={theme}

@@ -107,7 +107,6 @@ export function EditableTreeConnections({
       <PedigreeConnections
         edges={edges}
         theme={theme}
-        project={project}
         highlightEdgeId={selectedEdgeId}
         pointerEvents={active ? 'none' : 'auto'}
       />
