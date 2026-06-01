@@ -31,6 +31,7 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
   const fileRef = useRef<HTMLInputElement>(null);
 
   const AVATAR_MIN_ZOOM = 0.15;
+  const AVATAR_MAX_ZOOM = 10;
 
   const [mediaId, setMediaId] = useState<string | null>(
     project?.persons[personId]?.avatar?.mediaId ?? null,
@@ -182,6 +183,7 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
               rotation={rotation}
               aspect={CARD_PHOTO_ASPECT}
               minZoom={AVATAR_MIN_ZOOM}
+              maxZoom={AVATAR_MAX_ZOOM}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onRotationChange={setRotation}
@@ -196,7 +198,7 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
               <input
                 type="range"
                 min={AVATAR_MIN_ZOOM}
-                max={3}
+                max={AVATAR_MAX_ZOOM}
                 step={0.05}
                 value={zoom}
                 onChange={(e) => setZoom(+e.target.value)}

@@ -1,9 +1,11 @@
 import { toPng } from 'html-to-image';
-import jsPDF from 'jspdf';
-import type { LayoutResult } from '../../types';
+import { jsPDF } from 'jspdf';
+import { svg2pdf } from 'svg2pdf.js';
+import type { LayoutResult, Project } from '../../types';
 import type { TreeFrame } from '../../layout/center-focus';
 import { getTreeSheetBounds } from '../../layout/content-bounds';
 import { getTreeContentRect } from '../../hooks/tree-viewport';
+import { getExportPersonNodes, replaceForeignObjectsWithVectorCards } from './vector-card-export';
 
 export type ExportImageFormat = 'png' | 'jpeg' | 'pdf';
 export type ExportSizeMode = 'tree' | 'fixed';
@@ -30,10 +32,17 @@ export interface TreeExportSource {
   svg: SVGSVGElement;
   layout: LayoutResult;
   frame: TreeFrame;
+  project: Project;
+  getMediaUrl: (filename: string) => string | undefined;
 }
+
+export type ExportProgressCallback = (message: string, progress: number) => void;
 
 const EXPORT_PAD = 32;
 const MAX_CARD_RASTER_RATIO = 6;
+/** Browser canvas limits — scale down raster exports beyond this edge. */
+const MAX_RASTER_EDGE_PX = 8192;
+const MAX_RASTER_AREA_PX = 50_000_000;
 
 export const EXPORT_DPI = 300;
 
@@ -79,6 +88,24 @@ export function resolveExportResolution(
     Math.max(2, Math.ceil(layoutScale * 2)),
   );
   return { widthPx, heightPx, pixelRatio: 1, cardRasterRatio, dpi };
+}
+
+/** Keeps raster export within browser canvas limits for large trees. */
+export function clampExportResolution(resolution: ExportResolution): ExportResolution {
+  let { widthPx, heightPx, cardRasterRatio, dpi } = resolution;
+  const { pixelRatio } = resolution;
+  let scale = 1;
+  if (widthPx > MAX_RASTER_EDGE_PX) scale = Math.min(scale, MAX_RASTER_EDGE_PX / widthPx);
+  if (heightPx > MAX_RASTER_EDGE_PX) scale = Math.min(scale, MAX_RASTER_EDGE_PX / heightPx);
+  const area = widthPx * heightPx;
+  if (area > MAX_RASTER_AREA_PX) scale = Math.min(scale, Math.sqrt(MAX_RASTER_AREA_PX / area));
+  if (scale >= 1) return resolution;
+
+  widthPx = Math.max(1, Math.round(widthPx * scale));
+  heightPx = Math.max(1, Math.round(heightPx * scale));
+  cardRasterRatio = Math.max(1, Math.round(cardRasterRatio * scale));
+  dpi = Math.max(96, Math.round(dpi * scale));
+  return { widthPx, heightPx, pixelRatio, cardRasterRatio, dpi };
 }
 
 const INLINE_STYLE_PROPS = [
@@ -261,14 +288,18 @@ async function rasterizePersonCards(
   source: SVGSVGElement,
   clone: SVGSVGElement,
   cardRasterRatio: number,
+  onProgress?: ExportProgressCallback,
 ): Promise<void> {
   const sourceCards = [...source.querySelectorAll('foreignObject .person-card-html')] as HTMLElement[];
   const cloneForeignObjects = [...clone.querySelectorAll('foreignObject')];
+  const total = sourceCards.length;
 
   for (let i = 0; i < sourceCards.length; i++) {
     const card = sourceCards[i];
     const foreignObject = cloneForeignObjects[i];
     if (!card || !foreignObject) continue;
+
+    onProgress?.(`Растеризация карточек: ${i + 1} / ${total}`, total > 0 ? (i + 0.5) / total : 0);
 
     const width = Number.parseFloat(foreignObject.getAttribute('width') ?? '120');
     const height = Number.parseFloat(foreignObject.getAttribute('height') ?? '240');
@@ -399,28 +430,65 @@ export function configureSvgForFixedPage(
   configureSvgForExport(svg, viewport, widthPx, heightPx, { letterbox: true });
 }
 
+async function exportVectorPdf(
+  svg: SVGSVGElement,
+  page: { widthMm: number; heightMm: number },
+): Promise<void> {
+  const pdf = new jsPDF({
+    orientation: page.widthMm > page.heightMm ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: [page.widthMm, page.heightMm],
+  });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  await svg2pdf(svg, pdf, { x: 0, y: 0, width: pageW, height: pageH });
+  pdf.save('drevo-export.pdf');
+}
+
 export async function exportTreeElement(
   source: TreeExportSource,
   options: ExportOptions,
+  onProgress?: ExportProgressCallback,
 ): Promise<void> {
   const { format, sizeMode, theme = 'clean' } = options;
-  const { svg, layout, frame } = source;
+  const { svg, layout, frame, project, getMediaUrl } = source;
   const backgroundColor = theme === 'forest' ? '#f3e9dc' : '#ffffff';
 
+  onProgress?.('Подготовка дерева…', 0.02);
   await waitForImages(svg);
   await embedImages(svg);
 
   const viewport = computeExportViewport(frame, layout);
-  const resolution = resolveExportResolution(options, viewport);
+  const resolution = clampExportResolution(resolveExportResolution(options, viewport));
   const { widthPx, heightPx, pixelRatio, cardRasterRatio } = resolution;
 
   const prepared = prepareSvgClone(svg);
-  await rasterizePersonCards(svg, prepared, cardRasterRatio);
+  const personNodes = getExportPersonNodes(layout);
+
+  if (format === 'pdf') {
+    onProgress?.('Сборка векторных карточек…', 0.15);
+    await replaceForeignObjectsWithVectorCards(prepared, personNodes, project, getMediaUrl);
+  } else {
+    onProgress?.('Подготовка карточек…', 0.1);
+    await rasterizePersonCards(svg, prepared, cardRasterRatio, onProgress);
+  }
 
   configureSvgForExport(prepared, viewport, widthPx, heightPx, {
     letterbox: sizeMode === 'fixed',
   });
 
+  if (format === 'pdf') {
+    onProgress?.('Формирование PDF…', 0.85);
+    const page =
+      sizeMode === 'fixed' && options.widthMm && options.heightMm
+        ? { widthMm: options.widthMm, heightMm: options.heightMm }
+        : viewportSizeMm(viewport);
+    await exportVectorPdf(prepared, page);
+    onProgress?.('Готово', 1);
+    return;
+  }
+
+  onProgress?.('Сборка изображения…', 0.85);
   const rasterFormat = format === 'jpeg' ? 'jpeg' : 'png';
   const dataUrl = await svgToRaster(
     prepared,
@@ -432,27 +500,12 @@ export async function exportTreeElement(
     0.98,
   );
 
-  if (format === 'pdf') {
-    const page =
-      sizeMode === 'fixed' && options.widthMm && options.heightMm
-        ? { widthMm: options.widthMm, heightMm: options.heightMm }
-        : viewportSizeMm(viewport);
-    const pdf = new jsPDF({
-      orientation: page.widthMm > page.heightMm ? 'landscape' : 'portrait',
-      unit: 'mm',
-      format: [page.widthMm, page.heightMm],
-    });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH);
-    pdf.save('drevo-export.pdf');
-    return;
-  }
-
+  onProgress?.('Сохранение файла…', 0.95);
   const a = document.createElement('a');
   a.href = dataUrl;
   a.download = `drevo-export.${format}`;
   a.click();
+  onProgress?.('Готово', 1);
 }
 
 export const PRESET_SIZES = [

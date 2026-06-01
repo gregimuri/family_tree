@@ -5,6 +5,7 @@ import { getSymmetricTreeFrame } from '../layout/center-focus';
 import { getTreeSheetBounds } from '../layout/content-bounds';
 import { LAYER_GAP } from '../layout/graph-builder';
 import {
+  clampExportResolution,
   computeExportViewport,
   configureSvgForExport,
   resolveExportResolution,
@@ -46,6 +47,18 @@ describe('novy-proekt export viewport', () => {
     expect(mm.heightMm).toBeGreaterThan(0);
     expect(mm.widthMm).toBeCloseTo((viewport.width * 25.4) / 96, 0);
     expect(mm.heightMm).toBeCloseTo((viewport.height * 25.4) / 96, 0);
+  });
+
+  it('clamps oversized raster resolution to canvas limits', () => {
+    const huge = resolveExportResolution(
+      { format: 'png', sizeMode: 'fixed', widthMm: 2000, heightMm: 2000 },
+      { width: 40000, height: 30000 },
+    );
+    const clamped = clampExportResolution(huge);
+
+    expect(clamped.widthPx).toBeLessThanOrEqual(8192);
+    expect(clamped.heightPx).toBeLessThanOrEqual(8192);
+    expect(clamped.widthPx * clamped.heightPx).toBeLessThanOrEqual(50_000_000);
   });
 
   it('export SVG background matches viewport crop', () => {

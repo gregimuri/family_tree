@@ -24,6 +24,7 @@
     "react-router-dom": "^7.15.1",
     "react-zoom-pan-pinch": "^4.0.3",
     "read-gedcom": "^0.3.2",
+    "svg2pdf.js": "^2.7.0",
     "uuid": "^14.0.0",
     "zustand": "^5.0.14"
   },

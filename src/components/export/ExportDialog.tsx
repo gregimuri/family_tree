@@ -25,6 +25,7 @@ interface ExportDialogProps {
 
 export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogProps) {
   const project = useProjectStore((s) => s.project);
+  const getMediaUrl = useProjectStore((s) => s.getMediaUrl);
   const saveProject = useProjectStore((s) => s.saveProject);
   const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const [format, setFormat] = useState<ExportImageFormat>('png');
@@ -34,6 +35,8 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
   const [widthMm, setWidthMm] = useState(297);
   const [heightMm, setHeightMm] = useState(210);
   const [busy, setBusy] = useState(false);
+  const [exportStatus, setExportStatus] = useState('');
+  const [exportProgress, setExportProgress] = useState(0);
 
   const isStandardPreset = sizeMode === 'fixed' && preset !== 'custom';
   const treeViewport = useMemo(() => computeExportViewport(frame, layout), [frame, layout]);
@@ -54,26 +57,47 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
 
   const exportImage = async () => {
     const el = svgRef.current;
-    if (!el) return;
+    if (!el || !project) return;
     setBusy(true);
+    setExportStatus('Подготовка…');
+    setExportProgress(0);
     try {
       await exportTreeElement(
-        { svg: el, layout, frame },
+        { svg: el, layout, frame, project, getMediaUrl },
         {
           format,
           sizeMode,
           widthMm: sizeMode === 'fixed' ? widthMm : undefined,
           heightMm: sizeMode === 'fixed' ? heightMm : undefined,
-          theme: project?.viewSettings.theme ?? 'clean',
+          theme: project.viewSettings.theme ?? 'clean',
+        },
+        (message, progress) => {
+          setExportStatus(message);
+          setExportProgress(progress);
         },
       );
+    } catch (error) {
+      setExportStatus(error instanceof Error ? error.message : 'Ошибка экспорта');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="export-dialog-overlay" onClick={onClose}>
+    <div className="export-dialog-overlay" onClick={busy ? undefined : onClose}>
+      {busy && (
+        <div className="export-dialog__busy" role="status" aria-live="polite">
+          <div className="export-dialog__spinner" aria-hidden />
+          <p className="export-dialog__busy-title">Экспорт дерева</p>
+          <p className="export-dialog__busy-status">{exportStatus}</p>
+          <div className="export-dialog__progress-track">
+            <div
+              className="export-dialog__progress-bar"
+              style={{ width: `${Math.round(exportProgress * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
       <div className="export-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="export-dialog__header">
           <h3>Экспорт</h3>
@@ -171,7 +195,7 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
         </div>
 
         <div className="export-dialog__footer">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" disabled={busy} onClick={onClose}>
             Закрыть
           </button>
         </div>
