@@ -6,24 +6,25 @@ interface RawEdge {
   to: LayoutNode;
 }
 
-/** Marriage date label is centered on the horizontal bond line. */
+/** Marriage date label sits below the horizontal bond line. */
 export const MARRIAGE_BOND_LABEL_HEIGHT = 14;
 export const MARRIAGE_BOND_LABEL_GAP = 4;
 export const MARRIAGE_STEM_GAP = 4;
 
 export function marriageLabelTopY(bondY: number): number {
-  return bondY - MARRIAGE_BOND_LABEL_HEIGHT / 2;
+  return bondY + MARRIAGE_BOND_LABEL_GAP;
 }
 
 export function marriageStemStartY(bondY: number, showLabel: boolean): number {
   if (!showLabel) return bondY;
-  return bondY + MARRIAGE_BOND_LABEL_HEIGHT / 2 + MARRIAGE_STEM_GAP;
+  return bondY + MARRIAGE_BOND_LABEL_GAP + MARRIAGE_BOND_LABEL_HEIGHT + MARRIAGE_STEM_GAP;
 }
 
+/** Bond anchors at the center of each partner card bottom edge. */
 export function getCoupleBondGeometry(left: LayoutNode, right: LayoutNode) {
   const bondY = Math.max(left.y + left.height, right.y + right.height);
-  const leftX = left.x + left.width;
-  const rightX = right.x;
+  const leftX = left.x + left.width / 2;
+  const rightX = right.x + right.width / 2;
   return {
     bondY,
     leftX,
@@ -144,15 +145,12 @@ export function pedigreeFamilyConnectorPathWithMarriage(
   leftBondX: number,
   rightBondX: number,
   bondY: number,
-  midX: number,
-  stemStartY: number,
+  _midX: number,
+  _stemStartY: number,
   trunk: { x: number; y: number }[],
   drops: { x: number; y: number }[][],
 ): string {
   let d = `M ${leftBondX} ${bondY} L ${rightBondX} ${bondY}`;
-  if (Math.abs(stemStartY - bondY) > 0.01) {
-    d += ` M ${midX} ${bondY} L ${midX} ${stemStartY}`;
-  }
   if (trunk.length >= 2) {
     d += ` M ${trunk[0].x} ${trunk[0].y}`;
     for (let i = 1; i < trunk.length; i++) {
@@ -172,14 +170,11 @@ export function pedigreeBranchConnectorPathWithMarriage(
   leftBondX: number,
   rightBondX: number,
   bondY: number,
-  midX: number,
-  stemStartY: number,
+  _midX: number,
+  _stemStartY: number,
   branchPoints: { x: number; y: number }[],
 ): string {
   let d = `M ${leftBondX} ${bondY} L ${rightBondX} ${bondY}`;
-  if (Math.abs(stemStartY - bondY) > 0.01) {
-    d += ` M ${midX} ${bondY} L ${midX} ${stemStartY}`;
-  }
   if (branchPoints.length >= 2) {
     d += ` M ${branchPoints[0].x} ${branchPoints[0].y}`;
     for (let i = 1; i < branchPoints.length; i++) {

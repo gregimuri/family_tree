@@ -93,8 +93,8 @@ describe('layout', () => {
     const right: LayoutNode = { ...left, id: 'r', x: 120 };
     const bond = routeCoupleBond(left, right);
     expect(bond).toEqual([
-      { x: 100, y: 80 },
-      { x: 120, y: 80 },
+      { x: 50, y: 80 },
+      { x: 170, y: 80 },
     ]);
     const unionId = '325a9de7-bf1e-4ccf-b0d6-96d978901502';
     expect(parseBondUnionId(bondEdgeId(unionId))).toBe(unionId);

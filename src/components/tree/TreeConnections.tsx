@@ -169,7 +169,12 @@ export function PedigreeConnections({
         );
       })}
       {childlessBondEdges.map((edge) =>
-        renderPath(edge, coupleBondPath(edge.points), theme === 'forest' ? 2.5 : 2, undefined),
+        renderPath(
+          edge,
+          coupleBondPath(edge.points),
+          theme === 'forest' ? 2.5 : 2,
+          undefined,
+        ),
       )}
     </g>
   );
