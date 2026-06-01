@@ -139,6 +139,69 @@ export function pedigreeFamilyConnectorPathWithBondStem(
   return d;
 }
 
+/** Full marriage horizontal + stem + pedigree trunk/drops (lines render above cards). */
+export function pedigreeFamilyConnectorPathWithMarriage(
+  leftBondX: number,
+  rightBondX: number,
+  bondY: number,
+  midX: number,
+  stemStartY: number,
+  trunk: { x: number; y: number }[],
+  drops: { x: number; y: number }[][],
+): string {
+  let d = `M ${leftBondX} ${bondY} L ${rightBondX} ${bondY}`;
+  if (Math.abs(stemStartY - bondY) > 0.01) {
+    d += ` M ${midX} ${bondY} L ${midX} ${stemStartY}`;
+  }
+  if (trunk.length >= 2) {
+    d += ` M ${trunk[0].x} ${trunk[0].y}`;
+    for (let i = 1; i < trunk.length; i++) {
+      d += ` L ${trunk[i].x} ${trunk[i].y}`;
+    }
+  }
+  for (const drop of drops) {
+    if (drop.length >= 2) {
+      d += ` M ${drop[0].x} ${drop[0].y}${drop.slice(1).map((p) => ` L ${p.x} ${p.y}`).join('')}`;
+    }
+  }
+  return d;
+}
+
+/** Marriage horizontal + continuation through branch points (fam-branch). */
+export function pedigreeBranchConnectorPathWithMarriage(
+  leftBondX: number,
+  rightBondX: number,
+  bondY: number,
+  midX: number,
+  stemStartY: number,
+  branchPoints: { x: number; y: number }[],
+): string {
+  let d = `M ${leftBondX} ${bondY} L ${rightBondX} ${bondY}`;
+  if (Math.abs(stemStartY - bondY) > 0.01) {
+    d += ` M ${midX} ${bondY} L ${midX} ${stemStartY}`;
+  }
+  if (branchPoints.length >= 2) {
+    d += ` M ${branchPoints[0].x} ${branchPoints[0].y}`;
+    for (let i = 1; i < branchPoints.length; i++) {
+      d += ` L ${branchPoints[i].x} ${branchPoints[i].y}`;
+    }
+  }
+  return d;
+}
+
+export function famEdgeUnionId(edgeId: string, unionIds: Iterable<string>): string | null {
+  if (edgeId.startsWith('fam-tree-')) {
+    return edgeId.slice('fam-tree-'.length) || null;
+  }
+  if (edgeId.startsWith('fam-branch-')) {
+    const rest = edgeId.slice('fam-branch-'.length);
+    for (const unionId of unionIds) {
+      if (rest.startsWith(`${unionId}-`)) return unionId;
+    }
+  }
+  return null;
+}
+
 export function familyConnectorBusSpan(edge: { id: string; points: { x: number; y: number }[] }): number {
   if (edge.id.startsWith('fam-bus-')) {
     const xs = edge.points.map((p) => p.x);

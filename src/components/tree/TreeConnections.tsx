@@ -6,6 +6,7 @@ import {
   coupleBondMidpoint,
   coupleBondPath,
   edgePath,
+  famEdgeUnionId,
   isBondEdge,
   MARRIAGE_BOND_LABEL_HEIGHT,
   marriageLabelTopY,
@@ -16,6 +17,7 @@ import './TreeConnections.css';
 interface PedigreeConnectionsProps {
   edges: LayoutEdge[];
   theme: 'clean' | 'forest';
+  project: Project;
   highlightEdgeId?: string | null;
   pointerEvents?: 'none' | 'auto';
 }
@@ -61,13 +63,11 @@ function MarriageBond({
 }) {
   const mid = coupleBondMidpoint(edge.points);
   const stroke = theme === 'forest' ? '#6d4c41' : '#64748b';
-  const strokeWidth = (theme === 'forest' ? 2.5 : 2) + (highlighted ? 1.5 : 0);
   const labelPadX = 4;
   const charW = 5.6;
   const labelW = label ? Math.max(28, label.length * charW + labelPadX * 2) : 0;
   const labelTop = mid ? marriageLabelTopY(mid.y) : 0;
   const textY = labelTop + MARRIAGE_BOND_LABEL_HEIGHT / 2 + 3.5;
-  const pathD = coupleBondPath(edge.points);
 
   const handleDoubleClick = (e: MouseEvent<SVGElement>) => {
     if (!interactive || !unionId || !onUnionDoubleClick) return;
@@ -78,14 +78,6 @@ function MarriageBond({
 
   return (
     <g className={highlighted ? 'tree-edge--selected' : undefined}>
-      <path
-        d={pathD}
-        fill="none"
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-        strokeLinecap="butt"
-        pointerEvents="none"
-      />
       {label && mid && (
         <g
           className="marriage-bond-label"
@@ -115,16 +107,6 @@ function MarriageBond({
           </text>
         </g>
       )}
-      {interactive && unionId && onUnionDoubleClick && !label && (
-        <path
-          d={pathD}
-          fill="none"
-          stroke="transparent"
-          strokeWidth={Math.max(14, strokeWidth + 8)}
-          pointerEvents="stroke"
-          onDoubleClick={handleDoubleClick}
-        />
-      )}
     </g>
   );
 }
@@ -132,34 +114,63 @@ function MarriageBond({
 export function PedigreeConnections({
   edges,
   theme,
+  project,
   highlightEdgeId,
   pointerEvents = 'auto',
 }: PedigreeConnectionsProps) {
-  const otherEdges = edges.filter((e) => !isBondEdge(e.id));
+  const pedigreeEdges = edges.filter((e) => !isBondEdge(e.id));
+  const famUnionIds = new Set(
+    pedigreeEdges
+      .map((edge) => famEdgeUnionId(edge.id, Object.keys(project.unions)))
+      .filter((id): id is string => Boolean(id)),
+  );
+  const childlessBondEdges = edges.filter((edge) => {
+    if (!isBondEdge(edge.id)) return false;
+    const unionId = parseBondUnionId(edge.id);
+    return unionId ? !famUnionIds.has(unionId) : false;
+  });
+
+  const renderPath = (
+    edge: LayoutEdge,
+    d: string,
+    strokeWidth: number,
+    strokeDasharray?: string,
+  ) => {
+    const highlighted = edge.id === highlightEdgeId;
+    const strokeExtra = highlighted ? 1.5 : 0;
+    return (
+      <path
+        key={edge.id}
+        d={d}
+        fill="none"
+        stroke={highlighted ? '#eab308' : theme === 'forest' ? '#5d4037' : '#64748b'}
+        strokeWidth={strokeWidth + strokeExtra}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray={strokeDasharray}
+        className={highlighted ? 'tree-edge--selected' : undefined}
+      />
+    );
+  };
 
   return (
     <g className="tree-connections tree-connections--pedigree" pointerEvents={pointerEvents}>
-      {otherEdges.map((edge) => {
+      {pedigreeEdges.map((edge) => {
         const isPedigree = edge.id.startsWith('fam-');
-        const highlighted = edge.id === highlightEdgeId;
-        const strokeExtra = highlighted ? 1.5 : 0;
+        const strokeWidth = theme === 'forest' ? 2.5 : isPedigree ? 2 : 1.5;
         const d =
           edge.pathD ??
           (isPedigree || theme === 'clean' ? edgePath(edge.points) : branchPath(edge.points));
-        return (
-          <path
-            key={edge.id}
-            d={d}
-            fill="none"
-            stroke={highlighted ? '#eab308' : theme === 'forest' ? '#5d4037' : '#64748b'}
-            strokeWidth={(theme === 'forest' ? 2.5 : 1.5) + strokeExtra}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray={theme === 'clean' && !isPedigree && !highlighted ? '5 4' : undefined}
-            className={highlighted ? 'tree-edge--selected' : undefined}
-          />
+        return renderPath(
+          edge,
+          d,
+          strokeWidth,
+          theme === 'clean' && !isPedigree && edge.id !== highlightEdgeId ? '5 4' : undefined,
         );
       })}
+      {childlessBondEdges.map((edge) =>
+        renderPath(edge, coupleBondPath(edge.points), theme === 'forest' ? 2.5 : 2, undefined),
+      )}
     </g>
   );
 }
@@ -212,7 +223,7 @@ export function TreeConnections({
 }: TreeConnectionsProps) {
   return (
     <>
-      <PedigreeConnections edges={edges} theme={theme} highlightEdgeId={highlightEdgeId} pointerEvents={pointerEvents} />
+      <PedigreeConnections edges={edges} theme={theme} project={project} highlightEdgeId={highlightEdgeId} pointerEvents={pointerEvents} />
       <MarriageBonds
         edges={edges}
         theme={theme}

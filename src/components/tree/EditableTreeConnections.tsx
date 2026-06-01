@@ -104,6 +104,14 @@ export function EditableTreeConnections({
           />
         ))}
 
+      <PedigreeConnections
+        edges={edges}
+        theme={theme}
+        project={project}
+        highlightEdgeId={selectedEdgeId}
+        pointerEvents={active ? 'none' : 'auto'}
+      />
+
       <MarriageBonds
         edges={edges}
         theme={theme}
@@ -112,13 +120,6 @@ export function EditableTreeConnections({
         highlightEdgeId={selectedEdgeId}
         interactive={!active}
         onUnionDoubleClick={onUnionDoubleClick}
-      />
-
-      <PedigreeConnections
-        edges={edges}
-        theme={theme}
-        highlightEdgeId={selectedEdgeId}
-        pointerEvents={active ? 'none' : 'auto'}
       />
 
       {active &&
