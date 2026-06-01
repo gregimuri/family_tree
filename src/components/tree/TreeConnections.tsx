@@ -6,7 +6,6 @@ import {
   coupleBondMidpoint,
   coupleBondPath,
   edgePath,
-  famEdgeUnionId,
   isBondEdge,
   MARRIAGE_BOND_LABEL_HEIGHT,
   marriageLabelTopY,
@@ -111,24 +110,43 @@ function MarriageBond({
   );
 }
 
+export function MarriageBondLinesBehindCards({
+  edges,
+  theme,
+  highlightEdgeId,
+}: Pick<PedigreeConnectionsProps, 'edges' | 'theme' | 'highlightEdgeId'>) {
+  const bondEdges = edges.filter((e) => isBondEdge(e.id));
+
+  return (
+    <g className="tree-connections tree-connections--marriage-behind" pointerEvents="none">
+      {bondEdges.map((edge) => {
+        const highlighted = edge.id === highlightEdgeId;
+        const strokeExtra = highlighted ? 1.5 : 0;
+        return (
+          <path
+            key={edge.id}
+            d={coupleBondPath(edge.points)}
+            fill="none"
+            stroke={highlighted ? '#eab308' : theme === 'forest' ? '#5d4037' : '#64748b'}
+            strokeWidth={(theme === 'forest' ? 2.5 : 2) + strokeExtra}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={highlighted ? 'tree-edge--selected' : undefined}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
 export function PedigreeConnections({
   edges,
   theme,
-  project,
+  project: _project,
   highlightEdgeId,
   pointerEvents = 'auto',
 }: PedigreeConnectionsProps) {
   const pedigreeEdges = edges.filter((e) => !isBondEdge(e.id));
-  const famUnionIds = new Set(
-    pedigreeEdges
-      .map((edge) => famEdgeUnionId(edge.id, Object.keys(project.unions)))
-      .filter((id): id is string => Boolean(id)),
-  );
-  const childlessBondEdges = edges.filter((edge) => {
-    if (!isBondEdge(edge.id)) return false;
-    const unionId = parseBondUnionId(edge.id);
-    return unionId ? !famUnionIds.has(unionId) : false;
-  });
 
   const renderPath = (
     edge: LayoutEdge,
@@ -168,14 +186,6 @@ export function PedigreeConnections({
           theme === 'clean' && !isPedigree && edge.id !== highlightEdgeId ? '5 4' : undefined,
         );
       })}
-      {childlessBondEdges.map((edge) =>
-        renderPath(
-          edge,
-          coupleBondPath(edge.points),
-          theme === 'forest' ? 2.5 : 2,
-          undefined,
-        ),
-      )}
     </g>
   );
 }
@@ -217,7 +227,7 @@ export function MarriageBonds({
   );
 }
 
-/** @deprecated use PedigreeConnections + MarriageBonds (bonds render above cards). */
+/** @deprecated use MarriageBondLinesBehindCards + PedigreeConnections + MarriageBonds. */
 export function TreeConnections({
   edges,
   theme,

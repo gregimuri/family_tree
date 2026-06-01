@@ -13,6 +13,7 @@ import { useScreenToLayout } from '../../hooks/useScreenToLayout';
 import { PersonCardWithMedia } from './PersonCard';
 import { ManualLayoutGrid } from './ManualLayoutGrid';
 import { EditableTreeConnections } from './EditableTreeConnections';
+import { MarriageBondLinesBehindCards } from './TreeConnections';
 import { MarriageEditDialog } from '../dossier/MarriageEditDialog';
 import { SearchPanel } from '../panels/SearchPanel';
 import { DisplaySettingsPanel } from '../panels/DisplaySettingsPanel';
@@ -536,6 +537,11 @@ export function TreeView() {
                   layout={layout}
                   active={manualLayoutMode}
                   dragging={isDragging}
+                />
+                <MarriageBondLinesBehindCards
+                  edges={layout.edges}
+                  theme={theme}
+                  highlightEdgeId={manualLayoutMode ? selectedEdgeId : null}
                 />
                 {layout.nodes.map((node) => {
                   if (node.kind === 'person' && node.personId) {

@@ -130,8 +130,11 @@ describe('layout', () => {
     const bond = layout.edges.find((e) => e.id === bondEdgeId(unionId));
     const tree = layout.edges.find((e) => e.id.startsWith('fam-tree-') || e.id.startsWith('fam-branch-'));
     expect(bond).toBeTruthy();
-    expect(tree?.pathD).toContain(`M ${bond!.points[0].x} ${bond!.points[0].y}`);
-    expect(tree?.pathD).toContain(`L ${bond!.points[1].x} ${bond!.points[1].y}`);
+    expect(bond!.points).toHaveLength(2);
+    const midX = (bond!.points[0].x + bond!.points[1].x) / 2;
+    const bondY = bond!.points[0].y;
+    expect(tree?.pathD).toContain(`M ${midX} ${bondY}`);
+    expect(tree?.pathD).not.toContain(`L ${bond!.points[1].x} ${bondY}`);
     expect(formatMarriageDates(project.unions[unionId], 'years')).toBe('2005');
   });
 

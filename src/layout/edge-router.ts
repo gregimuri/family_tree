@@ -140,19 +140,30 @@ export function pedigreeFamilyConnectorPathWithBondStem(
   return d;
 }
 
-/** Full marriage horizontal + stem + pedigree trunk/drops (lines render above cards). */
-export function pedigreeFamilyConnectorPathWithMarriage(
+/** Horizontal marriage line between partner card bottom centers. */
+export function marriageBondHorizontalPath(
   leftBondX: number,
   rightBondX: number,
   bondY: number,
-  _midX: number,
-  _stemStartY: number,
+): string {
+  return `M ${leftBondX} ${bondY} L ${rightBondX} ${bondY}`;
+}
+
+/** Vertical stem (below date label) + pedigree trunk and drops — renders above cards, under labels. */
+export function pedigreeFamilyChildConnectorPath(
+  midX: number,
+  bondY: number,
+  stemStartY: number,
   trunk: { x: number; y: number }[],
   drops: { x: number; y: number }[][],
 ): string {
-  let d = `M ${leftBondX} ${bondY} L ${rightBondX} ${bondY}`;
+  let d = '';
+  if (Math.abs(stemStartY - bondY) > 0.01) {
+    d = `M ${midX} ${bondY} L ${midX} ${stemStartY}`;
+  }
   if (trunk.length >= 2) {
-    d += ` M ${trunk[0].x} ${trunk[0].y}`;
+    if (d) d += ` M ${trunk[0].x} ${trunk[0].y}`;
+    else d = `M ${trunk[0].x} ${trunk[0].y}`;
     for (let i = 1; i < trunk.length; i++) {
       d += ` L ${trunk[i].x} ${trunk[i].y}`;
     }
@@ -165,23 +176,54 @@ export function pedigreeFamilyConnectorPathWithMarriage(
   return d;
 }
 
-/** Marriage horizontal + continuation through branch points (fam-branch). */
-export function pedigreeBranchConnectorPathWithMarriage(
-  leftBondX: number,
-  rightBondX: number,
+/** Vertical stem + branch continuation (fam-branch). */
+export function pedigreeBranchChildConnectorPath(
+  midX: number,
   bondY: number,
-  _midX: number,
-  _stemStartY: number,
+  stemStartY: number,
   branchPoints: { x: number; y: number }[],
 ): string {
-  let d = `M ${leftBondX} ${bondY} L ${rightBondX} ${bondY}`;
+  let d = '';
+  if (Math.abs(stemStartY - bondY) > 0.01) {
+    d = `M ${midX} ${bondY} L ${midX} ${stemStartY}`;
+  }
   if (branchPoints.length >= 2) {
-    d += ` M ${branchPoints[0].x} ${branchPoints[0].y}`;
+    if (d) d += ` M ${branchPoints[0].x} ${branchPoints[0].y}`;
+    else d = `M ${branchPoints[0].x} ${branchPoints[0].y}`;
     for (let i = 1; i < branchPoints.length; i++) {
       d += ` L ${branchPoints[i].x} ${branchPoints[i].y}`;
     }
   }
   return d;
+}
+
+/** Full marriage horizontal + stem + pedigree trunk/drops (single path for hit testing). */
+export function pedigreeFamilyConnectorPathWithMarriage(
+  leftBondX: number,
+  rightBondX: number,
+  bondY: number,
+  midX: number,
+  stemStartY: number,
+  trunk: { x: number; y: number }[],
+  drops: { x: number; y: number }[][],
+): string {
+  const marriage = marriageBondHorizontalPath(leftBondX, rightBondX, bondY);
+  const child = pedigreeFamilyChildConnectorPath(midX, bondY, stemStartY, trunk, drops);
+  return child ? `${marriage} ${child}` : marriage;
+}
+
+/** Marriage horizontal + continuation through branch points (fam-branch). */
+export function pedigreeBranchConnectorPathWithMarriage(
+  leftBondX: number,
+  rightBondX: number,
+  bondY: number,
+  midX: number,
+  stemStartY: number,
+  branchPoints: { x: number; y: number }[],
+): string {
+  const marriage = marriageBondHorizontalPath(leftBondX, rightBondX, bondY);
+  const child = pedigreeBranchChildConnectorPath(midX, bondY, stemStartY, branchPoints);
+  return child ? `${marriage} ${child}` : marriage;
 }
 
 export function famEdgeUnionId(edgeId: string, unionIds: Iterable<string>): string | null {

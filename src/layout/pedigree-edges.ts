@@ -4,8 +4,8 @@ import { formatMarriageDates } from '../models/person-utils';
 import {
   getCoupleBondGeometry,
   marriageStemStartY,
-  pedigreeBranchConnectorPathWithMarriage,
-  pedigreeFamilyConnectorPathWithMarriage,
+  pedigreeBranchChildConnectorPath,
+  pedigreeFamilyChildConnectorPath,
   snapEdgeCoord,
 } from './edge-router';
 
@@ -191,7 +191,7 @@ function buildBranchChildConnector(
   if (partners.length === 0) return [];
 
   const unionRecord = union ?? project.unions[unionId];
-  const { bondY, midX, stemStartY, leftBondX, rightBondX } = getCoupleBondAnchor(
+  const { bondY, midX, stemStartY } = getCoupleBondAnchor(
     partners,
     project,
     unionRecord,
@@ -201,8 +201,6 @@ function buildBranchChildConnector(
   const stemTopY = snapEdgeCoord(bondY);
   const stemBottomY = snapEdgeCoord(stemStartY);
   const midSnap = snapEdgeCoord(midX);
-  const leftSnap = snapEdgeCoord(leftBondX);
-  const rightSnap = snapEdgeCoord(rightBondX);
   const childY = snapEdgeCoord(child.y);
 
   const points =
@@ -226,14 +224,7 @@ function buildBranchChildConnector(
       from: partners[0].id,
       to: child.id,
       points,
-      pathD: pedigreeBranchConnectorPathWithMarriage(
-        leftSnap,
-        rightSnap,
-        stemTopY,
-        midSnap,
-        stemBottomY,
-        points.slice(1),
-      ),
+      pathD: pedigreeBranchChildConnectorPath(midSnap, stemTopY, stemBottomY, points.slice(1)),
     },
   ];
 }
@@ -250,7 +241,7 @@ function buildFamilyConnector(
   const sortedChildren = sortChildren(children);
 
   const union = project.unions[unionId];
-  const { bondY, midX, stemStartY, leftBondX, rightBondX } = getCoupleBondAnchor(
+  const { bondY, midX, stemStartY } = getCoupleBondAnchor(
     sortedPartners,
     project,
     union,
@@ -260,8 +251,6 @@ function buildFamilyConnector(
   const stemTopY = snapEdgeCoord(bondY);
   const stemBottomY = snapEdgeCoord(stemStartY);
   const midSnap = snapEdgeCoord(midX);
-  const leftSnap = snapEdgeCoord(leftBondX);
-  const rightSnap = snapEdgeCoord(rightBondX);
 
   const childCenters = sortedChildren.map((c) => snapEdgeCoord(c.x + c.width / 2));
   const busMin = snapEdgeCoord(Math.min(midSnap, ...childCenters));
@@ -285,15 +274,7 @@ function buildFamilyConnector(
       from: sortedPartners[0].id,
       to: sortedChildren[sortedChildren.length - 1].id,
       points: [...trunk, ...drops.flat()],
-      pathD: pedigreeFamilyConnectorPathWithMarriage(
-        leftSnap,
-        rightSnap,
-        stemTopY,
-        midSnap,
-        stemBottomY,
-        trunk,
-        drops,
-      ),
+      pathD: pedigreeFamilyChildConnectorPath(midSnap, stemTopY, stemBottomY, trunk, drops),
     },
   ];
 }
