@@ -90,14 +90,11 @@ export function TreeView() {
   }, [project, syncLayoutPositions]);
 
   const handleSelectEdge = useCallback((edgeId: string | null, additive = false) => {
-    setSelectedEdgeId((prev) => {
-      const next = prev === edgeId ? null : edgeId;
-      if (next && !additive) {
-        setLayoutSelection(new Set());
-        setSelection(null);
-      }
-      return next;
-    });
+    setSelectedEdgeId(edgeId);
+    if (edgeId && !additive) {
+      setLayoutSelection(new Set());
+      setSelection(null);
+    }
   }, [setSelection]);
 
   const toggleManualLayoutMode = useCallback(() => {
@@ -407,6 +404,7 @@ export function TreeView() {
           )}
           {selection?.type === 'person' &&
             layoutSelectedCount <= 1 &&
+            !selectedEdgeId &&
             project.manualLayout?.[selection.id] && (
             <button
               type="button"
