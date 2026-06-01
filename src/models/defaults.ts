@@ -4,14 +4,14 @@ import { createId } from '../utils/create-id';
 export const PROJECT_VERSION = 1;
 
 export const defaultCardFields = (): CardFieldSettings => ({
-  showBirthName: false,
+  showBirthName: true,
   showNickname: true,
   nicknamePriority: false,
-  dateFormat: 'years',
+  dateFormat: 'full',
   showAge: false,
   showLocation: true,
   showPhoto: true,
-  marriageDateFormat: 'hidden',
+  marriageDateFormat: 'full',
 });
 
 /** Migrates legacy showMarriageYears and fills missing card field keys. */

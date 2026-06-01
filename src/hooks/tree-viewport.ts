@@ -136,12 +136,11 @@ export function fitTreeToViewport(
   return true;
 }
 
-/** Ключ для определения, нужно ли пересчитывать viewport. */
+/** Ключ структуры дерева — смена только оформления карточек не должна сбрасывать масштаб. */
 export function buildViewportKey(
   centerType: string,
   centerId: string,
   layout: LayoutResult,
-  frame: TreeFrame,
   manualCount: number,
   generationsUp: number,
   generationsDown: number,
@@ -149,8 +148,8 @@ export function buildViewportKey(
   sideBranchDepth: number,
   cardSizeMode: string,
   showAllPersons: boolean,
+  showDiedBefore18: boolean,
 ): string {
-  const b = getTreeSheetBounds(layout);
   return [
     centerType,
     centerId,
@@ -162,11 +161,6 @@ export function buildViewportKey(
     sideBranchDepth,
     cardSizeMode,
     showAllPersons ? 1 : 0,
-    frame.svgW,
-    frame.svgH,
-    b.minX.toFixed(1),
-    b.maxX.toFixed(1),
-    b.minY.toFixed(1),
-    b.maxY.toFixed(1),
+    showDiedBefore18 ? 1 : 0,
   ].join('|');
 }

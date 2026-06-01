@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyProject, createEmptyPerson, normalizeCardFields } from '../models/defaults';
+import { createEmptyProject, createEmptyPerson, defaultCardFields, normalizeCardFields } from '../models/defaults';
 import {
   dateToText,
   formatLifeDates,
@@ -567,6 +567,13 @@ describe('validation', () => {
   it('migrates legacy showMarriageYears to marriageDateFormat', () => {
     expect(normalizeCardFields({ showMarriageYears: true }).marriageDateFormat).toBe('years');
     expect(normalizeCardFields({ showMarriageYears: false }).marriageDateFormat).toBe('hidden');
+  });
+
+  it('defaults card fields to full dates and birth name', () => {
+    const fields = defaultCardFields();
+    expect(fields.showBirthName).toBe(true);
+    expect(fields.dateFormat).toBe('full');
+    expect(fields.marriageDateFormat).toBe('full');
   });
 });
 

@@ -73,8 +73,10 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   const avatarMedia = person.avatar ? project.media[person.avatar.mediaId] : null;
   const avatarUrl = avatarMedia ? getMediaUrl(avatarMedia.filename) : undefined;
   const mediaItems = person.mediaIds.map((id) => project.media[id]).filter(Boolean);
+  const archivePhotos = mediaItems.filter((item) => item.type === 'photo');
   const personCount = Object.keys(project.persons).length;
   const canEditMedia = mode === 'edit' && editMode;
+  const canPickAvatar = mode === 'view' && archivePhotos.length > 0;
 
   const saveField = (patch: Partial<Person>) => {
     if (editMode && draft) {
@@ -163,9 +165,15 @@ export function PersonDossier({ personId }: PersonDossierProps) {
           }}
           onContextMenu={(e) => {
             e.preventDefault();
-            if (canEditMedia) setAvatarEdit(true);
+            if (canEditMedia || canPickAvatar) setAvatarEdit(true);
           }}
-          title={canEditMedia ? 'Двойной клик — центр древа; ПКМ — замена фото' : 'Двойной клик — центр древа'}
+          title={
+            canEditMedia
+              ? 'Двойной клик — центр древа; ПКМ — замена фото'
+              : canPickAvatar
+                ? 'Двойной клик — центр древа; ПКМ — выбор фото из архива'
+                : 'Двойной клик — центр древа'
+          }
         >
           {avatarUrl ? (
             <img src={avatarUrl} alt="" />
@@ -414,7 +422,13 @@ export function PersonDossier({ personId }: PersonDossierProps) {
         </section>
       </div>
 
-      {avatarEdit && <AvatarEditor personId={personId} onClose={() => setAvatarEdit(false)} />}
+      {avatarEdit && (
+        <AvatarEditor
+          personId={personId}
+          allowUpload={mode === 'edit'}
+          onClose={() => setAvatarEdit(false)}
+        />
+      )}
 
       {deleteConfirm && (
         <div className="dossier-confirm-overlay" onClick={() => setDeleteConfirm(false)}>

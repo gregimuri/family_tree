@@ -7,6 +7,7 @@ import { getTreeSheetBounds } from '../layout/content-bounds';
 import {
   computeFitTransform,
   getTreeContentRect,
+  buildViewportKey,
   TREE_CONTENT_PAD,
 } from '../hooks/tree-viewport';
 
@@ -75,6 +76,55 @@ describe('tree viewport', () => {
 
     expect(padded.width).toBeGreaterThan(tight.width);
     expect(padded.height).toBeGreaterThan(tight.height);
+  });
+
+  it('viewport key ignores display-only layout bound changes', () => {
+    const project = createEmptyProject();
+    const layout = buildLayout(project);
+    const manualCount = 0;
+    const baseKey = buildViewportKey(
+      project.center.type,
+      project.center.id,
+      layout,
+      manualCount,
+      project.viewSettings.generationsUp,
+      project.viewSettings.generationsDown,
+      project.viewSettings.sideBranchesAt,
+      project.viewSettings.sideBranchDepth,
+      project.viewSettings.cardSizeMode,
+      !!project.viewSettings.showAllPersons,
+      project.viewSettings.showDiedBefore18,
+    );
+
+    const displayTweaked = buildLayout({
+      ...project,
+      viewSettings: {
+        ...project.viewSettings,
+        theme: 'forest',
+        cardFields: {
+          ...project.viewSettings.cardFields,
+          showBirthName: !project.viewSettings.cardFields.showBirthName,
+          dateFormat: 'years',
+          marriageDateFormat: 'hidden',
+        },
+      },
+    });
+
+    const tweakedKey = buildViewportKey(
+      project.center.type,
+      project.center.id,
+      displayTweaked,
+      manualCount,
+      project.viewSettings.generationsUp,
+      project.viewSettings.generationsDown,
+      project.viewSettings.sideBranchesAt,
+      project.viewSettings.sideBranchDepth,
+      project.viewSettings.cardSizeMode,
+      !!project.viewSettings.showAllPersons,
+      project.viewSettings.showDiedBefore18,
+    );
+
+    expect(tweakedKey).toBe(baseKey);
   });
 
   it('svg canvas fits orphan strip without excessive empty margin', () => {

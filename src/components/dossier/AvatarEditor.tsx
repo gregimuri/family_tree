@@ -10,6 +10,7 @@ import './AvatarEditor.css';
 
 interface AvatarEditorProps {
   personId: string;
+  allowUpload?: boolean;
   onClose: () => void;
 }
 
@@ -22,7 +23,7 @@ function resetCropState() {
   };
 }
 
-export function AvatarEditor({ personId, onClose }: AvatarEditorProps) {
+export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEditorProps) {
   const project = useProjectStore((s) => s.project);
   const updatePerson = useProjectStore((s) => s.updatePerson);
   const addMedia = useProjectStore((s) => s.addMedia);
@@ -114,11 +115,13 @@ export function AvatarEditor({ personId, onClose }: AvatarEditorProps) {
   return (
     <div className="avatar-editor-overlay" onClick={onClose}>
       <div className="avatar-editor" onClick={(e) => e.stopPropagation()}>
-        <h3>Замена фотографии</h3>
+        <h3>{allowUpload ? 'Замена фотографии' : 'Выбор фотографии'}</h3>
         <div className="avatar-editor-sources">
-          <button type="button" onClick={() => fileRef.current?.click()}>
-            Выбрать файл
-          </button>
+          {allowUpload && (
+            <button type="button" onClick={() => fileRef.current?.click()}>
+              Выбрать файл
+            </button>
+          )}
           {archivePhotos.length > 0 && (
             <div className="avatar-editor-archive">
               <span className="avatar-editor-archive__label">Из архива:</span>
@@ -141,17 +144,19 @@ export function AvatarEditor({ personId, onClose }: AvatarEditorProps) {
             </div>
           )}
         </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onFile(f);
-            e.target.value = '';
-          }}
-        />
+        {allowUpload && (
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onFile(f);
+              e.target.value = '';
+            }}
+          />
+        )}
         {imageUrl && (
           <div className="avatar-editor-crop">
             <Cropper

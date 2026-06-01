@@ -83,7 +83,6 @@ export function useCenterTreeView({
       project.center.type,
       project.center.id,
       layout,
-      frame,
       manualCount,
       project.viewSettings.generationsUp,
       project.viewSettings.generationsDown,
@@ -91,6 +90,7 @@ export function useCenterTreeView({
       project.viewSettings.sideBranchDepth,
       project.viewSettings.cardSizeMode,
       !!project.viewSettings.showAllPersons,
+      project.viewSettings.showDiedBefore18,
     );
 
     if (viewportKeyRef.current === key) return;
