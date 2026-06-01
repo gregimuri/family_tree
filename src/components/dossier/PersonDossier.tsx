@@ -95,11 +95,16 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   const finishEdit = () => {
     if (draft) {
       const live = project.persons[personId];
+      const mediaIds = [...draft.mediaIds];
+      const avatarMediaId = live.avatar?.mediaId;
+      if (avatarMediaId && !mediaIds.includes(avatarMediaId)) {
+        mediaIds.push(avatarMediaId);
+      }
       updatePerson({
         ...draft,
         parentUnionIds: live.parentUnionIds,
         unionIds: live.unionIds,
-        mediaIds: live.mediaIds,
+        mediaIds,
         avatar: live.avatar,
       });
     }

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PersonDossier } from '../components/dossier/PersonDossier';
 import { getParents } from '../models/person-utils';
@@ -80,5 +80,31 @@ describe('PersonDossier edit session', () => {
     expect(screen.getByText('Добавить файл')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Удалить из проекта' })).toBeTruthy();
     expect(screen.getByPlaceholderText('Описание')).toBeTruthy();
+  });
+
+  it('keeps newly added media after finishing edit', () => {
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:test-url'),
+      revokeObjectURL: vi.fn(),
+    });
+
+    const personId = openDefaultDossier();
+
+    render(<PersonDossier personId={personId} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
+
+    const input = document.querySelector('.media-upload input[type="file"]') as HTMLInputElement;
+    const file = new File(['photo'], 'portrait.jpg', { type: 'image/jpeg' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Готово' }));
+
+    const project = useProjectStore.getState().project!;
+    expect(project.persons[personId].mediaIds).toHaveLength(1);
+    expect(Object.keys(project.media)).toHaveLength(1);
+    expect(screen.getByText(/portrait\.jpg/)).toBeTruthy();
+
+    vi.unstubAllGlobals();
   });
 });
