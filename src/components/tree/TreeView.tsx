@@ -24,7 +24,7 @@ import { MediaViewer } from '../media/MediaViewer';
 import { Icons } from '../ui/Icons';
 import './TreeView.css';
 import { snapCardCenterToGridCorners } from '../../layout/card-dimensions';
-import { normalizeRect, rectsIntersect, isMarqueePointerTarget } from './layout-selection-utils';
+import { normalizeRect, rectsIntersect, isMarqueePointerTarget, applyMarqueeSelection } from './layout-selection-utils';
 import type { LayoutNode } from '../../types';
 
 const MARQUEE_MIN_SIZE = 4;
@@ -72,6 +72,7 @@ export function TreeView() {
     null,
   );
   const marqueePointerIdRef = useRef<number | null>(null);
+  const marqueeAdditiveRef = useRef(false);
   const ignoreNextBackgroundClickRef = useRef(false);
 
   const treeLayout = useMemo(() => {
@@ -115,12 +116,14 @@ export function TreeView() {
   };
 
   const finishMarquee = useCallback(
-    (box: { x1: number; y1: number; x2: number; y2: number }) => {
+    (box: { x1: number; y1: number; x2: number; y2: number }, additive: boolean) => {
       if (!layout) return;
       const rect = normalizeRect(box.x1, box.y1, box.x2, box.y2);
       if (rect.width < MARQUEE_MIN_SIZE && rect.height < MARQUEE_MIN_SIZE) {
-        setLayoutSelection(new Set());
-        setSelection(null);
+        if (!additive) {
+          setLayoutSelection(new Set());
+          setSelection(null);
+        }
         return;
       }
 
@@ -134,11 +137,12 @@ export function TreeView() {
         })
         .map((node) => node.personId!);
 
-      setLayoutSelection(new Set(ids));
-      if (ids.length === 1) setSelection({ type: 'person', id: ids[0] });
+      const next = applyMarqueeSelection(layoutSelection, ids, additive);
+      setLayoutSelection(next);
+      if (next.size === 1) setSelection({ type: 'person', id: [...next][0] });
       else setSelection(null);
     },
-    [layout, dragPositions, setSelection],
+    [layout, dragPositions, layoutSelection, setSelection],
   );
 
   const startMarqueeFromPointer = useCallback(
@@ -152,6 +156,7 @@ export function TreeView() {
       e.preventDefault();
       e.stopPropagation();
       marqueePointerIdRef.current = e.pointerId;
+      marqueeAdditiveRef.current = e.shiftKey;
       setMarquee({ x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y });
       setSelectedEdgeId(null);
 
@@ -170,8 +175,9 @@ export function TreeView() {
         window.removeEventListener('pointercancel', up);
 
         const p = screenToLayout(ev.clientX, ev.clientY);
+        const additive = marqueeAdditiveRef.current;
         setMarquee((prev) => {
-          if (prev && p) finishMarquee({ ...prev, x2: p.x, y2: p.y });
+          if (prev && p) finishMarquee({ ...prev, x2: p.x, y2: p.y }, additive);
           return null;
         });
         ignoreNextBackgroundClickRef.current = true;
@@ -354,7 +360,7 @@ export function TreeView() {
         <div className="manual-layout-bar">
           <Icons.Move size={16} />
           <span>
-            Карточки — перетаскивание; рамкой — выбор нескольких; Shift+клик — добавить в выбор.
+            Карточки — перетаскивание; рамкой — выбор нескольких; Shift+рамка или Shift+клик — добавить в выбор.
           </span>
           {layoutSelectedCount > 0 && (
             <span className="manual-layout-bar__count">Выбрано: {layoutSelectedCount}</span>
@@ -444,6 +450,7 @@ export function TreeView() {
         {manualLayoutMode ? (
           <>
             <span>ЛКМ на пустом месте — выделить область</span>
+            <span>Shift+рамка — добавить область к выбору</span>
             <span>ЛКМ на карточке — перемещение (несколько, если выбраны)</span>
             <span>Shift+клик — добавить/убрать из выбора</span>
             <span>ЛКМ на линии — редактирование маршрута</span>

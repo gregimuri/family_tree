@@ -19,6 +19,19 @@ export function rectsIntersect(a: LayoutRect, b: LayoutRect): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
+export function applyMarqueeSelection(
+  previous: Iterable<string>,
+  newIds: string[],
+  additive: boolean,
+): Set<string> {
+  if (additive) {
+    const next = new Set(previous);
+    for (const id of newIds) next.add(id);
+    return next;
+  }
+  return new Set(newIds);
+}
+
 /** Пустое место на листе древа — не карточка и не редактируемая линия. */
 export function isMarqueePointerTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
