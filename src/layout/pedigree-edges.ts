@@ -2,8 +2,9 @@ import type { LayoutEdge, LayoutNode, Project, Union } from '../types';
 import type { GraphPersonNode, GraphResult } from './graph-builder';
 import { formatMarriageDates } from '../models/person-utils';
 import {
+  getCoupleBondGeometry,
   marriageStemStartY,
-  pedigreeFamilyConnectorPath,
+  pedigreeFamilyConnectorPathWithBondStem,
   snapEdgeCoord,
 } from './edge-router';
 
@@ -63,28 +64,54 @@ export function pickPartnersForUnion(
   return best;
 }
 
+function unionShowsMarriageLabel(
+  partners: LayoutNode[],
+  union: Union | undefined,
+  project: Project,
+): boolean {
+  const marriageFormat = project.viewSettings.cardFields.marriageDateFormat;
+  return (
+    partners.length > 1 &&
+    marriageFormat !== 'hidden' &&
+    !!union &&
+    !!formatMarriageDates(union, marriageFormat)
+  );
+}
+
+function getCoupleBondAnchor(
+  partners: LayoutNode[],
+  project: Project,
+  union?: Union,
+): {
+  bondY: number;
+  midX: number;
+  stemStartY: number;
+  leftBondX: number;
+  rightBondX: number;
+} {
+  const sortedPartners = sortPartners(partners, project);
+  const left = sortedPartners[0];
+  const right = sortedPartners[sortedPartners.length - 1];
+  const showMarriageLabel = unionShowsMarriageLabel(sortedPartners, union, project);
+  const { bondY, leftX, rightX, midX } = getCoupleBondGeometry(left, right);
+  const stemStartY =
+    sortedPartners.length > 1 ? marriageStemStartY(bondY, showMarriageLabel) : bondY;
+  return {
+    bondY,
+    midX,
+    stemStartY,
+    leftBondX: leftX,
+    rightBondX: rightX,
+  };
+}
+
 function getCoupleStemAnchor(
   partners: LayoutNode[],
   project: Project,
   union?: Union,
 ): { x: number; y: number } {
-  const sortedPartners = sortPartners(partners, project);
-  const left = sortedPartners[0];
-  const right = sortedPartners[sortedPartners.length - 1];
-  const bondY = Math.max(left.y + left.height, right.y + right.height);
-  const marriageFormat = project.viewSettings.cardFields.marriageDateFormat;
-  const showMarriageLabel =
-    sortedPartners.length > 1 &&
-    marriageFormat !== 'hidden' &&
-    !!union &&
-    !!formatMarriageDates(union, marriageFormat);
-  const stemStartY =
-    sortedPartners.length > 1 ? marriageStemStartY(bondY, showMarriageLabel) : bondY;
-  const coupleMidX =
-    sortedPartners.length > 1
-      ? (left.x + left.width + right.x) / 2
-      : left.x + left.width / 2;
-  return { x: coupleMidX, y: stemStartY };
+  const anchor = getCoupleBondAnchor(partners, project, union);
+  return { x: anchor.midX, y: anchor.stemStartY };
 }
 
 function coupleSpan(partners: LayoutNode[], project: Project): number {
@@ -162,22 +189,26 @@ function buildBranchChildConnector(
 ): LayoutEdge[] {
   if (partners.length === 0) return [];
 
-  const anchor = getCoupleStemAnchor(partners, project, union);
+  const unionRecord = union ?? project.unions[unionId];
+  const { bondY, midX, stemStartY } = getCoupleBondAnchor(partners, project, unionRecord);
   const childCx = snapEdgeCoord(child.x + child.width / 2);
-  const forkY = snapEdgeCoord(anchor.y + (child.y - anchor.y) * 0.45);
-  const stemX = snapEdgeCoord(anchor.x);
-  const stemY = snapEdgeCoord(anchor.y);
+  const forkY = snapEdgeCoord(stemStartY + (child.y - stemStartY) * 0.45);
+  const stemTopY = snapEdgeCoord(bondY);
+  const stemBottomY = snapEdgeCoord(stemStartY);
+  const midSnap = snapEdgeCoord(midX);
   const childY = snapEdgeCoord(child.y);
 
   const points =
-    Math.abs(childCx - stemX) < 6
+    Math.abs(childCx - midSnap) < 6
       ? [
-          { x: stemX, y: stemY },
+          { x: midSnap, y: stemTopY },
+          { x: midSnap, y: stemBottomY },
           { x: childCx, y: childY },
         ]
       : [
-          { x: stemX, y: stemY },
-          { x: stemX, y: forkY },
+          { x: midSnap, y: stemTopY },
+          { x: midSnap, y: stemBottomY },
+          { x: midSnap, y: forkY },
           { x: childCx, y: forkY },
           { x: childCx, y: childY },
         ];
@@ -203,38 +234,21 @@ function buildFamilyConnector(
   const sortedPartners = sortPartners(partners, project);
   const sortedChildren = sortChildren(children);
 
-  const left = sortedPartners[0];
-  const right = sortedPartners[sortedPartners.length - 1];
-  const leftBottom = left.y + left.height;
-  const rightBottom = right.y + right.height;
-  const bondY = Math.max(leftBottom, rightBottom);
-  const coupleMidX =
-    sortedPartners.length > 1
-      ? (left.x + left.width + right.x) / 2
-      : left.x + left.width / 2;
   const union = project.unions[unionId];
-  const marriageFormat = project.viewSettings.cardFields.marriageDateFormat;
-  const showMarriageLabel =
-    sortedPartners.length > 1 &&
-    marriageFormat !== 'hidden' &&
-    !!union &&
-    !!formatMarriageDates(union, marriageFormat);
-  const stemStartY =
-    sortedPartners.length > 1
-      ? marriageStemStartY(bondY, showMarriageLabel)
-      : leftBottom;
+  const { bondY, midX, stemStartY } = getCoupleBondAnchor(sortedPartners, project, union);
   const childTop = Math.min(...sortedChildren.map((c) => c.y));
   const forkY = snapEdgeCoord(stemStartY + (childTop - stemStartY) * 0.55);
-  const stemY = snapEdgeCoord(stemStartY);
-  const midX = snapEdgeCoord(coupleMidX);
+  const stemTopY = snapEdgeCoord(bondY);
+  const stemBottomY = snapEdgeCoord(stemStartY);
+  const midSnap = snapEdgeCoord(midX);
 
   const childCenters = sortedChildren.map((c) => snapEdgeCoord(c.x + c.width / 2));
-  const busMin = snapEdgeCoord(Math.min(midX, ...childCenters));
-  const busMax = snapEdgeCoord(Math.max(midX, ...childCenters));
+  const busMin = snapEdgeCoord(Math.min(midSnap, ...childCenters));
+  const busMax = snapEdgeCoord(Math.max(midSnap, ...childCenters));
 
   const trunk = [
-    { x: midX, y: stemY },
-    { x: midX, y: forkY },
+    { x: midSnap, y: stemBottomY },
+    { x: midSnap, y: forkY },
     { x: busMin, y: forkY },
     { x: busMax, y: forkY },
   ];
@@ -244,13 +258,15 @@ function buildFamilyConnector(
     { x: childCenters[i], y: snapEdgeCoord(child.y) },
   ]);
 
+  const bondStemTop = { x: midSnap, y: stemTopY };
+
   return [
     {
       id: `fam-tree-${unionId}`,
-      from: left.id,
+      from: sortedPartners[0].id,
       to: sortedChildren[sortedChildren.length - 1].id,
       points: [...trunk, ...drops.flat()],
-      pathD: pedigreeFamilyConnectorPath(trunk, drops),
+      pathD: pedigreeFamilyConnectorPathWithBondStem(bondStemTop, trunk, drops),
     },
   ];
 }

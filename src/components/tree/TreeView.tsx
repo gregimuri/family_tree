@@ -13,7 +13,6 @@ import { useScreenToLayout } from '../../hooks/useScreenToLayout';
 import { PersonCardWithMedia } from './PersonCard';
 import { ManualLayoutGrid } from './ManualLayoutGrid';
 import { EditableTreeConnections } from './EditableTreeConnections';
-import { MarriageBonds } from './TreeConnections';
 import { MarriageEditDialog } from '../dossier/MarriageEditDialog';
 import { SearchPanel } from '../panels/SearchPanel';
 import { DisplaySettingsPanel } from '../panels/DisplaySettingsPanel';
@@ -531,15 +530,6 @@ export function TreeView() {
                   active={manualLayoutMode}
                   dragging={isDragging}
                 />
-                <EditableTreeConnections
-                  edges={layout.edges}
-                  theme={theme}
-                  active={manualLayoutMode}
-                  selectedEdgeId={selectedEdgeId}
-                  onSelectEdge={setSelectedEdgeId}
-                  onUpdateRoute={setManualEdgeRoute}
-                  screenToLayout={screenToLayout}
-                />
                 {layout.nodes.map((node) => {
                   if (node.kind === 'person' && node.personId) {
                     const person = project.persons[node.personId];
@@ -583,14 +573,17 @@ export function TreeView() {
                   }
                   return null;
                 })}
-                <MarriageBonds
+                <EditableTreeConnections
                   edges={layout.edges}
                   theme={theme}
                   project={project}
                   marriageDateFormat={project.viewSettings.cardFields.marriageDateFormat}
-                  highlightEdgeId={selectedEdgeId}
-                  interactive={!manualLayoutMode}
                   onUnionDoubleClick={setMarriageEditUnionId}
+                  active={manualLayoutMode}
+                  selectedEdgeId={selectedEdgeId}
+                  onSelectEdge={setSelectedEdgeId}
+                  onUpdateRoute={setManualEdgeRoute}
+                  screenToLayout={screenToLayout}
                 />
                 {marqueeRect && (
                   <rect

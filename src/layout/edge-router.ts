@@ -6,12 +6,37 @@ interface RawEdge {
   to: LayoutNode;
 }
 
+/** Marriage date label is centered on the horizontal bond line. */
+export const MARRIAGE_BOND_LABEL_HEIGHT = 14;
+export const MARRIAGE_BOND_LABEL_GAP = 4;
+export const MARRIAGE_STEM_GAP = 4;
+
+export function marriageLabelTopY(bondY: number): number {
+  return bondY - MARRIAGE_BOND_LABEL_HEIGHT / 2;
+}
+
+export function marriageStemStartY(bondY: number, showLabel: boolean): number {
+  if (!showLabel) return bondY;
+  return bondY + MARRIAGE_BOND_LABEL_HEIGHT / 2 + MARRIAGE_STEM_GAP;
+}
+
+export function getCoupleBondGeometry(left: LayoutNode, right: LayoutNode) {
+  const bondY = Math.max(left.y + left.height, right.y + right.height);
+  const leftX = left.x + left.width;
+  const rightX = right.x;
+  return {
+    bondY,
+    leftX,
+    rightX,
+    midX: (leftX + rightX) / 2,
+  };
+}
+
 export function routeCoupleBond(left: LayoutNode, right: LayoutNode): { x: number; y: number }[] {
-  const leftBottom = left.y + left.height;
-  const rightBottom = right.y + right.height;
+  const { leftX, rightX, bondY } = getCoupleBondGeometry(left, right);
   return [
-    { x: left.x + left.width, y: leftBottom },
-    { x: right.x, y: rightBottom },
+    { x: leftX, y: bondY },
+    { x: rightX, y: bondY },
   ];
 }
 
@@ -40,20 +65,6 @@ export function coupleBondMidpoint(points: { x: number; y: number }[]): { x: num
   const start = points[0];
   const end = points[points.length - 1];
   return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
-}
-
-/** Marriage date label sits below the horizontal bond line. */
-export const MARRIAGE_BOND_LABEL_HEIGHT = 14;
-export const MARRIAGE_BOND_LABEL_GAP = 4;
-export const MARRIAGE_STEM_GAP = 4;
-
-export function marriageLabelTopY(bondY: number): number {
-  return bondY + MARRIAGE_BOND_LABEL_GAP;
-}
-
-export function marriageStemStartY(bondY: number, showLabel: boolean): number {
-  if (!showLabel) return bondY;
-  return bondY + MARRIAGE_BOND_LABEL_GAP + MARRIAGE_BOND_LABEL_HEIGHT + MARRIAGE_STEM_GAP;
 }
 
 export function routeEdges(rawEdges: RawEdge[]): LayoutEdge[] {
@@ -98,6 +109,28 @@ export function pedigreeFamilyConnectorPath(
 ): string {
   if (trunk.length < 2) return '';
   let d = edgePath(trunk);
+  for (const drop of drops) {
+    if (drop.length >= 2) {
+      d += ` M ${drop[0].x} ${drop[0].y}${drop.slice(1).map((p) => ` L ${p.x} ${p.y}`).join('')}`;
+    }
+  }
+  return d;
+}
+
+/** Connects marriage bond center down to the family connector trunk. */
+export function pedigreeFamilyConnectorPathWithBondStem(
+  bondStemTop: { x: number; y: number },
+  trunk: { x: number; y: number }[],
+  drops: { x: number; y: number }[][],
+): string {
+  if (trunk.length < 2) return pedigreeFamilyConnectorPath(trunk, drops);
+  if (Math.abs(bondStemTop.y - trunk[0].y) < 0.01) {
+    return pedigreeFamilyConnectorPath(trunk, drops);
+  }
+  let d = edgePath([bondStemTop, trunk[0]]);
+  for (let i = 1; i < trunk.length; i++) {
+    d += ` L ${trunk[i].x} ${trunk[i].y}`;
+  }
   for (const drop of drops) {
     if (drop.length >= 2) {
       d += ` M ${drop[0].x} ${drop[0].y}${drop.slice(1).map((p) => ` L ${p.x} ${p.y}`).join('')}`;

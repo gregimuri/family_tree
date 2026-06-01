@@ -47,7 +47,7 @@ function getEdgeBounds(edges: LayoutEdge[]): LayoutResult['bounds'] | null {
       const bondY = (start.y + end.y) / 2;
       const labelTop = marriageLabelTopY(bondY);
       const labelBottom = labelTop + MARRIAGE_BOND_LABEL_HEIGHT;
-      minY = Math.min(minY, bondY - MARRIAGE_BOND_LABEL_GAP);
+      minY = Math.min(minY, labelTop - MARRIAGE_BOND_LABEL_GAP);
       maxY = Math.max(maxY, labelBottom + MARRIAGE_BOND_LABEL_GAP);
       minX = Math.min(minX, labelX - MARRIAGE_LABEL_HALF_W);
       maxX = Math.max(maxX, labelX + MARRIAGE_LABEL_HALF_W);

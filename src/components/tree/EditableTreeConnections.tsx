@@ -1,14 +1,16 @@
 import { useMemo, type PointerEvent as ReactPointerEvent } from 'react';
-import type { LayoutEdge } from '../../types';
+import type { LayoutEdge, Project, DateDisplayFormat } from '../../types';
 import { branchPath, coupleBondPath, edgePath, isBondEdge } from '../../layout/edge-router';
 import { CARD_GRID_CELL, snapToGridCorner } from '../../layout/card-dimensions';
 import { constrainManualRoutePoint } from '../../layout/manual-edge-routes';
 import { useProjectStore } from '../../store/project-store';
-import { PedigreeConnections } from './TreeConnections';
-
+import { PedigreeConnections, MarriageBonds } from './TreeConnections';
 interface EditableTreeConnectionsProps {
   edges: LayoutEdge[];
   theme: 'clean' | 'forest';
+  project: Project;
+  marriageDateFormat: DateDisplayFormat;
+  onUnionDoubleClick?: (unionId: string) => void;
   active: boolean;
   selectedEdgeId: string | null;
   onSelectEdge: (edgeId: string | null) => void;
@@ -26,6 +28,9 @@ function pathD(edge: LayoutEdge, theme: 'clean' | 'forest'): string {
 export function EditableTreeConnections({
   edges,
   theme,
+  project,
+  marriageDateFormat,
+  onUnionDoubleClick,
   active,
   selectedEdgeId,
   onSelectEdge,
@@ -98,6 +103,16 @@ export function EditableTreeConnections({
             }}
           />
         ))}
+
+      <MarriageBonds
+        edges={edges}
+        theme={theme}
+        project={project}
+        marriageDateFormat={marriageDateFormat}
+        highlightEdgeId={selectedEdgeId}
+        interactive={!active}
+        onUnionDoubleClick={onUnionDoubleClick}
+      />
 
       <PedigreeConnections
         edges={edges}
