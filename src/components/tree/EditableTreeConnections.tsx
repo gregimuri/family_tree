@@ -1,16 +1,14 @@
 import { useMemo, type PointerEvent as ReactPointerEvent } from 'react';
-import type { LayoutEdge, Project, DateDisplayFormat } from '../../types';
+import type { LayoutEdge } from '../../types';
 import { branchPath, coupleBondPath, edgePath, isBondEdge } from '../../layout/edge-router';
 import { CARD_GRID_CELL, snapToGridCorner } from '../../layout/card-dimensions';
 import { constrainManualRoutePoint } from '../../layout/manual-edge-routes';
 import { useProjectStore } from '../../store/project-store';
-import { TreeConnections } from './TreeConnections';
+import { PedigreeConnections } from './TreeConnections';
 
 interface EditableTreeConnectionsProps {
   edges: LayoutEdge[];
   theme: 'clean' | 'forest';
-  project: Project;
-  marriageDateFormat: DateDisplayFormat;
   active: boolean;
   selectedEdgeId: string | null;
   onSelectEdge: (edgeId: string | null) => void;
@@ -28,8 +26,6 @@ function pathD(edge: LayoutEdge, theme: 'clean' | 'forest'): string {
 export function EditableTreeConnections({
   edges,
   theme,
-  project,
-  marriageDateFormat,
   active,
   selectedEdgeId,
   onSelectEdge,
@@ -103,11 +99,9 @@ export function EditableTreeConnections({
           />
         ))}
 
-      <TreeConnections
+      <PedigreeConnections
         edges={edges}
         theme={theme}
-        project={project}
-        marriageDateFormat={marriageDateFormat}
         highlightEdgeId={selectedEdgeId}
         pointerEvents={active ? 'none' : 'auto'}
       />

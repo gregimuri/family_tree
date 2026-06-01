@@ -13,6 +13,8 @@ import { useScreenToLayout } from '../../hooks/useScreenToLayout';
 import { PersonCardWithMedia } from './PersonCard';
 import { ManualLayoutGrid } from './ManualLayoutGrid';
 import { EditableTreeConnections } from './EditableTreeConnections';
+import { MarriageBonds } from './TreeConnections';
+import { MarriageEditDialog } from '../dossier/MarriageEditDialog';
 import { SearchPanel } from '../panels/SearchPanel';
 import { DisplaySettingsPanel } from '../panels/DisplaySettingsPanel';
 import { AddPersonPanel } from '../panels/AddPersonPanel';
@@ -65,6 +67,7 @@ export function TreeView() {
   const layoutGroupRef = useRef<SVGGElement>(null);
   const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [marriageEditUnionId, setMarriageEditUnionId] = useState<string | null>(null);
   const [layoutSelection, setLayoutSelection] = useState<Set<string>>(() => new Set());
   const [marquee, setMarquee] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(
     null,
@@ -531,8 +534,6 @@ export function TreeView() {
                 <EditableTreeConnections
                   edges={layout.edges}
                   theme={theme}
-                  project={project}
-                  marriageDateFormat={project.viewSettings.cardFields.marriageDateFormat}
                   active={manualLayoutMode}
                   selectedEdgeId={selectedEdgeId}
                   onSelectEdge={setSelectedEdgeId}
@@ -582,6 +583,15 @@ export function TreeView() {
                   }
                   return null;
                 })}
+                <MarriageBonds
+                  edges={layout.edges}
+                  theme={theme}
+                  project={project}
+                  marriageDateFormat={project.viewSettings.cardFields.marriageDateFormat}
+                  highlightEdgeId={selectedEdgeId}
+                  interactive={!manualLayoutMode}
+                  onUnionDoubleClick={setMarriageEditUnionId}
+                />
                 {marqueeRect && (
                   <rect
                     className="layout-marquee"
@@ -614,6 +624,9 @@ export function TreeView() {
         />
       )}
       {dossierPersonId && <PersonDossier key={dossierPersonId} personId={dossierPersonId} />}
+      {marriageEditUnionId && (
+        <MarriageEditDialog unionId={marriageEditUnionId} onClose={() => setMarriageEditUnionId(null)} />
+      )}
       {mediaViewerId && <MediaViewer mediaId={mediaViewerId} />}
     </div>
   );
