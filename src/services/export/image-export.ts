@@ -7,6 +7,8 @@ import type { TreeFrame } from '../../layout/center-focus';
 import { getTreeSheetBounds } from '../../layout/content-bounds';
 import { getTreeContentRect } from '../../hooks/tree-viewport';
 import { getExportPersonNodes, replaceForeignObjectsWithVectorCards } from './vector-card-export';
+import { applyPdfFontFamily, ensurePdfCyrillicFonts } from './pdf-font';
+import { throwIfAborted } from './export-abort';
 
 export type ExportImageFormat = 'png' | 'jpeg' | 'pdf';
 export type ExportSizeMode = 'tree' | 'fixed';
@@ -19,6 +21,7 @@ export interface ExportOptions {
   heightMm?: number;
   pixelRatio?: number;
   theme?: 'clean' | 'forest';
+  signal?: AbortSignal;
 }
 
 export interface ExportResolution {
@@ -323,12 +326,14 @@ async function rasterizePersonCards(
   clone: SVGSVGElement,
   cardRasterRatio: number,
   onProgress?: ExportProgressCallback,
+  signal?: AbortSignal,
 ): Promise<void> {
   const sourceCards = [...source.querySelectorAll('foreignObject .person-card-html')] as HTMLElement[];
   const cloneForeignObjects = [...clone.querySelectorAll('foreignObject')];
   const total = sourceCards.length;
 
   for (let i = 0; i < sourceCards.length; i++) {
+    throwIfAborted(signal);
     const card = sourceCards[i];
     const foreignObject = cloneForeignObjects[i];
     if (!card || !foreignObject) continue;
@@ -467,14 +472,20 @@ export function configureSvgForFixedPage(
 async function exportVectorPdf(
   svg: SVGSVGElement,
   page: { widthMm: number; heightMm: number },
+  signal?: AbortSignal,
 ): Promise<void> {
+  throwIfAborted(signal);
   sanitizeSvgForVectorExport(svg);
+  applyPdfFontFamily(svg);
 
   const pdf = new jsPDF({
     orientation: page.widthMm > page.heightMm ? 'landscape' : 'portrait',
     unit: 'mm',
     format: [page.widthMm, page.heightMm],
   });
+  await ensurePdfCyrillicFonts(pdf);
+  throwIfAborted(signal);
+
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
 
@@ -489,6 +500,7 @@ async function exportVectorPdf(
     unmount();
   }
 
+  throwIfAborted(signal);
   pdf.save('drevo-export.pdf');
 }
 
@@ -497,12 +509,14 @@ export async function exportTreeElement(
   options: ExportOptions,
   onProgress?: ExportProgressCallback,
 ): Promise<void> {
-  const { format, sizeMode, theme = 'clean' } = options;
+  const { format, sizeMode, theme = 'clean', signal } = options;
   const { svg, layout, frame, project, getMediaUrl } = source;
   const backgroundColor = theme === 'forest' ? '#f3e9dc' : '#ffffff';
 
+  throwIfAborted(signal);
   onProgress?.('Подготовка дерева…', 0.02);
   await waitForImages(svg);
+  throwIfAborted(signal);
   await embedImages(svg);
 
   const viewport = computeExportViewport(frame, layout);
@@ -514,12 +528,15 @@ export async function exportTreeElement(
 
   if (format === 'pdf') {
     onProgress?.('Сборка векторных карточек…', 0.15);
+    throwIfAborted(signal);
     await replaceForeignObjectsWithVectorCards(prepared, personNodes, project, getMediaUrl);
   } else {
     onProgress?.('Подготовка карточек…', 0.1);
-    await rasterizePersonCards(svg, prepared, cardRasterRatio, onProgress);
+    throwIfAborted(signal);
+    await rasterizePersonCards(svg, prepared, cardRasterRatio, onProgress, signal);
   }
 
+  throwIfAborted(signal);
   configureSvgForExport(prepared, viewport, widthPx, heightPx, {
     letterbox: sizeMode === 'fixed',
   });
@@ -530,11 +547,12 @@ export async function exportTreeElement(
       sizeMode === 'fixed' && options.widthMm && options.heightMm
         ? { widthMm: options.widthMm, heightMm: options.heightMm }
         : viewportSizeMm(viewport);
-    await exportVectorPdf(prepared, page);
+    await exportVectorPdf(prepared, page, signal);
     onProgress?.('Готово', 1);
     return;
   }
 
+  throwIfAborted(signal);
   onProgress?.('Сборка изображения…', 0.85);
   const rasterFormat = format === 'jpeg' ? 'jpeg' : 'png';
   const dataUrl = await svgToRaster(

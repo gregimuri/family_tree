@@ -132,6 +132,17 @@ export function DisplaySettingsPanel() {
             <option value="forest">Лес</option>
           </select>
         </label>
+        <label>
+          Размер карточек
+          <select
+            value={s.cardSizeMode}
+            onChange={(e) => update({ cardSizeMode: e.target.value as ViewSettings['cardSizeMode'] })}
+          >
+            <option value="uniform">Одинаковый</option>
+            <option value="diminish">Уменьшать на удалённых ветвях</option>
+          </select>
+          <small className="hint">Для больших деревьев: текст на карточках масштабируется вместе с размером</small>
+        </label>
 
         <fieldset>
           <legend>Информация на карточках</legend>

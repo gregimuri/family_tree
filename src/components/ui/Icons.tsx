@@ -80,4 +80,7 @@ export const Icons = {
   Redo: (p: IconProps) => (
     <Icon {...p}><path d="M21 10H11a5 5 0 0 0-5 5v0a5 5 0 0 0 5 5h8" /><path d="m21 10-4-4" /><path d="M17 6l4 4-4 4" /></Icon>
   ),
+  Images: (p: IconProps) => (
+    <Icon {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-5-5L5 21" /></Icon>
+  ),
 };

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { LayoutResult } from '../../types';
 import type { TreeFrame } from '../../layout/center-focus';
@@ -12,6 +12,7 @@ import {
   type ExportOrientation,
   type ExportSizeMode,
 } from '../../services/export/image-export';
+import { ExportAbortedError } from '../../services/export/export-abort';
 import { downloadGedcom } from '../../services/gedcom/export';
 import { useProjectStore } from '../../store/project-store';
 import './ExportDialog.css';
@@ -37,10 +38,29 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
   const [busy, setBusy] = useState(false);
   const [exportStatus, setExportStatus] = useState('');
   const [exportProgress, setExportProgress] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const isStandardPreset = sizeMode === 'fixed' && preset !== 'custom';
   const treeViewport = useMemo(() => computeExportViewport(frame, layout), [frame, layout]);
   const treeSizeMm = useMemo(() => viewportSizeMm(treeViewport), [treeViewport]);
+
+  const cancelExport = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (busy) {
+        e.preventDefault();
+        cancelExport();
+      } else {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [busy, cancelExport, onClose]);
 
   const applyPreset = (label: string, orient: ExportOrientation = orientation) => {
     setPreset(label);
@@ -58,6 +78,8 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
   const exportImage = async () => {
     const el = svgRef.current;
     if (!el || !project) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     setExportStatus('Подготовка…');
     setExportProgress(0);
@@ -70,6 +92,7 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
           widthMm: sizeMode === 'fixed' ? widthMm : undefined,
           heightMm: sizeMode === 'fixed' ? heightMm : undefined,
           theme: project.viewSettings.theme ?? 'clean',
+          signal: controller.signal,
         },
         (message, progress) => {
           setExportStatus(message);
@@ -77,8 +100,13 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
         },
       );
     } catch (error) {
+      if (error instanceof ExportAbortedError) {
+        setExportStatus('Экспорт отменён');
+        return;
+      }
       setExportStatus(error instanceof Error ? error.message : 'Ошибка экспорта');
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
   };
@@ -96,6 +124,9 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
               style={{ width: `${Math.round(exportProgress * 100)}%` }}
             />
           </div>
+          <button type="button" className="btn export-dialog__cancel" onClick={cancelExport}>
+            Отмена (Esc)
+          </button>
         </div>
       )}
       <div className="export-dialog" onClick={(e) => e.stopPropagation()}>
@@ -111,7 +142,7 @@ export function ExportDialog({ onClose, svgRef, layout, frame }: ExportDialogPro
             <select value={format} onChange={(e) => setFormat(e.target.value as ExportImageFormat)}>
               <option value="png">PNG</option>
               <option value="jpeg">JPEG</option>
-              <option value="pdf">PDF</option>
+              <option value="pdf">PDF (векторный)</option>
             </select>
           </label>
           <label>

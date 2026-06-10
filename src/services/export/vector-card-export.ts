@@ -1,6 +1,7 @@
 import type { LayoutNode, Person, Project, ViewSettings } from '../../types';
-import { personShowsCardPhoto } from '../../layout/card-dimensions';
+import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
 import { buildCardNameFontLines, computeCardNameFontSizes } from '../../layout/card-name-font';
+import { PDF_FONT_BOLD, PDF_FONT_REGULAR } from './pdf-font';
 import {
   formatCardAge,
   formatLifeDates,
@@ -36,7 +37,7 @@ function appendText(
   el.setAttribute('text-anchor', 'middle');
   el.setAttribute('font-size', String(options.fontSize));
   el.setAttribute('fill', options.fill ?? '#44403c');
-  el.setAttribute('font-family', options.fontFamily ?? 'system-ui, sans-serif');
+  el.setAttribute('font-family', options.fontFamily ?? PDF_FONT_REGULAR);
   if (options.fontWeight) el.setAttribute('font-weight', String(options.fontWeight));
   el.textContent = text;
   parent.appendChild(el);
@@ -113,10 +114,11 @@ export async function replaceForeignObjectsWithVectorCards(
     const y = Number.parseFloat(foreignObject.getAttribute('y') ?? '0');
     const width = Number.parseFloat(foreignObject.getAttribute('width') ?? '120');
     const height = Number.parseFloat(foreignObject.getAttribute('height') ?? '80');
+    const cardScale = width / CARD_W;
     const cx = width / 2;
     const border = cardBorderColor(person, theme);
-    const fontFamily =
-      theme === 'forest' ? "Georgia, 'Times New Roman', serif" : 'system-ui, sans-serif';
+    const fontFamily = PDF_FONT_REGULAR;
+    const fontFamilyBold = PDF_FONT_BOLD;
     const bg = theme === 'forest' ? '#fafaf9' : '#ffffff';
     const rx = theme === 'forest' ? 8 : 12;
 
@@ -192,13 +194,13 @@ export async function replaceForeignObjectsWithVectorCards(
 
     const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
     const nameLines = buildCardNameFontLines(person, cf.showBirthName, !!nicknameAsPrimary);
-    const nameSizes = computeCardNameFontSizes(nameLines, width);
+    const nameSizes = computeCardNameFontSizes(nameLines, width, cardScale);
 
     if (nicknameAsPrimary) {
       appendText(group, cx, textY, person.nickname!, {
         fontSize: nameSizes[0],
         fontWeight: 700,
-        fontFamily,
+        fontFamily: fontFamilyBold,
       });
       textY += nameSizes[0] * 1.25;
     } else {
@@ -220,7 +222,7 @@ export async function replaceForeignObjectsWithVectorCards(
         surnameBirthSize,
         700,
         '#1c1917',
-        fontFamily,
+        fontFamilyBold,
         true,
       );
       const givenSize = nameSizes[sizeIndex++] ?? 10;
@@ -253,11 +255,11 @@ export async function replaceForeignObjectsWithVectorCards(
       );
       if (cf.showNickname && person.nickname && !cf.nicknamePriority) {
         appendText(group, cx, textY, `«${person.nickname}»`, {
-          fontSize: 9,
+          fontSize: 9 * cardScale,
           fill: '#78716c',
           fontFamily,
         });
-        textY += 12;
+        textY += 12 * cardScale;
       }
     }
 
@@ -265,19 +267,19 @@ export async function replaceForeignObjectsWithVectorCards(
     const ageLabel = cf.showAge ? formatCardAge(person) : null;
     if (dates) {
       appendText(group, cx, Math.min(textY, height - 10), dates, {
-        fontSize: 9,
+        fontSize: 9 * cardScale,
         fill: '#57534e',
         fontFamily,
       });
-      textY += 11;
+      textY += 11 * cardScale;
     }
     if (ageLabel) {
       appendText(group, cx, Math.min(textY, height - 10), `(${ageLabel})`, {
-        fontSize: 9,
+        fontSize: 9 * cardScale,
         fill: '#57534e',
         fontFamily,
       });
-      textY += 11;
+      textY += 11 * cardScale;
     }
 
     const religion =
@@ -286,17 +288,17 @@ export async function replaceForeignObjectsWithVectorCards(
         : null;
     if (religion) {
       appendText(group, cx, Math.min(textY + 1, height - 6), religion, {
-        fontSize: 8,
+        fontSize: 8 * cardScale,
         fill: '#78716c',
         fontFamily,
       });
-      textY += 10;
+      textY += 10 * cardScale;
     }
 
     const location = cf.showLocation ? getPersonLocationCardText(person) : null;
     if (location) {
       appendText(group, cx, Math.min(textY + 2, height - 4), location, {
-        fontSize: 8,
+        fontSize: 8 * cardScale,
         fill: '#78716c',
         fontFamily,
       });

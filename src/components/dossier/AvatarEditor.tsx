@@ -37,6 +37,8 @@ export function AvatarEditor({
   const project = useProjectStore((s) => s.project);
   const updatePerson = useProjectStore((s) => s.updatePerson);
   const addMedia = useProjectStore((s) => s.addMedia);
+  const replaceMediaBlob = useProjectStore((s) => s.replaceMediaBlob);
+  const deleteMedia = useProjectStore((s) => s.deleteMedia);
   const getMediaUrl = useProjectStore((s) => s.getMediaUrl);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -104,21 +106,10 @@ export function AvatarEditor({
     setError(null);
     try {
       const croppedBlob = await getCroppedImageBlob(imageUrl, croppedAreaPixels, rotation);
-      const avatarMediaId = createId();
-      const extMatch = currentMedia.filename.match(/(\.[a-zA-Z0-9]+)$/);
-      const ext = extMatch?.[1] ?? '.jpg';
-      const avatarFilename = `avatar-${personId.slice(0, 8)}-${avatarMediaId}${ext}`;
-      const avatarItem: MediaItem = {
-        id: avatarMediaId,
-        type: 'photo',
-        filename: avatarFilename,
-        description: `Аватар ${currentPerson.givenName}`,
-        personIds: [personId],
-      };
-      addMedia(avatarItem, croppedBlob);
+      replaceMediaBlob(currentMedia.filename, croppedBlob);
 
       const avatar: AvatarCrop = {
-        mediaId: avatarMediaId,
+        mediaId,
         x: 0,
         y: 0,
         width: croppedAreaPixels.width,
@@ -127,12 +118,18 @@ export function AvatarEditor({
         scale: 1,
       };
 
-      const mediaIds = [...(linkedMediaIds ?? currentPerson.mediaIds)];
-      if (mediaId !== avatarMediaId && !mediaIds.includes(mediaId)) {
+      let mediaIds = [...(linkedMediaIds ?? currentPerson.mediaIds)];
+      if (!mediaIds.includes(mediaId)) {
         mediaIds.push(mediaId);
       }
-      if (!mediaIds.includes(avatarMediaId)) {
-        mediaIds.push(avatarMediaId);
+
+      const priorAvatarId = currentPerson.avatar?.mediaId;
+      if (priorAvatarId && priorAvatarId !== mediaId) {
+        const prior = currentProject.media[priorAvatarId];
+        if (prior?.filename.startsWith('avatar-')) {
+          mediaIds = mediaIds.filter((id) => id !== priorAvatarId);
+          deleteMedia(priorAvatarId);
+        }
       }
 
       if (onAvatarSaved) {

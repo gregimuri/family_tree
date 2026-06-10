@@ -20,6 +20,7 @@ import { DisplaySettingsPanel } from '../panels/DisplaySettingsPanel';
 import { AddPersonPanel } from '../panels/AddPersonPanel';
 import { ZoomControls } from '../panels/ZoomControls';
 import { ExportDialog } from '../export/ExportDialog';
+import { MediaGallery } from '../media/MediaGallery';
 import { PersonDossier } from '../dossier/PersonDossier';
 import { MediaViewer } from '../media/MediaViewer';
 import { Icons } from '../ui/Icons';
@@ -62,6 +63,8 @@ export function TreeView() {
   const mediaViewerId = useProjectStore((s) => s.mediaViewerId);
   const exportOpen = useUiStore((s) => s.exportOpen);
   const setExportOpen = useUiStore((s) => s.setExportOpen);
+  const galleryOpen = useUiStore((s) => s.galleryOpen);
+  const setGalleryOpen = useUiStore((s) => s.setGalleryOpen);
   const highlightedPersonId = useUiStore((s) => s.highlightedPersonId);
   const fullscreen = useUiStore((s) => s.fullscreen);
   const transformRef = useRef<ReactZoomPanPinchRef>(null);
@@ -472,6 +475,10 @@ export function TreeView() {
       )}
 
       <div className="tree-bottom-bar">
+        <button type="button" className="btn tree-action-btn" onClick={() => setGalleryOpen(true)}>
+          <Icons.Images size={16} />
+          Галерея
+        </button>
         <button type="button" className="btn tree-action-btn" onClick={() => setExportOpen(true)}>
           <Icons.Export size={16} />
           Экспорт
@@ -677,6 +684,9 @@ export function TreeView() {
           layout={layout}
           frame={frame}
         />
+      )}
+      {galleryOpen && (
+        <MediaGallery onClose={() => setGalleryOpen(false)} canEdit={mode === 'edit'} />
       )}
       {dossierPersonId && <PersonDossier key={dossierPersonId} personId={dossierPersonId} />}
       {marriageEdit && (

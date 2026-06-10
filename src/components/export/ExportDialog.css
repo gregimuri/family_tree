@@ -82,6 +82,10 @@
   color: var(--color-text-muted);
 }
 
+.export-dialog__cancel {
+  margin-top: 12px;
+}
+
 .export-dialog__busy {
   position: fixed;
   inset: 0;

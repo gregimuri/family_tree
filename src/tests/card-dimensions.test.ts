@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createEmptyProject, createEmptyPerson } from '../models/defaults';
+import { computeCardNameFontSizes } from '../layout/card-name-font';
 import {
   CARD_GRID_CELL,
   CARD_H_FULL,
@@ -46,5 +47,12 @@ describe('card dimensions', () => {
   it('snaps arbitrary points to grid corners', () => {
     expect(snapToGridCorner(23, 31, CARD_GRID_CELL)).toEqual({ x: 20, y: 40 });
     expect(snapToGridCorner(29, 29, CARD_GRID_CELL)).toEqual({ x: 20, y: 20 });
+  });
+
+  it('scales card name font with card width', () => {
+    const lines = [{ text: 'Иванов', base: 11 }];
+    const full = computeCardNameFontSizes(lines, CARD_W, 1)[0]!;
+    const small = computeCardNameFontSizes(lines, CARD_W * 0.75, 0.75)[0]!;
+    expect(small).toBeLessThan(full);
   });
 });

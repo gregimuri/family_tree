@@ -19,13 +19,15 @@ export function scaleCardLineFontSize(
 export function computeCardNameFontSizes(
   lines: { text: string; base: number }[],
   innerWidth: number,
+  cardScale = 1,
 ): number[] {
   const visible = lines.filter((l) => l.text.trim());
   const lineCount = visible.length;
   const heightFactor = lineCount > 4 ? 0.82 : lineCount > 3 ? 0.9 : 1;
   return lines.map(({ text, base }) => {
-    if (!text.trim()) return base;
-    return Math.round(scaleCardLineFontSize(text, base, innerWidth) * heightFactor * 10) / 10;
+    if (!text.trim()) return base * cardScale;
+    const scaledBase = base * cardScale;
+    return Math.round(scaleCardLineFontSize(text, scaledBase, innerWidth) * heightFactor * 10) / 10;
   });
 }
 

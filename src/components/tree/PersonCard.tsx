@@ -6,7 +6,7 @@ import {
   getCardBirthSuffix,
   getPersonLocationCardText,
 } from '../../models/person-utils';
-import { personShowsCardPhoto } from '../../layout/card-dimensions';
+import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
 import { buildCardNameFontLines, computeCardNameFontSizes } from '../../layout/card-name-font';
 import { formatReligion } from '../../models/religion';
 import './PersonCard.css';
@@ -139,8 +139,9 @@ export function PersonCardWithMedia({
   const showBirth = cf.showBirthName;
   const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
 
+  const cardScale = width / CARD_W;
   const nameFontLines = buildCardNameFontLines(person, showBirth, !!nicknameAsPrimary);
-  const nameFontSizes = computeCardNameFontSizes(nameFontLines, width);
+  const nameFontSizes = computeCardNameFontSizes(nameFontLines, width, cardScale);
 
   let nameSizeIndex = 0;
   const surnameSize = nameFontSizes[nameSizeIndex++] ?? 11;
@@ -251,6 +252,7 @@ export function PersonCardWithMedia({
             height,
             borderColor: showSelection ? '#eab308' : borderColor,
             boxShadow: buildCardBoxShadow(!!manualPlaced, !!showSelection),
+            ['--card-scale' as string]: cardScale,
           }}
           onPointerDown={handlePointerDown}
         >
@@ -304,12 +306,14 @@ export function PersonCardWithMedia({
                 </>
               )}
               {cf.showNickname && person.nickname && !cf.nicknamePriority && (
-                <div className="person-card-html__nickname">«{person.nickname}»</div>
+                <div className="person-card-html__nickname" style={{ fontSize: 9 * cardScale }}>
+                  «{person.nickname}»
+                </div>
               )}
             </div>
             <div className="person-card-html__footer">
               {(dates || ageLabel) && (
-                <div className="person-card-html__meta">
+                <div className="person-card-html__meta" style={{ fontSize: 9 * cardScale }}>
                   {dates && <span>{dates}</span>}
                   {ageLabel && (
                     <span className="person-card-html__age">
@@ -318,8 +322,16 @@ export function PersonCardWithMedia({
                   )}
                 </div>
               )}
-              {religion && <div className="person-card-html__religion">{religion}</div>}
-              {location && <div className="person-card-html__location">{location}</div>}
+              {religion && (
+                <div className="person-card-html__religion" style={{ fontSize: 8 * cardScale }}>
+                  {religion}
+                </div>
+              )}
+              {location && (
+                <div className="person-card-html__location" style={{ fontSize: 8 * cardScale }}>
+                  {location}
+                </div>
+              )}
             </div>
           </div>
         </div>
