@@ -1,6 +1,6 @@
 import type { LayoutNode, Person, Project, ViewSettings } from '../../types';
 import { personShowsCardPhoto } from '../../layout/card-dimensions';
-import { computeCardNameFontSizes } from '../../layout/card-name-font';
+import { buildCardNameFontLines, computeCardNameFontSizes } from '../../layout/card-name-font';
 import {
   formatCardAge,
   formatLifeDates,
@@ -49,29 +49,44 @@ function buildNameLine(
   current: string | undefined,
   birth: string | undefined,
   showBirth: boolean,
-  fontSize: number,
+  mainFontSize: number,
+  birthFontSize: number,
   fontWeight: number,
   fill: string,
   fontFamily: string,
+  birthOnNewLine = false,
 ): number {
   const main = (current ?? '').trim();
   const suffix = getCardBirthSuffix(current, birth, showBirth);
   if (!main && !suffix) return y;
-  const line = suffix ? `${main} (${suffix})` : main;
-  appendText(parent, x, y, line, { fontSize, fontWeight, fill, fontFamily });
-  return y + fontSize * 1.25;
-}
-
-function buildLineText(
-  current: string | undefined,
-  birth: string | undefined,
-  showBirth: boolean,
-): string {
-  const main = (current ?? '').trim();
-  const suffix = getCardBirthSuffix(current, birth, showBirth);
-  if (!main && suffix) return `(${suffix})`;
-  if (suffix) return `${main} (${suffix})`;
-  return main;
+  if (!birthOnNewLine) {
+    const line = !main && suffix ? `(${suffix})` : suffix ? `${main} (${suffix})` : main;
+    appendText(parent, x, y, line, { fontSize: mainFontSize, fontWeight, fill, fontFamily });
+    return y + mainFontSize * 1.25;
+  }
+  if (!main && suffix) {
+    appendText(parent, x, y, `(${suffix})`, {
+      fontSize: mainFontSize,
+      fontWeight,
+      fill: '#78716c',
+      fontFamily,
+    });
+    return y + mainFontSize * 1.25;
+  }
+  if (main) {
+    appendText(parent, x, y, main, { fontSize: mainFontSize, fontWeight, fill, fontFamily });
+    y += mainFontSize * 1.25;
+  }
+  if (suffix) {
+    appendText(parent, x, y, `(${suffix})`, {
+      fontSize: birthFontSize,
+      fontWeight: 400,
+      fill: '#78716c',
+      fontFamily,
+    });
+    y += birthFontSize * 1.25;
+  }
+  return y;
 }
 
 export async function replaceForeignObjectsWithVectorCards(
@@ -176,22 +191,7 @@ export async function replaceForeignObjectsWithVectorCards(
     }
 
     const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
-    const nameLines = nicknameAsPrimary
-      ? [{ text: person.nickname ?? '', base: 11 }]
-      : [
-          {
-            text: buildLineText(person.surname, person.birthSurname, cf.showBirthName),
-            base: 11,
-          },
-          {
-            text: buildLineText(person.givenName, person.birthGivenName, cf.showBirthName),
-            base: 10,
-          },
-          {
-            text: buildLineText(person.patronymic, person.birthPatronymic, cf.showBirthName),
-            base: 9,
-          },
-        ];
+    const nameLines = buildCardNameFontLines(person, cf.showBirthName, !!nicknameAsPrimary);
     const nameSizes = computeCardNameFontSizes(nameLines, width);
 
     if (nicknameAsPrimary) {
@@ -202,6 +202,13 @@ export async function replaceForeignObjectsWithVectorCards(
       });
       textY += nameSizes[0] * 1.25;
     } else {
+      let sizeIndex = 0;
+      const surnameMainSize = nameSizes[sizeIndex++] ?? 11;
+      const hasBirthSurnameLine =
+        Boolean(getCardBirthSuffix(person.surname, person.birthSurname, cf.showBirthName) &&
+          (person.surname ?? '').trim());
+      const surnameBirthSize = hasBirthSurnameLine ? (nameSizes[sizeIndex++] ?? surnameMainSize) : surnameMainSize;
+
       textY = buildNameLine(
         group,
         cx,
@@ -209,11 +216,14 @@ export async function replaceForeignObjectsWithVectorCards(
         person.surname,
         person.birthSurname,
         cf.showBirthName,
-        nameSizes[0],
+        surnameMainSize,
+        surnameBirthSize,
         700,
         '#1c1917',
         fontFamily,
+        true,
       );
+      const givenSize = nameSizes[sizeIndex++] ?? 10;
       textY = buildNameLine(
         group,
         cx,
@@ -221,11 +231,13 @@ export async function replaceForeignObjectsWithVectorCards(
         person.givenName,
         person.birthGivenName,
         cf.showBirthName,
-        nameSizes[1],
+        givenSize,
+        givenSize,
         400,
         '#1c1917',
         fontFamily,
       );
+      const patronymicSize = nameSizes[sizeIndex] ?? 9;
       textY = buildNameLine(
         group,
         cx,
@@ -233,7 +245,8 @@ export async function replaceForeignObjectsWithVectorCards(
         person.patronymic,
         person.birthPatronymic,
         cf.showBirthName,
-        nameSizes[2],
+        patronymicSize,
+        patronymicSize,
         400,
         '#57534e',
         fontFamily,

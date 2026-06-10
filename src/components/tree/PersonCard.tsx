@@ -7,7 +7,7 @@ import {
   getPersonLocationCardText,
 } from '../../models/person-utils';
 import { personShowsCardPhoto } from '../../layout/card-dimensions';
-import { computeCardNameFontSizes } from '../../layout/card-name-font';
+import { buildCardNameFontLines, computeCardNameFontSizes } from '../../layout/card-name-font';
 import { formatReligion } from '../../models/religion';
 import './PersonCard.css';
 
@@ -77,21 +77,15 @@ function CardNameLine({
   return (
     <div className={className} style={fontSize ? { fontSize } : undefined}>
       {main}
-      {suffix ? <span className="person-card-html__birth-name"> ({suffix})</span> : null}
+      {suffix ? (
+        className.includes('surname') ? (
+          <div className="person-card-html__birth-surname">({suffix})</div>
+        ) : (
+          <span className="person-card-html__birth-name"> ({suffix})</span>
+        )
+      ) : null}
     </div>
   );
-}
-
-function nameLineText(
-  current: string | undefined,
-  birth: string | undefined,
-  showBirth: boolean,
-): string {
-  const main = cardNameLine(current);
-  const suffix = getCardBirthSuffix(current, birth, showBirth);
-  if (!main && suffix) return `(${suffix})`;
-  if (suffix) return `${main} (${suffix})`;
-  return main;
 }
 
 export function PersonCardWithMedia({
@@ -145,19 +139,17 @@ export function PersonCardWithMedia({
   const showBirth = cf.showBirthName;
   const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
 
-  const nameFontSizes = computeCardNameFontSizes(
-    nicknameAsPrimary
-      ? [{ text: person.nickname ?? '', base: 11 }]
-      : [
-          { text: nameLineText(person.surname, person.birthSurname, showBirth), base: 11 },
-          { text: nameLineText(person.givenName, person.birthGivenName, showBirth), base: 10 },
-          { text: nameLineText(person.patronymic, person.birthPatronymic, showBirth), base: 9 },
-        ],
-    width,
-  );
-  const [surnameSize, givenSize, patronymicSize] = nicknameAsPrimary
-    ? [nameFontSizes[0], nameFontSizes[0], nameFontSizes[0]]
-    : nameFontSizes;
+  const nameFontLines = buildCardNameFontLines(person, showBirth, !!nicknameAsPrimary);
+  const nameFontSizes = computeCardNameFontSizes(nameFontLines, width);
+
+  let nameSizeIndex = 0;
+  const surnameSize = nameFontSizes[nameSizeIndex++] ?? 11;
+  const hasBirthSurnameLine =
+    !nicknameAsPrimary &&
+    Boolean(getCardBirthSuffix(person.surname, person.birthSurname, showBirth) && cardNameLine(person.surname));
+  if (hasBirthSurnameLine) nameSizeIndex++;
+  const givenSize = nicknameAsPrimary ? nameFontSizes[0] : (nameFontSizes[nameSizeIndex++] ?? 10);
+  const patronymicSize = nicknameAsPrimary ? nameFontSizes[0] : (nameFontSizes[nameSizeIndex] ?? 9);
 
   const showSelection = selected || layoutSelected;
   const exportBorderColor = borderColor;

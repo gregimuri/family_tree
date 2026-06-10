@@ -304,7 +304,7 @@ export function TreeView() {
       }
 
       setSelection({ type: 'person', id: personId });
-      setSelectedEdgeId(null);
+      if (!e.shiftKey) setSelectedEdgeId(null);
 
       const startPointer = screenToLayout(e.clientX, e.clientY);
       if (!startPointer) return;

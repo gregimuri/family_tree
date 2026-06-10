@@ -94,7 +94,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .person-card-html__surname {
@@ -118,6 +118,14 @@
 
 .person-card-html__patronymic {
   font-size: 9px;
+  color: var(--color-text-secondary);
+}
+
+.person-card-html__birth-surname {
+  margin-top: 1px;
+  font-size: 0.9em;
+  font-weight: 400;
+  line-height: 1.2;
   color: var(--color-text-secondary);
 }
 

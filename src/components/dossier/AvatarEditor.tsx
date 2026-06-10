@@ -11,6 +11,9 @@ import './AvatarEditor.css';
 interface AvatarEditorProps {
   personId: string;
   allowUpload?: boolean;
+  linkedMediaIds?: string[];
+  onMediaLinked?: (mediaId: string) => void;
+  onAvatarSaved?: (avatar: AvatarCrop, mediaIds: string[]) => void;
   onClose: () => void;
 }
 
@@ -23,7 +26,14 @@ function resetCropState() {
   };
 }
 
-export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEditorProps) {
+export function AvatarEditor({
+  personId,
+  allowUpload = true,
+  linkedMediaIds,
+  onMediaLinked,
+  onAvatarSaved,
+  onClose,
+}: AvatarEditorProps) {
   const project = useProjectStore((s) => s.project);
   const updatePerson = useProjectStore((s) => s.updatePerson);
   const addMedia = useProjectStore((s) => s.addMedia);
@@ -47,7 +57,7 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
   const person = project.persons[personId];
   const media = mediaId ? project.media[mediaId] : null;
   const imageUrl = media ? getMediaUrl(media.filename) : undefined;
-  const archivePhotos = person.mediaIds
+  const archivePhotos = (linkedMediaIds ?? person.mediaIds)
     .map((id) => project.media[id])
     .filter((item): item is MediaItem => Boolean(item && item.type === 'photo'));
 
@@ -71,6 +81,11 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
       personIds: [personId],
     };
     addMedia(item, file);
+    onMediaLinked?.(id);
+    if (!onMediaLinked) {
+      const mediaIds = person.mediaIds.includes(id) ? person.mediaIds : [...person.mediaIds, id];
+      updatePerson({ ...person, mediaIds });
+    }
     selectMedia(id);
   };
 
@@ -112,7 +127,7 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
         scale: 1,
       };
 
-      const mediaIds = [...currentPerson.mediaIds];
+      const mediaIds = [...(linkedMediaIds ?? currentPerson.mediaIds)];
       if (mediaId !== avatarMediaId && !mediaIds.includes(mediaId)) {
         mediaIds.push(mediaId);
       }
@@ -120,7 +135,11 @@ export function AvatarEditor({ personId, allowUpload = true, onClose }: AvatarEd
         mediaIds.push(avatarMediaId);
       }
 
-      updatePerson({ ...currentPerson, avatar, mediaIds });
+      if (onAvatarSaved) {
+        onAvatarSaved(avatar, mediaIds);
+      } else {
+        updatePerson({ ...currentPerson, avatar, mediaIds });
+      }
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось сохранить фото');

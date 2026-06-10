@@ -97,7 +97,7 @@ export function PersonDossier({ personId }: PersonDossierProps) {
     if (draft) {
       const live = project.persons[personId];
       const mediaIds = [...draft.mediaIds];
-      const avatarMediaId = live.avatar?.mediaId;
+      const avatarMediaId = draft.avatar?.mediaId;
       if (avatarMediaId && !mediaIds.includes(avatarMediaId)) {
         mediaIds.push(avatarMediaId);
       }
@@ -106,7 +106,6 @@ export function PersonDossier({ personId }: PersonDossierProps) {
         parentUnionIds: live.parentUnionIds,
         unionIds: live.unionIds,
         mediaIds,
-        avatar: live.avatar,
       });
     }
     editSnapshotRef.current = null;
@@ -127,6 +126,16 @@ export function PersonDossier({ personId }: PersonDossierProps) {
   const handleDelete = () => {
     deletePerson(personId);
     closeDossier();
+  };
+
+  const linkDraftMedia = (mediaId: string) => {
+    if (!editMode || !draft || draft.mediaIds.includes(mediaId)) return;
+    setDraft({ ...draft, mediaIds: [...draft.mediaIds, mediaId] });
+  };
+
+  const applyDraftAvatar = (avatar: Person['avatar'], mediaIds: string[]) => {
+    if (!editMode || !draft) return;
+    setDraft({ ...draft, avatar, mediaIds });
   };
 
   const removeMedia = (mediaId: string) => {
@@ -453,6 +462,9 @@ export function PersonDossier({ personId }: PersonDossierProps) {
         <AvatarEditor
           personId={personId}
           allowUpload={mode === 'edit'}
+          linkedMediaIds={editMode && draft ? draft.mediaIds : undefined}
+          onMediaLinked={editMode ? linkDraftMedia : undefined}
+          onAvatarSaved={editMode ? applyDraftAvatar : undefined}
           onClose={() => setAvatarEdit(false)}
         />
       )}

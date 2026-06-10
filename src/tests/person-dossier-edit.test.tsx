@@ -82,6 +82,29 @@ describe('PersonDossier edit session', () => {
     expect(screen.getByPlaceholderText('Описание')).toBeTruthy();
   });
 
+  it('shows newly added media in the list before finishing edit', () => {
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:test-url'),
+      revokeObjectURL: vi.fn(),
+    });
+
+    const personId = openDefaultDossier();
+
+    render(<PersonDossier personId={personId} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
+
+    const input = document.querySelector('.media-upload input[type="file"]') as HTMLInputElement;
+    const file = new File(['photo'], 'portrait.jpg', { type: 'image/jpeg' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(screen.getByPlaceholderText('Описание')).toBeTruthy();
+    expect(screen.getByText(/portrait\.jpg/)).toBeTruthy();
+    expect(useProjectStore.getState().project!.persons[personId].mediaIds).toHaveLength(0);
+
+    vi.unstubAllGlobals();
+  });
+
   it('keeps newly added media after finishing edit', () => {
     vi.stubGlobal('URL', {
       createObjectURL: vi.fn(() => 'blob:test-url'),
