@@ -169,12 +169,33 @@ function constrainManhattanPoint(points: Point[], index: number, snapped: Point)
 
 function constrainBondPoint(points: Point[], index: number, snapped: Point): Point[] {
   const next = clonePoints(points);
-  next[index] = snapped;
-  if (points.length >= 2) {
-    const bondY = points[0].y;
-    next[0].y = bondY;
-    next[1].y = bondY;
+
+  if (points.length === 2) {
+    if (index === 0) {
+      next[0] = { x: snapped.x, y: snapped.y };
+      next[1].y = snapped.y;
+    } else {
+      next[1] = { x: snapped.x, y: snapped.y };
+      next[0].y = snapped.y;
+    }
+    return next[0].x <= next[1].x ? next : [next[1], next[0]];
   }
+
+  const bondRowY = Math.max(...points.map((p) => p.y));
+  const onBondRow = Math.abs(points[index].y - bondRowY) < 0.5;
+
+  if (onBondRow) {
+    const dy = snapped.y - bondRowY;
+    for (let i = 0; i < next.length; i++) {
+      if (Math.abs(points[i].y - bondRowY) < 0.5) {
+        next[i].y = points[i].y + dy;
+      }
+    }
+    next[index].x = snapped.x;
+    return next;
+  }
+
+  next[index] = snapped;
   return next;
 }
 

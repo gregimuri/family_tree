@@ -95,8 +95,8 @@ describe('layout', () => {
     const right: LayoutNode = { ...left, id: 'r', x: 120 };
     const bond = routeCoupleBond(left, right);
     expect(bond).toEqual([
-      { x: 50, y: 80 },
-      { x: 170, y: 80 },
+      { x: 100, y: 80 },
+      { x: 120, y: 80 },
     ]);
     const unionId = '325a9de7-bf1e-4ccf-b0d6-96d978901502';
     expect(parseBondUnionId(bondEdgeId(unionId))).toBe(unionId);
@@ -856,7 +856,7 @@ describe('dates', () => {
       birth: { date: { text: 'ок. 1951' } },
       death: { date: { text: 'после 2000' } },
     });
-    expect(formatLifeDates(person, 'years')).toBe('ок. 1951–после 2000');
+    expect(formatLifeDates(person, 'years')).toBe('ок. 1951 – после 2000');
   });
 
   it('shows text dates in years mode when year is also stored', () => {
@@ -864,7 +864,7 @@ describe('dates', () => {
       birth: { date: { year: 1951, text: 'ABT 1951' } },
       death: { date: { year: 2000, text: 'AFT 2000' } },
     });
-    expect(formatLifeDates(person, 'years')).toBe('ABT 1951–AFT 2000');
+    expect(formatLifeDates(person, 'years')).toBe('ABT 1951 – AFT 2000');
   });
 
   it('shows mixed text and numeric dates in years mode', () => {
@@ -872,7 +872,7 @@ describe('dates', () => {
       birth: { date: { text: 'ок. 1951' } },
       death: { date: { year: 2010 } },
     });
-    expect(formatLifeDates(person, 'years')).toBe('ок. 1951–2010');
+    expect(formatLifeDates(person, 'years')).toBe('ок. 1951 – 2010');
   });
 
   it('shows only year for numeric dates in years mode', () => {
@@ -880,7 +880,7 @@ describe('dates', () => {
       birth: { date: { year: 1951, month: 3, day: 15 } },
       death: { date: { year: 2010 } },
     });
-    expect(formatLifeDates(person, 'years')).toBe('1951–2010');
+    expect(formatLifeDates(person, 'years')).toBe('1951 – 2010');
   });
 
   it('shows living person birth without dash', () => {
@@ -929,7 +929,7 @@ describe('dates', () => {
       marriageStart: { year: 2005 },
       marriageEnd: { year: 2012, month: 3 },
     };
-    expect(formatMarriageDates(union, 'years')).toBe('2005–2012');
+    expect(formatMarriageDates(union, 'years')).toBe('2005 – 2012');
     expect(formatMarriageDates(union, 'full')).toBe('2005 – 03.2012');
   });
 

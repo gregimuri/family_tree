@@ -1,5 +1,6 @@
 import type { LayoutNode, Person, Project, ViewSettings } from '../../types';
 import { personShowsCardPhoto } from '../../layout/card-dimensions';
+import { computeCardNameFontSizes } from '../../layout/card-name-font';
 import {
   formatCardAge,
   formatLifeDates,
@@ -58,6 +59,18 @@ function buildNameLine(
   const line = suffix ? `${main} (${suffix})` : main;
   appendText(parent, x, y, line, { fontSize, fontWeight, fill, fontFamily });
   return y + fontSize * 1.25;
+}
+
+function buildLineText(
+  current: string | undefined,
+  birth: string | undefined,
+  showBirth: boolean,
+): string {
+  const main = (current ?? '').trim();
+  const suffix = getCardBirthSuffix(current, birth, showBirth);
+  if (!main && suffix) return `(${suffix})`;
+  if (suffix) return `${main} (${suffix})`;
+  return main;
 }
 
 export async function replaceForeignObjectsWithVectorCards(
@@ -162,13 +175,31 @@ export async function replaceForeignObjectsWithVectorCards(
     }
 
     const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
+    const nameLines = nicknameAsPrimary
+      ? [{ text: person.nickname ?? '', base: 11 }]
+      : [
+          {
+            text: buildLineText(person.surname, person.birthSurname, cf.showBirthName),
+            base: 11,
+          },
+          {
+            text: buildLineText(person.givenName, person.birthGivenName, cf.showBirthName),
+            base: 10,
+          },
+          {
+            text: buildLineText(person.patronymic, person.birthPatronymic, cf.showBirthName),
+            base: 9,
+          },
+        ];
+    const nameSizes = computeCardNameFontSizes(nameLines, width);
+
     if (nicknameAsPrimary) {
       appendText(group, cx, textY, person.nickname!, {
-        fontSize: 11,
+        fontSize: nameSizes[0],
         fontWeight: 700,
         fontFamily,
       });
-      textY += 14;
+      textY += nameSizes[0] * 1.25;
     } else {
       textY = buildNameLine(
         group,
@@ -177,7 +208,7 @@ export async function replaceForeignObjectsWithVectorCards(
         person.surname,
         person.birthSurname,
         cf.showBirthName,
-        11,
+        nameSizes[0],
         700,
         '#1c1917',
         fontFamily,
@@ -189,7 +220,7 @@ export async function replaceForeignObjectsWithVectorCards(
         person.givenName,
         person.birthGivenName,
         cf.showBirthName,
-        10,
+        nameSizes[1],
         400,
         '#1c1917',
         fontFamily,
@@ -201,7 +232,7 @@ export async function replaceForeignObjectsWithVectorCards(
         person.patronymic,
         person.birthPatronymic,
         cf.showBirthName,
-        9,
+        nameSizes[2],
         400,
         '#57534e',
         fontFamily,

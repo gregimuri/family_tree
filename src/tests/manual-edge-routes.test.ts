@@ -85,6 +85,20 @@ describe('manual edge routes', () => {
     expect(next[5]).toEqual({ x: 5, y: 100 });
     expect(next[4].x).toBe(5);
   });
+
+  it('allows vertical movement of marriage bond', () => {
+    const points = [
+      { x: 100, y: 80 },
+      { x: 120, y: 80 },
+    ];
+    const next = constrainManualRoutePoint(
+      { id: 'bond@u1', points },
+      0,
+      { x: 100, y: 90 },
+    );
+    expect(next[0].y).toBe(90);
+    expect(next[1].y).toBe(90);
+  });
 });
 
 describe('export orientation', () => {

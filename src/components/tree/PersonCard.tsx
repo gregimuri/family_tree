@@ -7,6 +7,7 @@ import {
   getPersonLocationCardText,
 } from '../../models/person-utils';
 import { personShowsCardPhoto } from '../../layout/card-dimensions';
+import { computeCardNameFontSizes } from '../../layout/card-name-font';
 import './PersonCard.css';
 
 interface PersonCardProps {
@@ -54,24 +55,42 @@ function CardNameLine({
   birth,
   showBirth,
   className,
+  fontSize,
 }: {
   current: string | undefined;
   birth: string | undefined;
   showBirth: boolean;
   className: string;
+  fontSize?: number;
 }) {
   const main = cardNameLine(current);
   const suffix = getCardBirthSuffix(current, birth, showBirth);
   if (!main && !suffix) return null;
   if (!main && suffix) {
-    return <div className={className}>({suffix})</div>;
+    return (
+      <div className={className} style={fontSize ? { fontSize } : undefined}>
+        ({suffix})
+      </div>
+    );
   }
   return (
-    <div className={className}>
+    <div className={className} style={fontSize ? { fontSize } : undefined}>
       {main}
       {suffix ? <span className="person-card-html__birth-name"> ({suffix})</span> : null}
     </div>
   );
+}
+
+function nameLineText(
+  current: string | undefined,
+  birth: string | undefined,
+  showBirth: boolean,
+): string {
+  const main = cardNameLine(current);
+  const suffix = getCardBirthSuffix(current, birth, showBirth);
+  if (!main && suffix) return `(${suffix})`;
+  if (suffix) return `${main} (${suffix})`;
+  return main;
 }
 
 export function PersonCardWithMedia({
@@ -120,6 +139,20 @@ export function PersonCardWithMedia({
 
   const showBirth = cf.showBirthName;
   const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
+
+  const nameFontSizes = computeCardNameFontSizes(
+    nicknameAsPrimary
+      ? [{ text: person.nickname ?? '', base: 11 }]
+      : [
+          { text: nameLineText(person.surname, person.birthSurname, showBirth), base: 11 },
+          { text: nameLineText(person.givenName, person.birthGivenName, showBirth), base: 10 },
+          { text: nameLineText(person.patronymic, person.birthPatronymic, showBirth), base: 9 },
+        ],
+    width,
+  );
+  const [surnameSize, givenSize, patronymicSize] = nicknameAsPrimary
+    ? [nameFontSizes[0], nameFontSizes[0], nameFontSizes[0]]
+    : nameFontSizes;
 
   const showSelection = selected || layoutSelected;
   const exportBorderColor = borderColor;
@@ -237,7 +270,12 @@ export function PersonCardWithMedia({
           <div className="person-card-html__body">
             <div className="person-card-html__names">
               {nicknameAsPrimary ? (
-                <div className="person-card-html__nickname-primary">{person.nickname}</div>
+                <div
+                  className="person-card-html__nickname-primary"
+                  style={{ fontSize: surnameSize }}
+                >
+                  {person.nickname}
+                </div>
               ) : (
                 <>
                   <CardNameLine
@@ -245,18 +283,21 @@ export function PersonCardWithMedia({
                     birth={person.birthSurname}
                     showBirth={showBirth}
                     className="person-card-html__surname"
+                    fontSize={surnameSize}
                   />
                   <CardNameLine
                     current={person.givenName}
                     birth={person.birthGivenName}
                     showBirth={showBirth}
                     className="person-card-html__given"
+                    fontSize={givenSize}
                   />
                   <CardNameLine
                     current={person.patronymic}
                     birth={person.birthPatronymic}
                     showBirth={showBirth}
                     className="person-card-html__patronymic"
+                    fontSize={patronymicSize}
                   />
                   {!person.surname?.trim() &&
                     !person.givenName?.trim() &&

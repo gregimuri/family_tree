@@ -26,6 +26,7 @@ import {
   type LinkKind,
 } from '../models/person-utils';
 import { buildLayout, collectMissingLayoutPositions } from '../layout';
+import { computePlacementNearAnchor } from '../layout/placement-utils';
 import { addRecent, saveProjectToDb } from '../services/project-io/db';
 import { saveProjectToHandle, saveProjectAs } from '../services/project-io/zip-project';
 import { isExternalMediaUrl } from '../utils/media-url';
@@ -100,7 +101,7 @@ interface ProjectState {
   unlinkPartner: (personAId: string, personBId: string) => void;
   linkChild: (parentId: string, childId: string, unionId?: string) => void;
   unlinkChild: (unionId: string, childId: string) => void;
-  placeNewPersonNear: (newPersonId: string, nearPersonId: string) => void;
+  placeNewPersonNear: (newPersonId: string, nearPersonId: string, kind?: LinkKind) => void;
   addMedia: (item: MediaItem, blob: Blob) => void;
   replaceMediaBlob: (filename: string, blob: Blob) => void;
   updateMedia: (item: MediaItem) => void;
@@ -402,8 +403,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       },
       { history: 'immediate' },
     );
-    get().setSelection({ type: 'person', id: person.id });
-    get().syncLayoutPositions([person.id]);
+    get().placeNewPersonNear(person.id, link.personId, link.kind);
     return person;
   },
 
@@ -489,9 +489,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     );
   },
 
-  placeNewPersonNear: (newPersonId, nearPersonId) => {
-    void nearPersonId;
-    get().syncLayoutPositions([newPersonId]);
+  placeNewPersonNear: (newPersonId, nearPersonId, kind = 'partner') => {
+    const project = get().project;
+    if (!project) return;
+    const layout = buildLayout(project);
+    const placement = computePlacementNearAnchor(project, layout, newPersonId, nearPersonId, kind);
+    if (placement) {
+      get().updateProject(
+        (p) => ({
+          ...p,
+          manualLayout: { ...(p.manualLayout ?? {}), [newPersonId]: placement },
+        }),
+        { history: 'skip' },
+      );
+    } else {
+      get().syncLayoutPositions([newPersonId]);
+    }
     get().setSelection({ type: 'person', id: newPersonId });
   },
 

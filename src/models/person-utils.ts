@@ -74,6 +74,12 @@ export function dateToText(date?: DateValue): string {
   return base ? `${base}${suffix}` : '';
 }
 
+function formatYearsRange(start: string, end: string): string {
+  if (!start) return end;
+  if (!end) return start;
+  return `${start} – ${end}`;
+}
+
 export function formatLifeDates(
   person: Person,
   format: 'full' | 'years' | 'hidden',
@@ -86,7 +92,7 @@ export function formatLifeDates(
   if (format === 'years') {
     const birthYears = formatDateForYearsMode(person.birth?.date);
     const deathYears = formatDateForYearsMode(person.death?.date);
-    if (hasBirth && hasDeath) return `${birthYears}–${deathYears}`;
+    if (hasBirth && hasDeath) return formatYearsRange(birthYears, deathYears);
     if (hasBirth) return birthYears;
     return deathYears ? `ум. ${deathYears}` : '';
   }
@@ -855,7 +861,7 @@ export function formatMarriageDates(union: Union, format: DateDisplayFormat = 'f
     const start = formatDateForYearsMode(union.marriageStart);
     if (!divorced) return start;
     const end = formatDateForYearsMode(union.marriageEnd);
-    if (start && end) return `${start}–${end}`;
+    if (start && end) return formatYearsRange(start, end);
     if (start) return `${start}–`;
     if (end) return `–${end}`;
     return '';

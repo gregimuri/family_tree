@@ -263,6 +263,8 @@ export function TreeView() {
         setLayoutSelection(next);
         dragIds = [...next];
         if (dragIds.length === 0) return;
+      } else if (layoutSelection.has(personId) && layoutSelection.size > 1) {
+        dragIds = [...layoutSelection];
       } else {
         dragIds = [personId];
         setLayoutSelection(new Set([personId]));

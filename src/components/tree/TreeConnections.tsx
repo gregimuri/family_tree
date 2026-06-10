@@ -128,7 +128,7 @@ export function MarriageBondLinesBehindCards({
             fill="none"
             stroke={highlighted ? '#eab308' : theme === 'forest' ? '#5d4037' : '#64748b'}
             strokeWidth={(theme === 'forest' ? 2.5 : 2) + strokeExtra}
-            strokeLinecap="round"
+            strokeLinecap="butt"
             strokeLinejoin="round"
             className={highlighted ? 'tree-edge--selected' : undefined}
           />

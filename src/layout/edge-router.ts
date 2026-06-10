@@ -20,13 +20,17 @@ export function marriageStemStartY(bondY: number, showLabel: boolean): number {
   return bondY + MARRIAGE_BOND_LABEL_GAP + MARRIAGE_BOND_LABEL_HEIGHT + MARRIAGE_STEM_GAP;
 }
 
-/** Bond anchors at the center of each partner card bottom edge. */
+/** Bond anchors at inner bottom corners between partner cards. */
 export function getCoupleBondGeometry(left: LayoutNode, right: LayoutNode) {
-  const bondY = Math.max(left.y + left.height, right.y + right.height);
-  const leftX = left.x + left.width / 2;
-  const rightX = right.x + right.width / 2;
+  const leftBottom = left.y + left.height;
+  const rightBottom = right.y + right.height;
+  const bondY = Math.max(leftBottom, rightBottom);
+  const leftX = left.x + left.width;
+  const rightX = right.x;
   return {
     bondY,
+    leftBottom,
+    rightBottom,
     leftX,
     rightX,
     midX: (leftX + rightX) / 2,
@@ -34,11 +38,19 @@ export function getCoupleBondGeometry(left: LayoutNode, right: LayoutNode) {
 }
 
 export function routeCoupleBond(left: LayoutNode, right: LayoutNode): { x: number; y: number }[] {
-  const { leftX, rightX, bondY } = getCoupleBondGeometry(left, right);
-  return [
-    { x: leftX, y: bondY },
-    { x: rightX, y: bondY },
-  ];
+  const { bondY, leftBottom, rightBottom, leftX, rightX } = getCoupleBondGeometry(left, right);
+  const points: { x: number; y: number }[] = [];
+
+  if (leftBottom < bondY - 0.01) {
+    points.push({ x: leftX, y: leftBottom });
+  }
+  points.push({ x: leftX, y: bondY });
+  points.push({ x: rightX, y: bondY });
+  if (rightBottom < bondY - 0.01) {
+    points.push({ x: rightX, y: rightBottom });
+  }
+
+  return points;
 }
 
 /** Union id from edge id `bond@{uuid}` (legacy: `bond-{uuid}-{layer}` with layer ≥ 0). */
@@ -269,7 +281,5 @@ export function branchPath(points: { x: number; y: number }[]): string {
 }
 
 export function coupleBondPath(points: { x: number; y: number }[]): string {
-  if (points.length < 2) return '';
-  const [a, b] = points;
-  return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+  return edgePath(points);
 }
