@@ -27,6 +27,7 @@ import './TreeView.css';
 import { snapCardCenterToGridCorners } from '../../layout/card-dimensions';
 import { normalizeRect, rectsIntersect, isMarqueePointerTarget, applyMarqueeSelection } from './layout-selection-utils';
 import type { LayoutNode } from '../../types';
+import type { ProjectSnapshot } from '../../store/project-history';
 
 const MARQUEE_MIN_SIZE = 4;
 
@@ -55,6 +56,7 @@ export function TreeView() {
   const clearManualLayout = useProjectStore((s) => s.clearManualLayout);
   const setManualEdgeRoute = useProjectStore((s) => s.setManualEdgeRoute);
   const clearManualEdgeRoute = useProjectStore((s) => s.clearManualEdgeRoute);
+  const captureProjectSnapshot = useProjectStore((s) => s.captureProjectSnapshot);
   const syncLayoutPositions = useProjectStore((s) => s.syncLayoutPositions);
   const dossierPersonId = useProjectStore((s) => s.dossierPersonId);
   const mediaViewerId = useProjectStore((s) => s.mediaViewerId);
@@ -67,7 +69,10 @@ export function TreeView() {
   const layoutGroupRef = useRef<SVGGElement>(null);
   const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [marriageEditUnionId, setMarriageEditUnionId] = useState<string | null>(null);
+  const [marriageEdit, setMarriageEdit] = useState<{
+    unionId: string;
+    snapshot: ProjectSnapshot | null;
+  } | null>(null);
   const [layoutSelection, setLayoutSelection] = useState<Set<string>>(() => new Set());
   const [marquee, setMarquee] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(
     null,
@@ -84,10 +89,38 @@ export function TreeView() {
     return { layout: built, frame: treeFrame };
   }, [project]);
 
+  const layoutSyncKey = useMemo(() => {
+    if (!project) return '';
+    return [
+      Object.keys(project.persons).length,
+      Object.keys(project.unions).length,
+      Object.keys(project.manualLayout ?? {}).length,
+      project.viewSettings.generationsUp,
+      project.viewSettings.generationsDown,
+      project.viewSettings.sideBranchesAt,
+      project.viewSettings.sideBranchDepth,
+      project.viewSettings.cardSizeMode,
+      project.viewSettings.showAllPersons ? 1 : 0,
+      project.viewSettings.showDiedBefore18 ? 1 : 0,
+    ].join('|');
+  }, [project]);
+
   useEffect(() => {
     if (!project) return;
     syncLayoutPositions();
-  }, [project, syncLayoutPositions]);
+  }, [layoutSyncKey, project, syncLayoutPositions]);
+
+  const openMarriageEdit = useCallback(
+    (unionId: string) => {
+      setMarriageEdit({
+        unionId,
+        snapshot: mode === 'edit' ? captureProjectSnapshot() : null,
+      });
+    },
+    [mode, captureProjectSnapshot],
+  );
+
+  const closeMarriageEdit = useCallback(() => setMarriageEdit(null), []);
 
   const handleSelectEdge = useCallback((edgeId: string | null, additive = false) => {
     setSelectedEdgeId(edgeId);
@@ -341,7 +374,13 @@ export function TreeView() {
 
   useKeyboardNav({ transformRef, enabled: !manualLayoutMode });
   const onTreeInit = useTreeWheel(transformRef);
-  useCenterTreeView({ transformRef, project, layout, frame, enabled: !manualLayoutMode });
+  const { onTransformed: onTreeTransformed } = useCenterTreeView({
+    transformRef,
+    project,
+    layout,
+    frame,
+    enabled: !manualLayoutMode,
+  });
 
   if (!project || !layout || !frame) return null;
 
@@ -500,6 +539,7 @@ export function TreeView() {
         }}
         doubleClick={{ disabled: true }}
         onInit={onTreeInit}
+        onTransform={(ref) => onTreeTransformed(ref)}
       >
         {() => (
           <TransformComponent
@@ -600,7 +640,7 @@ export function TreeView() {
                   theme={theme}
                   project={project}
                   marriageDateFormat={project.viewSettings.cardFields.marriageDateFormat}
-                  onUnionDoubleClick={setMarriageEditUnionId}
+                  onUnionDoubleClick={openMarriageEdit}
                   active={manualLayoutMode}
                   selectedEdgeId={selectedEdgeId}
                   onSelectEdge={handleSelectEdge}
@@ -639,8 +679,13 @@ export function TreeView() {
         />
       )}
       {dossierPersonId && <PersonDossier key={dossierPersonId} personId={dossierPersonId} />}
-      {marriageEditUnionId && (
-        <MarriageEditDialog unionId={marriageEditUnionId} onClose={() => setMarriageEditUnionId(null)} />
+      {marriageEdit && (
+        <MarriageEditDialog
+          key={marriageEdit.unionId}
+          unionId={marriageEdit.unionId}
+          editSnapshot={marriageEdit.snapshot}
+          onClose={closeMarriageEdit}
+        />
       )}
       {mediaViewerId && <MediaViewer mediaId={mediaViewerId} />}
     </div>

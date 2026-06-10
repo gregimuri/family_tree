@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createEmptyProject, createEmptyPerson, defaultCardFields, normalizeCardFields } from '../models/defaults';
 import {
+  calcAge,
   dateToText,
   formatAgeYears,
   formatCardAge,
@@ -896,13 +897,26 @@ describe('dates', () => {
   });
 
   it('formats age with russian declension and hides approximate dates', () => {
-    expect(formatAgeYears(71)).toBe('71 год');
-    expect(formatAgeYears(63)).toBe('63 года');
-    expect(formatAgeYears(80)).toBe('80 лет');
-    expect(formatAgeYears(11)).toBe('11 лет');
-    expect(formatAgeYears(21)).toBe('21 год');
+    expect(formatAgeYears(71)).toBe('71\u00a0год');
+    expect(formatAgeYears(63)).toBe('63\u00a0года');
+    expect(formatAgeYears(80)).toBe('80\u00a0лет');
+    expect(formatAgeYears(11)).toBe('11\u00a0лет');
+    expect(formatAgeYears(21)).toBe('21\u00a0год');
     const approximate = createEmptyPerson({ birth: { date: { text: 'ок. 1951', year: 1951 } } });
     expect(formatCardAge(approximate)).toBeNull();
+  });
+
+  it('calcAge respects exact birth and death dates', () => {
+    const person = createEmptyPerson({
+      birth: { date: { year: 1980, month: 12, day: 31 } },
+      death: { date: { year: 2020, month: 1, day: 1 } },
+    });
+    expect(calcAge(person)).toBe(39);
+    const exactBirthday = createEmptyPerson({
+      birth: { date: { year: 1980, month: 12, day: 31 } },
+      death: { date: { year: 2020, month: 12, day: 31 } },
+    });
+    expect(calcAge(exactBirthday)).toBe(40);
   });
 
   it('appends old-style suffix for julian dates', () => {

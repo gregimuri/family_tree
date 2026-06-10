@@ -7,6 +7,7 @@ import {
   getCardBirthSuffix,
   getPersonLocationCardText,
 } from '../../models/person-utils';
+import { formatReligion } from '../../models/religion';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -249,14 +250,34 @@ export async function replaceForeignObjectsWithVectorCards(
 
     const dates = formatLifeDates(person, cf.dateFormat);
     const ageLabel = cf.showAge ? formatCardAge(person) : null;
-    const meta = [dates, ageLabel ? (dates ? ` (${ageLabel})` : `(${ageLabel})`) : ''].join('');
-    if (meta) {
-      appendText(group, cx, Math.min(textY, height - 10), meta, {
+    if (dates) {
+      appendText(group, cx, Math.min(textY, height - 10), dates, {
         fontSize: 9,
         fill: '#57534e',
         fontFamily,
       });
       textY += 11;
+    }
+    if (ageLabel) {
+      appendText(group, cx, Math.min(textY, height - 10), `(${ageLabel})`, {
+        fontSize: 9,
+        fill: '#57534e',
+        fontFamily,
+      });
+      textY += 11;
+    }
+
+    const religion =
+      cf.showReligion && (person.religion ?? 'none') !== 'none'
+        ? formatReligion(person.religion)
+        : null;
+    if (religion) {
+      appendText(group, cx, Math.min(textY + 1, height - 6), religion, {
+        fontSize: 8,
+        fill: '#78716c',
+        fontFamily,
+      });
+      textY += 10;
     }
 
     const location = cf.showLocation ? getPersonLocationCardText(person) : null;

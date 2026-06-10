@@ -164,6 +164,17 @@
   color: var(--color-text-secondary);
 }
 
+.person-card-html__age {
+  white-space: nowrap;
+}
+
+.person-card-html__religion {
+  margin-top: 1px;
+  font-size: 8px;
+  line-height: 1.25;
+  color: var(--color-text-muted);
+}
+
 .person-card-html__location {
   margin-top: 1px;
   font-size: 8px;

@@ -8,6 +8,7 @@ import {
 } from '../../models/person-utils';
 import { personShowsCardPhoto } from '../../layout/card-dimensions';
 import { computeCardNameFontSizes } from '../../layout/card-name-font';
+import { formatReligion } from '../../models/religion';
 import './PersonCard.css';
 
 interface PersonCardProps {
@@ -129,6 +130,10 @@ export function PersonCardWithMedia({
   const dates = formatLifeDates(person, cf.dateFormat);
   const ageLabel = cf.showAge ? formatCardAge(person) : null;
   const location = cf.showLocation ? getPersonLocationCardText(person) : null;
+  const religion =
+    (cf.showReligion ?? false) && (person.religion ?? 'none') !== 'none'
+      ? formatReligion(person.religion)
+      : null;
   const hasPhoto = personShowsCardPhoto(project, person, settings);
   const avatarUrl = hasPhoto
     ? (() => {
@@ -314,9 +319,14 @@ export function PersonCardWithMedia({
               {(dates || ageLabel) && (
                 <div className="person-card-html__meta">
                   {dates && <span>{dates}</span>}
-                  {ageLabel && <span>{dates ? ` (${ageLabel})` : `(${ageLabel})`}</span>}
+                  {ageLabel && (
+                    <span className="person-card-html__age">
+                      {dates ? ' ' : ''}({ageLabel})
+                    </span>
+                  )}
                 </div>
               )}
+              {religion && <div className="person-card-html__religion">{religion}</div>}
               {location && <div className="person-card-html__location">{location}</div>}
             </div>
           </div>

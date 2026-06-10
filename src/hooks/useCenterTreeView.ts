@@ -1,11 +1,13 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { LayoutResult, Project } from '../types';
 import type { TreeFrame } from '../layout/center-focus';
 import {
+  applyViewportTransform,
   buildViewportKey,
   fitTreeToViewport,
   type TreeFitMode,
+  type ViewportTransform,
 } from './tree-viewport';
 
 export {
@@ -53,6 +55,23 @@ function scheduleFit(
   return () => cancelAnimationFrame(raf);
 }
 
+function computeViewportKey(project: Project, layout: LayoutResult): string {
+  const manualCount = Object.keys(project.manualLayout ?? {}).length;
+  return buildViewportKey(
+    project.center.type,
+    project.center.id,
+    layout,
+    manualCount,
+    project.viewSettings.generationsUp,
+    project.viewSettings.generationsDown,
+    project.viewSettings.sideBranchesAt,
+    project.viewSettings.sideBranchDepth,
+    project.viewSettings.cardSizeMode,
+    !!project.viewSettings.showAllPersons,
+    project.viewSettings.showDiedBefore18,
+  );
+}
+
 export function useCenterTreeView({
   transformRef,
   project,
@@ -61,38 +80,47 @@ export function useCenterTreeView({
   enabled = true,
 }: UseCenterTreeViewOptions) {
   const viewportKeyRef = useRef('');
+  const transformSnapshotRef = useRef<ViewportTransform | null>(null);
   const layoutRef = useRef(layout);
   const frameRef = useRef(frame);
+  const projectRef = useRef(project);
   const enabledRef = useRef(enabled);
+  const wrapperSizeRef = useRef({ w: 0, h: 0 });
 
   useLayoutEffect(() => {
     layoutRef.current = layout;
     frameRef.current = frame;
+    projectRef.current = project;
     enabledRef.current = enabled;
-  }, [layout, frame, enabled]);
+  }, [layout, frame, project, enabled]);
+
+  const onTransformed = useCallback((ref: ReactZoomPanPinchRef) => {
+    transformSnapshotRef.current = {
+      positionX: ref.state.positionX,
+      positionY: ref.state.positionY,
+      scale: ref.state.scale,
+    };
+  }, []);
 
   useEffect(() => {
     if (enabled) viewportKeyRef.current = '';
   }, [enabled]);
 
+  useLayoutEffect(() => {
+    if (!enabled || !project || !layout || !frame) return;
+    const key = computeViewportKey(project, layout);
+    if (key === viewportKeyRef.current && key !== '' && transformSnapshotRef.current) {
+      const ref = transformRef.current;
+      if (ref) {
+        applyViewportTransform(ref, transformSnapshotRef.current, 0);
+      }
+    }
+  }, [enabled, project, layout, frame, transformRef]);
+
   useEffect(() => {
     if (!enabled || !project || !layout || !frame) return;
 
-    const manualCount = Object.keys(project.manualLayout ?? {}).length;
-    const key = buildViewportKey(
-      project.center.type,
-      project.center.id,
-      layout,
-      manualCount,
-      project.viewSettings.generationsUp,
-      project.viewSettings.generationsDown,
-      project.viewSettings.sideBranchesAt,
-      project.viewSettings.sideBranchDepth,
-      project.viewSettings.cardSizeMode,
-      !!project.viewSettings.showAllPersons,
-      project.viewSettings.showDiedBefore18,
-    );
-
+    const key = computeViewportKey(project, layout);
     if (viewportKeyRef.current === key) return;
     viewportKeyRef.current = key;
 
@@ -113,6 +141,13 @@ export function useCenterTreeView({
     const onResize = () => {
       if (debounce) clearTimeout(debounce);
       debounce = setTimeout(() => {
+        const wrapper = transformRef.current?.instance.wrapperComponent;
+        if (!wrapper) return;
+        const w = wrapper.clientWidth;
+        const h = wrapper.clientHeight;
+        if (w === wrapperSizeRef.current.w && h === wrapperSizeRef.current.h) return;
+        wrapperSizeRef.current = { w, h };
+
         cancelRaf?.();
         const liveRef = transformRef.current;
         const liveLayout = layoutRef.current;
@@ -130,6 +165,7 @@ export function useCenterTreeView({
         }
         return;
       }
+      wrapperSizeRef.current = { w: wrapper.clientWidth, h: wrapper.clientHeight };
       observer = new ResizeObserver(onResize);
       observer.observe(wrapper);
     };
@@ -142,7 +178,9 @@ export function useCenterTreeView({
       if (debounce) clearTimeout(debounce);
       cancelRaf?.();
     };
-  }, [enabled, transformRef, layout, frame]);
+  }, [enabled, transformRef]);
+
+  return { onTransformed };
 }
 
 /** Вписать всё дерево в область просмотра (кнопка «показать всё»). */

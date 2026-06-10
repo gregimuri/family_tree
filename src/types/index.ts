@@ -8,6 +8,16 @@ export type LocationDisplaySource =
   | 'death'
   | 'burial'
   | `residence:${string}`;
+
+export type Religion =
+  | 'none'
+  | 'anglican'
+  | 'jewish'
+  | 'catholic'
+  | 'lutheran'
+  | 'muslim'
+  | 'orthodox'
+  | 'old_believer';
 export type MediaType = 'photo' | 'video' | 'audio' | 'document';
 export type CenterType = 'person' | 'family';
 
@@ -64,6 +74,7 @@ export interface Person {
   mainResidence?: Place;
   residences?: ResidenceEntry[];
   cardLocationSource: LocationDisplaySource;
+  religion?: Religion;
   avatar?: AvatarCrop;
   biography: string;
   parentUnionIds: string[];
@@ -116,6 +127,8 @@ export interface CardFieldSettings {
   showAge: boolean;
   showLocation: boolean;
   showPhoto: boolean;
+  /** Показывать вероисповедание на карточке. */
+  showReligion?: boolean;
   /** @deprecated migrated to marriageDateFormat */
   showMarriageYears?: boolean;
   marriageDateFormat: DateDisplayFormat;

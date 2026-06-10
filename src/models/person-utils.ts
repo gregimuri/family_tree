@@ -106,9 +106,20 @@ export function formatLifeDates(
 
 export function calcAge(person: Person, atYear = new Date().getFullYear()): number | null {
   if (!canShowCardAge(person)) return null;
-  const by = person.birth!.date!.year!;
-  const dy = person.death?.date?.year ?? atYear;
-  const age = dy - by;
+  const birth = person.birth!.date!;
+  const end = person.death?.date ?? { year: atYear, month: 12, day: 31 };
+  return ageBetweenDates(birth, end);
+}
+
+/** Full years between two dates; partial months/days reduce age by one. */
+export function ageBetweenDates(birth: DateValue, end: DateValue): number | null {
+  if (!birth.year || !end.year) return null;
+  const bMonth = birth.month ?? 1;
+  const bDay = birth.day ?? 1;
+  const eMonth = end.month ?? 12;
+  const eDay = end.day ?? (end.month ? 1 : 31);
+  let age = end.year - birth.year;
+  if (eMonth < bMonth || (eMonth === bMonth && eDay < bDay)) age -= 1;
   return age >= 0 ? age : null;
 }
 
@@ -829,9 +840,10 @@ function hasExactYear(date?: DateValue): boolean {
 export function canShowCardAge(person: Person): boolean {
   if (!hasExactYear(person.birth?.date)) return false;
   if (person.death?.date) {
-    if (!hasExactYear(person.death.date)) return false;
-    const age = person.death.date.year! - person.birth!.date!.year!;
-    return age >= 0;
+    if (!person.death.date.year) return false;
+    if (person.death.date.text?.trim() && !hasExactYear(person.death.date)) return false;
+    const age = ageBetweenDates(person.birth!.date!, person.death.date);
+    return age !== null && age >= 0;
   }
   return true;
 }
@@ -839,10 +851,15 @@ export function canShowCardAge(person: Person): boolean {
 export function formatAgeYears(age: number): string {
   const mod100 = Math.abs(age) % 100;
   const mod10 = mod100 % 10;
-  if (mod100 > 10 && mod100 < 20) return `${age} лет`;
-  if (mod10 > 1 && mod10 < 5) return `${age} года`;
-  if (mod10 === 1) return `${age} год`;
-  return `${age} лет`;
+  const suffix =
+    mod100 > 10 && mod100 < 20
+      ? 'лет'
+      : mod10 > 1 && mod10 < 5
+        ? 'года'
+        : mod10 === 1
+          ? 'год'
+          : 'лет';
+  return `${age}\u00a0${suffix}`;
 }
 
 export function formatCardAge(person: Person, atYear = new Date().getFullYear()): string | null {

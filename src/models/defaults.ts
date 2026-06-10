@@ -11,6 +11,7 @@ export const defaultCardFields = (): CardFieldSettings => ({
   showAge: false,
   showLocation: true,
   showPhoto: true,
+  showReligion: false,
   marriageDateFormat: 'full',
 });
 
@@ -57,6 +58,7 @@ export const createEmptyPerson = (partial?: Partial<Person>): Person => ({
   mediaIds: partial?.mediaIds ?? [],
   cardLocationSource: partial?.cardLocationSource ?? 'birth',
   ...partial,
+  religion: partial?.religion ?? 'none',
 });
 
 export const createEmptyProject = (name = 'Новый проект'): Project => {

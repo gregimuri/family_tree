@@ -16,3 +16,9 @@
   font-size: 14px;
   color: var(--color-text-secondary);
 }
+
+.marriage-edit-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
