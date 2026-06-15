@@ -2,7 +2,10 @@ import { useMemo, type PointerEvent as ReactPointerEvent } from 'react';
 import type { LayoutEdge, Project, DateDisplayFormat } from '../../types';
 import { branchPath, coupleBondPath, edgePath, isBondEdge } from '../../layout/edge-router';
 import { CARD_GRID_CELL, snapToGridCorner } from '../../layout/card-dimensions';
-import { constrainManualRoutePoint } from '../../layout/manual-edge-routes';
+import {
+  constrainManualRoutePoint,
+  isLockedManualRoutePoint,
+} from '../../layout/manual-edge-routes';
 import { useProjectStore } from '../../store/project-store';
 import { PedigreeConnections, MarriageBonds } from './TreeConnections';
 interface EditableTreeConnectionsProps {
@@ -122,16 +125,19 @@ export function EditableTreeConnections({
       />
 
       {active &&
-        selectedEdge?.points.map((point, index) => (
-          <circle
-            key={`${selectedEdge.id}-${index}`}
-            cx={point.x}
-            cy={point.y}
-            r={5}
-            className="tree-edge-handle"
-            onPointerDown={(e) => startPointDrag(selectedEdge, index, selectedEdge.points, e)}
-          />
-        ))}
+        selectedEdge?.points.map((point, index) => {
+          if (isLockedManualRoutePoint(selectedEdge.id, index, selectedEdge.points)) return null;
+          return (
+            <circle
+              key={`${selectedEdge.id}-${index}`}
+              cx={point.x}
+              cy={point.y}
+              r={5}
+              className="tree-edge-handle"
+              onPointerDown={(e) => startPointDrag(selectedEdge, index, selectedEdge.points, e)}
+            />
+          );
+        })}
     </g>
   );
 }

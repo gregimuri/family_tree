@@ -1,3 +1,32 @@
+.marriage-edit-dialog {
+  position: relative;
+}
+
+.marriage-edit-dialog .person-search-dialog__close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--color-bg-muted);
+  border-radius: var(--radius-full, 999px);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  transition: background var(--transition, 0.15s ease);
+}
+
+.marriage-edit-dialog .person-search-dialog__close:hover {
+  background: #fecaca;
+  color: #b91c1c;
+}
+
+.marriage-edit-dialog h4 {
+  padding-right: 40px;
+}
+
 .marriage-edit-dialog__hint {
   margin: 0 0 12px;
   font-size: 13px;

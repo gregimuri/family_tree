@@ -1,6 +1,6 @@
 import type { LayoutNode, Person, Project, ViewSettings } from '../../types';
 import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
-import { buildCardNameFontLines, computeCardNameFontSizes } from '../../layout/card-name-font';
+import { resolveCardTypography } from '../../layout/card-name-font';
 import { PDF_FONT_BOLD, PDF_FONT_REGULAR } from './pdf-font';
 import {
   formatCardAge,
@@ -192,24 +192,41 @@ export async function replaceForeignObjectsWithVectorCards(
       }
     }
 
-    const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
-    const nameLines = buildCardNameFontLines(person, cf.showBirthName, !!nicknameAsPrimary);
-    const nameSizes = computeCardNameFontSizes(nameLines, width, cardScale);
+    const nicknameAsPrimary = Boolean(cf.showNickname && person.nickname && cf.nicknamePriority);
+    const dates = formatLifeDates(person, cf.dateFormat);
+    const ageLabel = cf.showAge ? formatCardAge(person) : null;
+    const religionText =
+      cf.showReligion && (person.religion ?? 'none') !== 'none'
+        ? formatReligion(person.religion)
+        : null;
+    const location = cf.showLocation ? getPersonLocationCardText(person) : null;
+
+    const typography = resolveCardTypography(person, {
+      showBirth: cf.showBirthName,
+      nicknameAsPrimary,
+      width,
+      height,
+      hasPhoto,
+      cardScale,
+      footer: {
+        hasDates: Boolean(dates),
+        hasAge: Boolean(ageLabel),
+        hasReligion: Boolean(religionText),
+        hasLocation: Boolean(location),
+        hasNickname: Boolean(cf.showNickname && person.nickname && !cf.nicknamePriority),
+      },
+    });
 
     if (nicknameAsPrimary) {
       appendText(group, cx, textY, person.nickname!, {
-        fontSize: nameSizes[0],
+        fontSize: typography.surname,
         fontWeight: 700,
         fontFamily: fontFamilyBold,
       });
-      textY += nameSizes[0] * 1.25;
+      textY += typography.surname * 1.25;
     } else {
-      let sizeIndex = 0;
-      const surnameMainSize = nameSizes[sizeIndex++] ?? 11;
-      const hasBirthSurnameLine =
-        Boolean(getCardBirthSuffix(person.surname, person.birthSurname, cf.showBirthName) &&
-          (person.surname ?? '').trim());
-      const surnameBirthSize = hasBirthSurnameLine ? (nameSizes[sizeIndex++] ?? surnameMainSize) : surnameMainSize;
+      const surnameMainSize = typography.surname;
+      const surnameBirthSize = typography.surname * 0.9;
 
       textY = buildNameLine(
         group,
@@ -225,7 +242,6 @@ export async function replaceForeignObjectsWithVectorCards(
         fontFamilyBold,
         true,
       );
-      const givenSize = nameSizes[sizeIndex++] ?? 10;
       textY = buildNameLine(
         group,
         cx,
@@ -233,13 +249,12 @@ export async function replaceForeignObjectsWithVectorCards(
         person.givenName,
         person.birthGivenName,
         cf.showBirthName,
-        givenSize,
-        givenSize,
+        typography.given,
+        typography.given,
         400,
         '#1c1917',
         fontFamily,
       );
-      const patronymicSize = nameSizes[sizeIndex] ?? 9;
       textY = buildNameLine(
         group,
         cx,
@@ -247,58 +262,51 @@ export async function replaceForeignObjectsWithVectorCards(
         person.patronymic,
         person.birthPatronymic,
         cf.showBirthName,
-        patronymicSize,
-        patronymicSize,
+        typography.patronymic,
+        typography.patronymic,
         400,
         '#57534e',
         fontFamily,
       );
       if (cf.showNickname && person.nickname && !cf.nicknamePriority) {
         appendText(group, cx, textY, `«${person.nickname}»`, {
-          fontSize: 9 * cardScale,
+          fontSize: typography.nickname,
           fill: '#78716c',
           fontFamily,
         });
-        textY += 12 * cardScale;
+        textY += typography.nickname * 1.25 + 2;
       }
     }
 
-    const dates = formatLifeDates(person, cf.dateFormat);
-    const ageLabel = cf.showAge ? formatCardAge(person) : null;
     if (dates) {
-      appendText(group, cx, Math.min(textY, height - 10), dates, {
-        fontSize: 9 * cardScale,
+      appendText(group, cx, textY, dates, {
+        fontSize: typography.meta,
         fill: '#57534e',
         fontFamily,
       });
-      textY += 11 * cardScale;
+      textY += typography.meta * 1.25;
     }
     if (ageLabel) {
-      appendText(group, cx, Math.min(textY, height - 10), `(${ageLabel})`, {
-        fontSize: 9 * cardScale,
+      appendText(group, cx, textY, `(${ageLabel})`, {
+        fontSize: typography.meta,
         fill: '#57534e',
         fontFamily,
       });
-      textY += 11 * cardScale;
+      textY += typography.meta * 1.25;
     }
 
-    const religion =
-      cf.showReligion && (person.religion ?? 'none') !== 'none'
-        ? formatReligion(person.religion)
-        : null;
-    if (religion) {
-      appendText(group, cx, Math.min(textY + 1, height - 6), religion, {
-        fontSize: 8 * cardScale,
+    if (religionText) {
+      appendText(group, cx, textY + 1, religionText, {
+        fontSize: typography.secondary,
         fill: '#78716c',
         fontFamily,
       });
-      textY += 10 * cardScale;
+      textY += typography.secondary * 1.25 + 1;
     }
 
-    const location = cf.showLocation ? getPersonLocationCardText(person) : null;
     if (location) {
-      appendText(group, cx, Math.min(textY + 2, height - 4), location, {
-        fontSize: 8 * cardScale,
+      appendText(group, cx, textY + 2, location, {
+        fontSize: typography.secondary,
         fill: '#78716c',
         fontFamily,
       });

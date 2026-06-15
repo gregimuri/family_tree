@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import type { MediaItem } from '../../types';
+import type { AvatarCrop, MediaItem } from '../../types';
 import { useProjectStore } from '../../store/project-store';
 import { createId } from '../../utils/create-id';
+import { PersonSearchDialog } from '../dossier/PersonSearchDialog';
 import { MediaListThumb } from '../dossier/MediaListThumb';
 import './MediaGallery.css';
 
@@ -31,9 +32,11 @@ export function MediaGallery({ onClose, canEdit }: MediaGalleryProps) {
   const updateMedia = useProjectStore((s) => s.updateMedia);
   const deleteMedia = useProjectStore((s) => s.deleteMedia);
   const addMedia = useProjectStore((s) => s.addMedia);
+  const updatePerson = useProjectStore((s) => s.updatePerson);
   const openMediaViewer = useProjectStore((s) => s.openMediaViewer);
 
   const [query, setQuery] = useState('');
+  const [avatarPickMediaId, setAvatarPickMediaId] = useState<string | null>(null);
 
   const items = useMemo(() => {
     if (!project) return [];
@@ -62,6 +65,33 @@ export function MediaGallery({ onClose, canEdit }: MediaGalleryProps) {
       return;
     }
     deleteMedia(mediaId);
+  };
+
+  const assignPhotoToPerson = (personId: string) => {
+    if (!avatarPickMediaId) return;
+    const media = project.media[avatarPickMediaId];
+    const person = project.persons[personId];
+    if (!media || media.type !== 'photo' || !person) return;
+
+    const avatar: AvatarCrop = {
+      mediaId: media.id,
+      x: 0,
+      y: 0,
+      width: 1,
+      height: 1,
+      rotation: 0,
+      scale: 1,
+    };
+    const mediaIds = person.mediaIds.includes(media.id)
+      ? person.mediaIds
+      : [...person.mediaIds, media.id];
+    const personIds = media.personIds.includes(personId)
+      ? media.personIds
+      : [...media.personIds, personId];
+
+    updatePerson({ ...person, avatar, mediaIds });
+    updateMedia({ ...media, personIds });
+    setAvatarPickMediaId(null);
   };
 
   return (
@@ -136,6 +166,16 @@ export function MediaGallery({ onClose, canEdit }: MediaGalleryProps) {
                           onChange={(e) => updateMedia({ ...m, description: e.target.value })}
                           placeholder="Описание"
                         />
+                        {m.type === 'photo' && (
+                          <button
+                            type="button"
+                            className="btn media-gallery__assign-photo"
+                            onClick={() => setAvatarPickMediaId(m.id)}
+                            title="Назначить фото персоне"
+                          >
+                            Фото персоне
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="media-gallery__delete"
@@ -156,6 +196,16 @@ export function MediaGallery({ onClose, canEdit }: MediaGalleryProps) {
           </ul>
         )}
       </div>
+
+      {avatarPickMediaId && (
+        <PersonSearchDialog
+          project={project}
+          title="Назначить фото персоне"
+          hint="Выберите персону, для которой это изображение станет фотографией на карточке."
+          onSelect={assignPhotoToPerson}
+          onClose={() => setAvatarPickMediaId(null)}
+        />
+      )}
     </div>
   );
 }

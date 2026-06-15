@@ -153,8 +153,6 @@ const INLINE_STYLE_PROPS = [
   'width',
   'word-wrap',
   'overflow-wrap',
-  '-webkit-line-clamp',
-  '-webkit-box-orient',
 ] as const;
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -206,6 +204,43 @@ async function embedImages(root: ParentNode): Promise<void> {
       }
     }),
   );
+}
+
+function prepareCardCloneForRaster(source: HTMLElement, cardCopy: HTMLElement, width: number, height: number): void {
+  cardCopy.querySelector('.person-card-html__drag-hint')?.remove();
+  cardCopy.classList.remove('manual-placed', 'layout-selected', 'selected');
+  cardCopy.style.width = `${width}px`;
+  cardCopy.style.height = `${height}px`;
+  cardCopy.style.minWidth = `${width}px`;
+  cardCopy.style.minHeight = `${height}px`;
+  cardCopy.style.maxWidth = `${width}px`;
+  cardCopy.style.transform = 'none';
+  cardCopy.style.display = 'flex';
+  cardCopy.style.flexDirection = 'column';
+  cardCopy.style.boxSizing = 'border-box';
+  cardCopy.style.overflow = 'hidden';
+
+  inlineStylesFromSource(source, cardCopy);
+  stripPersonCardSelectionChrome(cardCopy);
+
+  cardCopy.querySelectorAll('.person-card-html__location').forEach((el) => {
+    if (el instanceof HTMLElement) {
+      el.style.display = 'block';
+      el.style.overflow = 'hidden';
+      el.style.removeProperty('-webkit-line-clamp');
+      el.style.removeProperty('-webkit-box-orient');
+    }
+  });
+}
+
+function findCloneForeignObject(clone: SVGSVGElement, personId: string | undefined, index: number): Element | null {
+  if (personId) {
+    const card = clone.querySelector(`[data-person-id="${personId}"]`);
+    const fo = card?.closest('foreignObject');
+    if (fo) return fo;
+  }
+  const cloneForeignObjects = [...clone.querySelectorAll('foreignObject')];
+  return cloneForeignObjects[index] ?? null;
 }
 
 function inlineStylesFromSource(source: Element, clone: Element): void {
@@ -329,13 +364,13 @@ async function rasterizePersonCards(
   signal?: AbortSignal,
 ): Promise<void> {
   const sourceCards = [...source.querySelectorAll('foreignObject .person-card-html')] as HTMLElement[];
-  const cloneForeignObjects = [...clone.querySelectorAll('foreignObject')];
   const total = sourceCards.length;
 
   for (let i = 0; i < sourceCards.length; i++) {
     throwIfAborted(signal);
     const card = sourceCards[i];
-    const foreignObject = cloneForeignObjects[i];
+    const personId = card.dataset.personId;
+    const foreignObject = findCloneForeignObject(clone, personId, i);
     if (!card || !foreignObject) continue;
 
     onProgress?.(`Растеризация карточек: ${i + 1} / ${total}`, total > 0 ? (i + 0.5) / total : 0);
@@ -354,14 +389,9 @@ async function rasterizePersonCards(
     host.style.zIndex = '-1';
 
     const cardCopy = card.cloneNode(true) as HTMLElement;
-    cardCopy.querySelector('.person-card-html__drag-hint')?.remove();
-    cardCopy.style.width = `${width}px`;
-    cardCopy.style.height = `${height}px`;
-    cardCopy.style.transform = 'none';
+    prepareCardCloneForRaster(card, cardCopy, width, height);
     host.appendChild(cardCopy);
     document.body.appendChild(host);
-    inlineStylesFromSource(card, cardCopy);
-    stripPersonCardSelectionChrome(cardCopy);
 
     let dataUrl: string;
     try {

@@ -1,45 +1,51 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyProject } from '../models/defaults';
+import { createEmptyProject, createEmptyPerson } from '../models/defaults';
 import { buildLayout } from '../layout';
+import { bondEdgeId } from '../layout/edge-router';
 import {
   applyManualEdgeRoutes,
   constrainManualRoutePoint,
+  isLockedManualRoutePoint,
   rebuildEdgePathD,
 } from '../layout/manual-edge-routes';
 import { getPresetDimensions, mmToPx, orientPageDimensions, resolveExportResolution } from '../services/export/image-export';
 
 describe('manual edge routes', () => {
-  it('overrides auto-computed edge points', () => {
+  it('merges manual bond routes with auto card anchors', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
-    const edge = layout.edges[0];
-    expect(edge).toBeTruthy();
+    const bond = layout.edges.find((e) => e.id.startsWith('bond@'));
+    expect(bond).toBeTruthy();
 
+    const shiftedY = bond!.points[0].y + 12;
     const custom = [
-      { x: 0, y: 0 },
-      { x: 50, y: 80 },
-      { x: 100, y: 120 },
+      { x: 0, y: shiftedY },
+      { x: 999, y: shiftedY },
     ];
     const next = applyManualEdgeRoutes(layout, {
       ...project,
-      manualEdgeRoutes: { [edge.id]: custom },
+      manualEdgeRoutes: { [bond!.id]: custom },
     });
 
-    const updated = next.edges.find((e) => e.id === edge.id);
-    expect(updated?.points).toEqual(custom);
+    const updated = next.edges.find((e) => e.id === bond!.id);
+    expect(updated?.points[0].x).toBe(bond!.points[0].x);
+    expect(updated?.points[1].x).toBe(bond!.points[1].x);
+    expect(updated?.points[0].y).toBe(shiftedY);
+    expect(updated?.points[1].y).toBe(shiftedY);
   });
 
-  it('rebuilds pathD for fam-tree overrides', () => {
+  it('rebuilds pathD for fam-tree overrides with marriage stem', () => {
     const points = [
-      { x: 10, y: 0 },
+      { x: 10, y: 20 },
       { x: 10, y: 40 },
       { x: 0, y: 40 },
       { x: 20, y: 40 },
       { x: 5, y: 40 },
       { x: 5, y: 80 },
     ];
-    const pathD = rebuildEdgePathD('fam-tree-u1', points);
-    expect(pathD).toContain('M 10 0');
+    const pathD = rebuildEdgePathD('fam-tree-u1', points, { midX: 10, bondY: 10, stemStartY: 20 });
+    expect(pathD).toContain('M 10 10');
+    expect(pathD).toContain('L 10 20');
     expect(pathD).toContain('M 5 40');
   });
 
@@ -68,7 +74,7 @@ describe('manual edge routes', () => {
     expect(next[7].x).toBe(15);
   });
 
-  it('keeps fam-tree drop vertical when moving child endpoint', () => {
+  it('locks child card endpoints on fam-tree routes', () => {
     const points = [
       { x: 10, y: 0 },
       { x: 10, y: 40 },
@@ -77,16 +83,16 @@ describe('manual edge routes', () => {
       { x: 5, y: 40 },
       { x: 5, y: 80 },
     ];
+    expect(isLockedManualRoutePoint('fam-tree-u1', 5, points)).toBe(true);
     const next = constrainManualRoutePoint(
       { id: 'fam-tree-u1', points },
       5,
       { x: 99, y: 100 },
     );
-    expect(next[5]).toEqual({ x: 5, y: 100 });
-    expect(next[4].x).toBe(5);
+    expect(next).toEqual(points);
   });
 
-  it('allows vertical movement of marriage bond', () => {
+  it('allows vertical movement of marriage bond while keeping card anchors', () => {
     const points = [
       { x: 100, y: 80 },
       { x: 120, y: 80 },
@@ -94,10 +100,54 @@ describe('manual edge routes', () => {
     const next = constrainManualRoutePoint(
       { id: 'bond@u1', points },
       0,
-      { x: 100, y: 90 },
+      { x: 50, y: 90 },
     );
-    expect(next[0].y).toBe(90);
-    expect(next[1].y).toBe(90);
+    expect(next[0]).toEqual({ x: 100, y: 90 });
+    expect(next[1]).toEqual({ x: 120, y: 90 });
+  });
+
+  it('connects fam-tree path to bond after manual bond move', () => {
+    let project = createEmptyProject();
+    const unionId = Object.keys(project.unions)[0];
+    const child = createEmptyPerson({ givenName: 'Ребёнок', surname: 'Иванов', gender: 'male' });
+    project = {
+      ...project,
+      persons: { ...project.persons, [child.id]: child },
+      unions: {
+        ...project.unions,
+        [unionId]: {
+          ...project.unions[unionId],
+          childIds: [child.id],
+        },
+      },
+    };
+    project.persons[child.id] = {
+      ...child,
+      parentUnionIds: [unionId],
+    };
+
+    const layout = buildLayout(project);
+    const bond = layout.edges.find((e) => e.id === bondEdgeId(unionId));
+    const tree = layout.edges.find(
+      (e) => e.id === `fam-tree-${unionId}` || e.id.startsWith(`fam-branch-${unionId}-`),
+    );
+    expect(bond).toBeTruthy();
+    expect(tree).toBeTruthy();
+
+    const shiftedY = bond!.points[0].y + 16;
+    const midX = (bond!.points[0].x + bond!.points[1].x) / 2;
+    const next = applyManualEdgeRoutes(layout, {
+      ...project,
+      manualEdgeRoutes: {
+        [bond!.id]: [
+          { x: bond!.points[0].x, y: shiftedY },
+          { x: bond!.points[1].x, y: shiftedY },
+        ],
+      },
+    });
+
+    const updatedTree = next.edges.find((e) => e.id === tree!.id);
+    expect(updatedTree?.pathD).toContain(`M ${midX} ${shiftedY}`);
   });
 });
 

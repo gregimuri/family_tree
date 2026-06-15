@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { createEmptyProject, createEmptyPerson } from '../models/defaults';
-import { computeCardNameFontSizes } from '../layout/card-name-font';
+import {
+  cardBodyTextHeight,
+  computeCardNameFontSizes,
+  estimateCardTextHeight,
+  resolveCardTypography,
+} from '../layout/card-name-font';
 import {
   CARD_GRID_CELL,
   CARD_H_FULL,
@@ -54,5 +59,33 @@ describe('card dimensions', () => {
     const full = computeCardNameFontSizes(lines, CARD_W, 1)[0]!;
     const small = computeCardNameFontSizes(lines, CARD_W * 0.75, 0.75)[0]!;
     expect(small).toBeLessThan(full);
+  });
+
+  it('fits default FIO and footer into text-only card height', () => {
+    const fields = {
+      surname: 'Иванов',
+      givenName: 'Иван',
+      patronymic: 'Иванович',
+    };
+    const footer = {
+      hasDates: true,
+      hasAge: false,
+      hasReligion: false,
+      hasLocation: true,
+      hasNickname: false,
+    };
+    const typo = resolveCardTypography(fields, {
+      showBirth: false,
+      nicknameAsPrimary: false,
+      width: CARD_W,
+      height: CARD_H_TEXT,
+      hasPhoto: false,
+      cardScale: 1,
+      footer,
+    });
+    const available = cardBodyTextHeight(CARD_H_TEXT, false);
+    const used = estimateCardTextHeight(typo, fields, false, false, footer);
+    expect(used).toBeLessThanOrEqual(available + 0.5);
+    expect(typo.patronymic).toBeLessThan(12);
   });
 });

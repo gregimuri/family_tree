@@ -93,7 +93,15 @@
 
 .media-gallery__edit-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+}
+
+.media-gallery__assign-photo {
+  white-space: nowrap;
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .media-gallery__edit-row input {

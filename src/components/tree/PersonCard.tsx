@@ -7,7 +7,7 @@ import {
   getPersonLocationCardText,
 } from '../../models/person-utils';
 import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
-import { buildCardNameFontLines, computeCardNameFontSizes } from '../../layout/card-name-font';
+import { buildCardNameFontLines, computeCardNameFontSizes, resolveCardTypography } from '../../layout/card-name-font';
 import { formatReligion } from '../../models/religion';
 import './PersonCard.css';
 
@@ -57,12 +57,14 @@ function CardNameLine({
   showBirth,
   className,
   fontSize,
+  birthFontSize,
 }: {
   current: string | undefined;
   birth: string | undefined;
   showBirth: boolean;
   className: string;
   fontSize?: number;
+  birthFontSize?: number;
 }) {
   const main = cardNameLine(current);
   const suffix = getCardBirthSuffix(current, birth, showBirth);
@@ -74,16 +76,26 @@ function CardNameLine({
       </div>
     );
   }
+  const isSurname = className.includes('surname');
+  if (isSurname && suffix) {
+    return (
+      <>
+        <div className={className} style={fontSize ? { fontSize } : undefined}>
+          {main}
+        </div>
+        <div
+          className="person-card-html__birth-surname"
+          style={birthFontSize ? { fontSize: birthFontSize } : undefined}
+        >
+          ({suffix})
+        </div>
+      </>
+    );
+  }
   return (
     <div className={className} style={fontSize ? { fontSize } : undefined}>
       {main}
-      {suffix ? (
-        className.includes('surname') ? (
-          <div className="person-card-html__birth-surname">({suffix})</div>
-        ) : (
-          <span className="person-card-html__birth-name"> ({suffix})</span>
-        )
-      ) : null}
+      {suffix ? <span className="person-card-html__birth-name"> ({suffix})</span> : null}
     </div>
   );
 }
@@ -137,20 +149,39 @@ export function PersonCardWithMedia({
     : undefined;
 
   const showBirth = cf.showBirthName;
-  const nicknameAsPrimary = cf.showNickname && person.nickname && cf.nicknamePriority;
-
   const cardScale = width / CARD_W;
-  const nameFontLines = buildCardNameFontLines(person, showBirth, !!nicknameAsPrimary);
-  const nameFontSizes = computeCardNameFontSizes(nameFontLines, width, cardScale);
-
-  let nameSizeIndex = 0;
-  const surnameSize = nameFontSizes[nameSizeIndex++] ?? 11;
-  const hasBirthSurnameLine =
+  const nicknameAsPrimary = Boolean(cf.showNickname && person.nickname && cf.nicknamePriority);
+  const typography = resolveCardTypography(person, {
+    showBirth,
+    nicknameAsPrimary,
+    width,
+    height,
+    hasPhoto,
+    cardScale,
+    footer: {
+      hasDates: Boolean(dates),
+      hasAge: Boolean(ageLabel),
+      hasReligion: Boolean(religion),
+      hasLocation: Boolean(location),
+      hasNickname: Boolean(cf.showNickname && person.nickname && !cf.nicknamePriority),
+    },
+  });
+  const { surname: surnameSize, given: givenSize, patronymic: patronymicSize } = typography;
+  const metaSize = typography.meta;
+  const secondarySize = typography.secondary;
+  const nicknameSize = typography.nickname;
+  const nameLines = buildCardNameFontLines(
+    person,
+    showBirth,
+    nicknameAsPrimary,
+  );
+  const nameFontSizes = computeCardNameFontSizes(nameLines, width, cardScale);
+  const birthSurnameSize =
     !nicknameAsPrimary &&
-    Boolean(getCardBirthSuffix(person.surname, person.birthSurname, showBirth) && cardNameLine(person.surname));
-  if (hasBirthSurnameLine) nameSizeIndex++;
-  const givenSize = nicknameAsPrimary ? nameFontSizes[0] : (nameFontSizes[nameSizeIndex++] ?? 10);
-  const patronymicSize = nicknameAsPrimary ? nameFontSizes[0] : (nameFontSizes[nameSizeIndex] ?? 9);
+    getCardBirthSuffix(person.surname, person.birthSurname, showBirth) &&
+    person.surname?.trim()
+      ? nameFontSizes[1]
+      : undefined;
 
   const showSelection = selected || layoutSelected;
   const exportBorderColor = borderColor;
@@ -245,6 +276,7 @@ export function PersonCardWithMedia({
       <foreignObject x={0} y={0} width={width} height={height} overflow="hidden">
         <div
           className={htmlClassName}
+          data-person-id={person.id}
           data-export-border={exportBorderColor}
           data-export-box-shadow={exportBoxShadow ?? ''}
           style={{
@@ -283,6 +315,7 @@ export function PersonCardWithMedia({
                     showBirth={showBirth}
                     className="person-card-html__surname"
                     fontSize={surnameSize}
+                    birthFontSize={birthSurnameSize}
                   />
                   <CardNameLine
                     current={person.givenName}
@@ -306,14 +339,14 @@ export function PersonCardWithMedia({
                 </>
               )}
               {cf.showNickname && person.nickname && !cf.nicknamePriority && (
-                <div className="person-card-html__nickname" style={{ fontSize: 9 * cardScale }}>
+                <div className="person-card-html__nickname" style={{ fontSize: nicknameSize }}>
                   «{person.nickname}»
                 </div>
               )}
             </div>
             <div className="person-card-html__footer">
               {(dates || ageLabel) && (
-                <div className="person-card-html__meta" style={{ fontSize: 9 * cardScale }}>
+                <div className="person-card-html__meta" style={{ fontSize: metaSize }}>
                   {dates && <span>{dates}</span>}
                   {ageLabel && (
                     <span className="person-card-html__age">
@@ -323,12 +356,12 @@ export function PersonCardWithMedia({
                 </div>
               )}
               {religion && (
-                <div className="person-card-html__religion" style={{ fontSize: 8 * cardScale }}>
+                <div className="person-card-html__religion" style={{ fontSize: secondarySize }}>
                   {religion}
                 </div>
               )}
               {location && (
-                <div className="person-card-html__location" style={{ fontSize: 8 * cardScale }}>
+                <div className="person-card-html__location" style={{ fontSize: secondarySize }}>
                   {location}
                 </div>
               )}
