@@ -76,7 +76,8 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  padding: 4px 6px 6px;
+  gap: 0;
+  padding: 5px 7px 6px;
   text-align: center;
 }
 
@@ -86,32 +87,58 @@
 
 .person-card-html--text-only .person-card-html__body {
   flex: 1 1 auto;
-  padding: 6px 8px;
-  justify-content: flex-start;
+  padding: 7px 8px 8px;
 }
 
-.person-card-html__names {
+.person-card-html__identity {
   flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  align-items: center;
+  gap: 1px;
+}
+
+.person-card-html__surname-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  max-width: 100%;
 }
 
 .person-card-html__surname {
   font-size: 11px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
   color: var(--color-text);
   word-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
-.person-card-html__given,
-.person-card-html__patronymic {
+.person-card-html__birth-surname {
   margin-top: 1px;
+  font-weight: 400;
+  line-height: 1.15;
+  color: var(--color-text-secondary);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.person-card-html__full-name {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0;
+  max-width: 100%;
+  margin-top: 1px;
+  line-height: 1.2;
+}
+
+.person-card-html__given {
   font-size: 10px;
-  line-height: 1.25;
+  font-weight: 500;
   color: var(--color-text);
   word-wrap: break-word;
   overflow-wrap: anywhere;
@@ -119,15 +146,10 @@
 
 .person-card-html__patronymic {
   font-size: 9px;
-  color: var(--color-text-secondary);
-}
-
-.person-card-html__birth-surname {
-  margin-top: 1px;
-  font-size: 0.9em;
   font-weight: 400;
-  line-height: 1.2;
   color: var(--color-text-secondary);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .person-card-html__birth-name {
@@ -161,38 +183,50 @@
   color: var(--color-text);
 }
 
-.person-card-html__footer {
+.person-card-html__details {
+  flex: 0 0 auto;
   margin-top: auto;
-  padding-top: 2px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(120, 113, 108, 0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   min-width: 0;
+  width: 100%;
 }
 
-.person-card-html__meta {
+.person-card-html__meta-row {
   font-size: 9px;
-  line-height: 1.25;
+  line-height: 1.2;
   color: var(--color-text-secondary);
+  max-width: 100%;
 }
 
+.person-card-html__dates,
 .person-card-html__age {
   white-space: nowrap;
 }
 
 .person-card-html__religion {
-  margin-top: 1px;
   font-size: 8px;
-  line-height: 1.25;
+  line-height: 1.2;
   color: var(--color-text-muted);
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .person-card-html__location {
-  margin-top: 1px;
   font-size: 8px;
-  line-height: 1.25;
+  line-height: 1.2;
   color: var(--color-text-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  display: block;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .person-card.highlighted .person-card-html {
@@ -205,4 +239,8 @@
 
 .person-card--forest .person-card-html__avatar {
   background: #f5f5f4;
+}
+
+.person-card--forest .person-card-html__details {
+  border-top-color: rgba(93, 64, 55, 0.18);
 }

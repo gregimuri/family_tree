@@ -40,11 +40,19 @@ export function StartScreen() {
   };
 
   const handleOpen = async () => {
-    const result = await openProjectFile();
-    if (!result) return;
-    if (!confirmExternalMedia(result.project)) return;
-    loadProject(result.project, createId(), result.mediaBlobs, 'view', result.handle, result.file.name);
-    openTree(false);
+    try {
+      setError(null);
+      const result = await openProjectFile();
+      if (!result) return;
+      if (result.recovered) {
+        setNotice('Файл проекта был повреждён и восстановлен из частичных данных. Сохраните проект заново.');
+      }
+      if (!confirmExternalMedia(result.project)) return;
+      loadProject(result.project, createId(), result.mediaBlobs, 'view', result.handle, result.file.name);
+      openTree(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось открыть проект');
+    }
   };
 
   const handleGedcom = () => {

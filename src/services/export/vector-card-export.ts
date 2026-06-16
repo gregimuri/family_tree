@@ -43,51 +43,74 @@ function appendText(
   parent.appendChild(el);
 }
 
-function buildNameLine(
+function appendTspan(
+  parent: SVGTextElement,
+  text: string,
+  options: { fontSize: number; fill?: string; fontFamily?: string; fontWeight?: number },
+): void {
+  if (!text) return;
+  const tspan = document.createElementNS(SVG_NS, 'tspan');
+  tspan.setAttribute('font-size', String(options.fontSize));
+  tspan.setAttribute('fill', options.fill ?? '#44403c');
+  tspan.setAttribute('font-family', options.fontFamily ?? PDF_FONT_REGULAR);
+  if (options.fontWeight) tspan.setAttribute('font-weight', String(options.fontWeight));
+  tspan.textContent = text;
+  parent.appendChild(tspan);
+}
+
+function appendCombinedFullName(
   parent: SVGGElement,
   x: number,
   y: number,
-  current: string | undefined,
-  birth: string | undefined,
+  given: string | undefined,
+  birthGiven: string | undefined,
+  patronymic: string | undefined,
+  birthPatronymic: string | undefined,
   showBirth: boolean,
-  mainFontSize: number,
-  birthFontSize: number,
-  fontWeight: number,
-  fill: string,
+  givenSize: number,
+  patronymicSize: number,
   fontFamily: string,
-  birthOnNewLine = false,
 ): number {
-  const main = (current ?? '').trim();
-  const suffix = getCardBirthSuffix(current, birth, showBirth);
-  if (!main && !suffix) return y;
-  if (!birthOnNewLine) {
-    const line = !main && suffix ? `(${suffix})` : suffix ? `${main} (${suffix})` : main;
-    appendText(parent, x, y, line, { fontSize: mainFontSize, fontWeight, fill, fontFamily });
-    return y + mainFontSize * 1.25;
+  const givenMain = (given ?? '').trim();
+  const patronymicMain = (patronymic ?? '').trim();
+  if (!givenMain && !patronymicMain) return y;
+
+  const givenSuffix = getCardBirthSuffix(given, birthGiven, showBirth);
+  const patronymicSuffix = getCardBirthSuffix(patronymic, birthPatronymic, showBirth);
+
+  const text = document.createElementNS(SVG_NS, 'text');
+  text.setAttribute('x', String(x));
+  text.setAttribute('y', String(y));
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('font-family', fontFamily);
+
+  if (givenMain) {
+    appendTspan(text, givenMain, { fontSize: givenSize, fill: '#1c1917', fontFamily });
+    if (givenSuffix) {
+      appendTspan(text, ` (${givenSuffix})`, {
+        fontSize: givenSize,
+        fill: '#78716c',
+        fontFamily,
+      });
+    }
   }
-  if (!main && suffix) {
-    appendText(parent, x, y, `(${suffix})`, {
-      fontSize: mainFontSize,
-      fontWeight,
-      fill: '#78716c',
+  if (patronymicMain) {
+    appendTspan(text, `${givenMain ? ' ' : ''}${patronymicMain}`, {
+      fontSize: patronymicSize,
+      fill: '#57534e',
       fontFamily,
     });
-    return y + mainFontSize * 1.25;
+    if (patronymicSuffix) {
+      appendTspan(text, ` (${patronymicSuffix})`, {
+        fontSize: patronymicSize,
+        fill: '#78716c',
+        fontFamily,
+      });
+    }
   }
-  if (main) {
-    appendText(parent, x, y, main, { fontSize: mainFontSize, fontWeight, fill, fontFamily });
-    y += mainFontSize * 1.25;
-  }
-  if (suffix) {
-    appendText(parent, x, y, `(${suffix})`, {
-      fontSize: birthFontSize,
-      fontWeight: 400,
-      fill: '#78716c',
-      fontFamily,
-    });
-    y += birthFontSize * 1.25;
-  }
-  return y;
+
+  parent.appendChild(text);
+  return y + Math.max(givenSize, patronymicSize) * 1.25;
 }
 
 export async function replaceForeignObjectsWithVectorCards(
@@ -227,45 +250,48 @@ export async function replaceForeignObjectsWithVectorCards(
     } else {
       const surnameMainSize = typography.surname;
       const surnameBirthSize = typography.surname * 0.9;
+      const surnameMain = (person.surname ?? '').trim();
+      const surnameBirth = getCardBirthSuffix(person.surname, person.birthSurname, cf.showBirthName);
 
-      textY = buildNameLine(
+      if (!surnameMain && surnameBirth) {
+        appendText(group, cx, textY, `(${surnameBirth})`, {
+          fontSize: surnameMainSize,
+          fontWeight: 700,
+          fill: '#1c1917',
+          fontFamily: fontFamilyBold,
+        });
+        textY += surnameMainSize * 1.25;
+      } else {
+        if (surnameMain) {
+          appendText(group, cx, textY, surnameMain, {
+            fontSize: surnameMainSize,
+            fontWeight: 700,
+            fill: '#1c1917',
+            fontFamily: fontFamilyBold,
+          });
+          textY += surnameMainSize * 1.2;
+        }
+        if (surnameBirth && surnameMain) {
+          appendText(group, cx, textY, `(${surnameBirth})`, {
+            fontSize: surnameBirthSize,
+            fill: '#78716c',
+            fontFamily,
+          });
+          textY += surnameBirthSize * 1.2;
+        }
+      }
+
+      textY = appendCombinedFullName(
         group,
         cx,
-        textY,
-        person.surname,
-        person.birthSurname,
-        cf.showBirthName,
-        surnameMainSize,
-        surnameBirthSize,
-        700,
-        '#1c1917',
-        fontFamilyBold,
-        true,
-      );
-      textY = buildNameLine(
-        group,
-        cx,
-        textY,
+        textY + 1,
         person.givenName,
         person.birthGivenName,
-        cf.showBirthName,
-        typography.given,
-        typography.given,
-        400,
-        '#1c1917',
-        fontFamily,
-      );
-      textY = buildNameLine(
-        group,
-        cx,
-        textY,
         person.patronymic,
         person.birthPatronymic,
         cf.showBirthName,
+        typography.given,
         typography.patronymic,
-        typography.patronymic,
-        400,
-        '#57534e',
         fontFamily,
       );
       if (cf.showNickname && person.nickname && !cf.nicknamePriority) {
@@ -278,16 +304,23 @@ export async function replaceForeignObjectsWithVectorCards(
       }
     }
 
-    if (dates) {
-      appendText(group, cx, textY, dates, {
-        fontSize: typography.meta,
-        fill: '#57534e',
-        fontFamily,
-      });
-      textY += typography.meta * 1.25;
+    const hasDetails = Boolean(dates || ageLabel || religionText || location);
+    if (hasDetails) {
+      const detailsTop = textY + 3;
+      const divider = document.createElementNS(SVG_NS, 'line');
+      divider.setAttribute('x1', String(width * 0.12));
+      divider.setAttribute('y1', String(detailsTop));
+      divider.setAttribute('x2', String(width * 0.88));
+      divider.setAttribute('y2', String(detailsTop));
+      divider.setAttribute('stroke', '#e7e5e4');
+      divider.setAttribute('stroke-width', '1');
+      group.appendChild(divider);
+      textY = detailsTop + 8;
     }
-    if (ageLabel) {
-      appendText(group, cx, textY, `(${ageLabel})`, {
+
+    if (dates || ageLabel) {
+      const metaLine = [dates, ageLabel].filter(Boolean).join(' · ');
+      appendText(group, cx, textY, metaLine, {
         fontSize: typography.meta,
         fill: '#57534e',
         fontFamily,

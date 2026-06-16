@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import type { MediaItem, Project } from '../../types';
 import { PROJECT_VERSION } from '../../models/defaults';
+import { isZipLoadError, loadProjectFromDamagedZip, verifyZipBlob } from './zip-recovery';
 
 const PROJECT_JSON = 'project.json';
 const MEDIA_DIR = 'media/';
@@ -14,13 +15,28 @@ export async function projectToZip(project: Project, mediaBlobs?: Map<string, Bl
       mediaFolder.file(filename, blob);
     }
   }
-  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  await verifyZipBlob(blob);
+  return blob;
 }
 
 export async function zipToProject(
   file: Blob,
+): Promise<{ project: Project; mediaBlobs: Map<string, Blob>; recovered?: boolean }> {
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const result = await readProjectFromZip(zip);
+    return { ...result, recovered: false };
+  } catch (error) {
+    if (!isZipLoadError(error)) throw error;
+    const result = await loadProjectFromDamagedZip(file);
+    return { ...result, recovered: true };
+  }
+}
+
+async function readProjectFromZip(
+  zip: JSZip,
 ): Promise<{ project: Project; mediaBlobs: Map<string, Blob> }> {
-  const zip = await JSZip.loadAsync(file);
   const jsonFile = zip.file(PROJECT_JSON);
   if (!jsonFile) throw new Error('Неверный формат проекта: отсутствует project.json');
   const text = await jsonFile.async('text');
@@ -58,7 +74,7 @@ export async function saveProjectToHandle(
 ): Promise<boolean> {
   try {
     const blob = await projectToZip(project, mediaBlobs);
-    const writable = await handle.createWritable();
+    const writable = await handle.createWritable({ keepExistingData: false });
     await writable.write(blob);
     await writable.close();
     return true;
@@ -92,7 +108,7 @@ export async function saveProjectAs(
           },
         ],
       });
-      const writable = await handle.createWritable();
+      const writable = await handle.createWritable({ keepExistingData: false });
       await writable.write(blob);
       await writable.close();
       const savedName = (await handle.getFile()).name;
@@ -119,6 +135,7 @@ export interface OpenProjectResult {
   project: Project;
   mediaBlobs: Map<string, Blob>;
   handle: FileSystemFileHandle | null;
+  recovered?: boolean;
 }
 
 export async function openProjectFile(): Promise<OpenProjectResult | null> {
@@ -134,8 +151,8 @@ export async function openProjectFile(): Promise<OpenProjectResult | null> {
         multiple: false,
       });
       const file = await handle.getFile();
-      const { project, mediaBlobs } = await zipToProject(file);
-      return { file, project, mediaBlobs, handle };
+      const { project, mediaBlobs, recovered } = await zipToProject(file);
+      return { file, project, mediaBlobs, handle, recovered };
     } catch (e) {
       if ((e as Error).name === 'AbortError') return null;
     }
@@ -150,8 +167,8 @@ export async function openProjectFile(): Promise<OpenProjectResult | null> {
         resolve(null);
         return;
       }
-      const { project, mediaBlobs } = await zipToProject(file);
-      resolve({ file, project, mediaBlobs, handle: null });
+      const { project, mediaBlobs, recovered } = await zipToProject(file);
+      resolve({ file, project, mediaBlobs, handle: null, recovered });
     };
     input.click();
   });

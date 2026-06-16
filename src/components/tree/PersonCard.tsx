@@ -47,55 +47,112 @@ function buildCardBoxShadow(manualPlaced: boolean, showSelection: boolean): stri
   return parts.join(', ');
 }
 
-function cardNameLine(text: string | undefined): string {
-  return text?.trim() ?? '';
+function trimField(value: string | undefined): string {
+  return value?.trim() ?? '';
 }
 
-function CardNameLine({
+function BirthNameSuffix({
   current,
   birth,
   showBirth,
-  className,
   fontSize,
-  birthFontSize,
 }: {
   current: string | undefined;
   birth: string | undefined;
   showBirth: boolean;
-  className: string;
   fontSize?: number;
-  birthFontSize?: number;
 }) {
-  const main = cardNameLine(current);
   const suffix = getCardBirthSuffix(current, birth, showBirth);
-  if (!main && !suffix) return null;
-  if (!main && suffix) {
+  if (!suffix) return null;
+  return (
+    <span className="person-card-html__birth-name" style={fontSize ? { fontSize } : undefined}>
+      {' '}
+      ({suffix})
+    </span>
+  );
+}
+
+function SurnameBlock({
+  person,
+  showBirth,
+  surnameSize,
+  birthSurnameSize,
+}: {
+  person: Person;
+  showBirth: boolean;
+  surnameSize: number;
+  birthSurnameSize?: number;
+}) {
+  const main = trimField(person.surname);
+  const birth = getCardBirthSuffix(person.surname, person.birthSurname, showBirth);
+
+  if (!main && birth) {
     return (
-      <div className={className} style={fontSize ? { fontSize } : undefined}>
-        ({suffix})
+      <div className="person-card-html__surname" style={{ fontSize: surnameSize }}>
+        ({birth})
       </div>
     );
   }
-  const isSurname = className.includes('surname');
-  if (isSurname && suffix) {
-    return (
-      <>
-        <div className={className} style={fontSize ? { fontSize } : undefined}>
-          {main}
-        </div>
+
+  if (!main) return null;
+
+  return (
+    <div className="person-card-html__surname-block">
+      <div className="person-card-html__surname" style={{ fontSize: surnameSize }}>
+        {main}
+      </div>
+      {birth ? (
         <div
           className="person-card-html__birth-surname"
-          style={birthFontSize ? { fontSize: birthFontSize } : undefined}
+          style={birthSurnameSize ? { fontSize: birthSurnameSize } : undefined}
         >
-          ({suffix})
+          ({birth})
         </div>
-      </>
-    );
-  }
+      ) : null}
+    </div>
+  );
+}
+
+function FullNameRow({
+  person,
+  showBirth,
+  givenSize,
+  patronymicSize,
+}: {
+  person: Person;
+  showBirth: boolean;
+  givenSize: number;
+  patronymicSize: number;
+}) {
+  const given = trimField(person.givenName);
+  const patronymic = trimField(person.patronymic);
+  if (!given && !patronymic) return null;
+
   return (
-    <div className={className} style={fontSize ? { fontSize } : undefined}>
-      {main}
-      {suffix ? <span className="person-card-html__birth-name"> ({suffix})</span> : null}
+    <div className="person-card-html__full-name">
+      {given ? (
+        <span className="person-card-html__given" style={{ fontSize: givenSize }}>
+          {given}
+          <BirthNameSuffix
+            current={person.givenName}
+            birth={person.birthGivenName}
+            showBirth={showBirth}
+            fontSize={givenSize}
+          />
+        </span>
+      ) : null}
+      {patronymic ? (
+        <span className="person-card-html__patronymic" style={{ fontSize: patronymicSize }}>
+          {given ? ' ' : ''}
+          {patronymic}
+          <BirthNameSuffix
+            current={person.patronymic}
+            birth={person.birthPatronymic}
+            showBirth={showBirth}
+            fontSize={patronymicSize}
+          />
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -151,6 +208,7 @@ export function PersonCardWithMedia({
   const showBirth = cf.showBirthName;
   const cardScale = width / CARD_W;
   const nicknameAsPrimary = Boolean(cf.showNickname && person.nickname && cf.nicknamePriority);
+  const hasDetails = Boolean(dates || ageLabel || religion || location);
   const typography = resolveCardTypography(person, {
     showBirth,
     nicknameAsPrimary,
@@ -170,11 +228,7 @@ export function PersonCardWithMedia({
   const metaSize = typography.meta;
   const secondarySize = typography.secondary;
   const nicknameSize = typography.nickname;
-  const nameLines = buildCardNameFontLines(
-    person,
-    showBirth,
-    nicknameAsPrimary,
-  );
+  const nameLines = buildCardNameFontLines(person, showBirth, nicknameAsPrimary);
   const nameFontSizes = computeCardNameFontSizes(nameLines, width, cardScale);
   const birthSurnameSize =
     !nicknameAsPrimary &&
@@ -253,6 +307,13 @@ export function PersonCardWithMedia({
       }
     : undefined;
 
+  const hasIdentity =
+    nicknameAsPrimary ||
+    trimField(person.surname) ||
+    trimField(person.givenName) ||
+    trimField(person.patronymic) ||
+    (cf.showNickname && person.nickname);
+
   return (
     <g
       transform={`translate(${x}, ${y})`}
@@ -299,73 +360,68 @@ export function PersonCardWithMedia({
             </div>
           )}
           <div className="person-card-html__body">
-            <div className="person-card-html__names">
-              {nicknameAsPrimary ? (
-                <div
-                  className="person-card-html__nickname-primary"
-                  style={{ fontSize: surnameSize }}
-                >
-                  {person.nickname}
-                </div>
-              ) : (
-                <>
-                  <CardNameLine
-                    current={person.surname}
-                    birth={person.birthSurname}
-                    showBirth={showBirth}
-                    className="person-card-html__surname"
-                    fontSize={surnameSize}
-                    birthFontSize={birthSurnameSize}
-                  />
-                  <CardNameLine
-                    current={person.givenName}
-                    birth={person.birthGivenName}
-                    showBirth={showBirth}
-                    className="person-card-html__given"
-                    fontSize={givenSize}
-                  />
-                  <CardNameLine
-                    current={person.patronymic}
-                    birth={person.birthPatronymic}
-                    showBirth={showBirth}
-                    className="person-card-html__patronymic"
-                    fontSize={patronymicSize}
-                  />
-                  {!person.surname?.trim() &&
-                    !person.givenName?.trim() &&
-                    !person.patronymic?.trim() && (
-                    <div className="person-card-html__given">{formatPersonName(person)}</div>
-                  )}
-                </>
-              )}
-              {cf.showNickname && person.nickname && !cf.nicknamePriority && (
-                <div className="person-card-html__nickname" style={{ fontSize: nicknameSize }}>
-                  «{person.nickname}»
-                </div>
-              )}
-            </div>
-            <div className="person-card-html__footer">
-              {(dates || ageLabel) && (
-                <div className="person-card-html__meta" style={{ fontSize: metaSize }}>
-                  {dates && <span>{dates}</span>}
-                  {ageLabel && (
-                    <span className="person-card-html__age">
-                      {dates ? ' ' : ''}({ageLabel})
-                    </span>
-                  )}
-                </div>
-              )}
-              {religion && (
-                <div className="person-card-html__religion" style={{ fontSize: secondarySize }}>
-                  {religion}
-                </div>
-              )}
-              {location && (
-                <div className="person-card-html__location" style={{ fontSize: secondarySize }}>
-                  {location}
-                </div>
-              )}
-            </div>
+            {hasIdentity && (
+              <section className="person-card-html__identity">
+                {nicknameAsPrimary ? (
+                  <div
+                    className="person-card-html__nickname-primary"
+                    style={{ fontSize: surnameSize }}
+                  >
+                    {person.nickname}
+                  </div>
+                ) : (
+                  <>
+                    <SurnameBlock
+                      person={person}
+                      showBirth={showBirth}
+                      surnameSize={surnameSize}
+                      birthSurnameSize={birthSurnameSize}
+                    />
+                    <FullNameRow
+                      person={person}
+                      showBirth={showBirth}
+                      givenSize={givenSize}
+                      patronymicSize={patronymicSize}
+                    />
+                    {!trimField(person.surname) &&
+                      !trimField(person.givenName) &&
+                      !trimField(person.patronymic) && (
+                        <div className="person-card-html__given">{formatPersonName(person)}</div>
+                      )}
+                  </>
+                )}
+                {cf.showNickname && person.nickname && !cf.nicknamePriority && (
+                  <div className="person-card-html__nickname" style={{ fontSize: nicknameSize }}>
+                    «{person.nickname}»
+                  </div>
+                )}
+              </section>
+            )}
+            {hasDetails && (
+              <section className="person-card-html__details">
+                {(dates || ageLabel) && (
+                  <div className="person-card-html__meta-row" style={{ fontSize: metaSize }}>
+                    {dates && <span className="person-card-html__dates">{dates}</span>}
+                    {ageLabel && (
+                      <span className="person-card-html__age">
+                        {dates ? ' · ' : ''}
+                        {ageLabel}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {religion && (
+                  <div className="person-card-html__religion" style={{ fontSize: secondarySize }}>
+                    {religion}
+                  </div>
+                )}
+                {location && (
+                  <div className="person-card-html__location" style={{ fontSize: secondarySize }}>
+                    {location}
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         </div>
       </foreignObject>

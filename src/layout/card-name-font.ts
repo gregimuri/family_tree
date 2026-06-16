@@ -148,12 +148,16 @@ export function estimateCardTextHeight(
     h += ROW_GAP + typo.surname * 0.9 * SURNAME_LINE_HEIGHT;
   }
 
-  if (given) h += ROW_GAP + typo.given * NAME_LINE_HEIGHT;
-  if (patronymic) h += ROW_GAP + typo.patronymic * NAME_LINE_HEIGHT;
+  if (given || patronymic) {
+    h += ROW_GAP + Math.max(
+      given ? typo.given * NAME_LINE_HEIGHT : 0,
+      patronymic ? typo.patronymic * NAME_LINE_HEIGHT : 0,
+    );
+  }
   if (footer.hasNickname) h += ROW_GAP + typo.nickname * NAME_LINE_HEIGHT;
 
   if (footer.hasDates || footer.hasAge || footer.hasReligion || footer.hasLocation) {
-    h += 2;
+    h += 4;
   }
   if (footer.hasDates || footer.hasAge) h += typo.meta * NAME_LINE_HEIGHT;
   if (footer.hasReligion) h += ROW_GAP + typo.secondary * NAME_LINE_HEIGHT;
