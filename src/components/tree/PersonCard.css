@@ -126,30 +126,30 @@
 }
 
 .person-card-html__full-name {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: baseline;
-  gap: 0;
+  display: block;
   max-width: 100%;
   margin-top: 1px;
   line-height: 1.2;
+  text-align: center;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.person-card-html__given,
+.person-card-html__patronymic {
+  display: inline;
 }
 
 .person-card-html__given {
   font-size: 10px;
   font-weight: 500;
   color: var(--color-text);
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
 }
 
 .person-card-html__patronymic {
   font-size: 9px;
   font-weight: 400;
   color: var(--color-text-secondary);
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
 }
 
 .person-card-html__birth-name {

@@ -95,7 +95,10 @@ function appendCombinedFullName(
     }
   }
   if (patronymicMain) {
-    appendTspan(text, `${givenMain ? ' ' : ''}${patronymicMain}`, {
+    if (givenMain) {
+      appendTspan(text, '\u00a0', { fontSize: givenSize, fill: '#1c1917', fontFamily });
+    }
+    appendTspan(text, patronymicMain, {
       fontSize: patronymicSize,
       fill: '#57534e',
       fontFamily,

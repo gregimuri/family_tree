@@ -141,9 +141,9 @@ function FullNameRow({
           />
         </span>
       ) : null}
+      {given && patronymic ? ' ' : null}
       {patronymic ? (
         <span className="person-card-html__patronymic" style={{ fontSize: patronymicSize }}>
-          {given ? ' ' : ''}
           {patronymic}
           <BirthNameSuffix
             current={person.patronymic}
