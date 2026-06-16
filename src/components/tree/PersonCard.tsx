@@ -8,7 +8,6 @@ import {
 } from '../../models/person-utils';
 import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
 import { buildCardNameFontLines, computeCardNameFontSizes, resolveCardTypography } from '../../layout/card-name-font';
-import { formatReligion } from '../../models/religion';
 import './PersonCard.css';
 
 interface PersonCardProps {
@@ -116,13 +115,11 @@ function SurnameBlock({
 function FullNameRow({
   person,
   showBirth,
-  givenSize,
-  patronymicSize,
+  nameSize,
 }: {
   person: Person;
   showBirth: boolean;
-  givenSize: number;
-  patronymicSize: number;
+  nameSize: number;
 }) {
   const given = trimField(person.givenName);
   const patronymic = trimField(person.patronymic);
@@ -131,25 +128,25 @@ function FullNameRow({
   return (
     <div className="person-card-html__full-name">
       {given ? (
-        <span className="person-card-html__given" style={{ fontSize: givenSize }}>
+        <span className="person-card-html__given" style={{ fontSize: nameSize }}>
           {given}
           <BirthNameSuffix
             current={person.givenName}
             birth={person.birthGivenName}
             showBirth={showBirth}
-            fontSize={givenSize}
+            fontSize={nameSize}
           />
         </span>
       ) : null}
       {given && patronymic ? ' ' : null}
       {patronymic ? (
-        <span className="person-card-html__patronymic" style={{ fontSize: patronymicSize }}>
+        <span className="person-card-html__patronymic" style={{ fontSize: nameSize }}>
           {patronymic}
           <BirthNameSuffix
             current={person.patronymic}
             birth={person.birthPatronymic}
             showBirth={showBirth}
-            fontSize={patronymicSize}
+            fontSize={nameSize}
           />
         </span>
       ) : null}
@@ -193,10 +190,6 @@ export function PersonCardWithMedia({
   const dates = formatLifeDates(person, cf.dateFormat);
   const ageLabel = cf.showAge ? formatCardAge(person) : null;
   const location = cf.showLocation ? getPersonLocationCardText(person) : null;
-  const religion =
-    (cf.showReligion ?? false) && (person.religion ?? 'none') !== 'none'
-      ? formatReligion(person.religion)
-      : null;
   const hasPhoto = personShowsCardPhoto(project, person, settings);
   const avatarUrl = hasPhoto
     ? (() => {
@@ -208,7 +201,7 @@ export function PersonCardWithMedia({
   const showBirth = cf.showBirthName;
   const cardScale = width / CARD_W;
   const nicknameAsPrimary = Boolean(cf.showNickname && person.nickname && cf.nicknamePriority);
-  const hasDetails = Boolean(dates || ageLabel || religion || location);
+  const hasDetails = Boolean(dates || ageLabel || location);
   const typography = resolveCardTypography(person, {
     showBirth,
     nicknameAsPrimary,
@@ -219,12 +212,12 @@ export function PersonCardWithMedia({
     footer: {
       hasDates: Boolean(dates),
       hasAge: Boolean(ageLabel),
-      hasReligion: Boolean(religion),
+      hasReligion: false,
       hasLocation: Boolean(location),
       hasNickname: Boolean(cf.showNickname && person.nickname && !cf.nicknamePriority),
     },
   });
-  const { surname: surnameSize, given: givenSize, patronymic: patronymicSize } = typography;
+  const { surname: surnameSize, given: nameLineSize } = typography;
   const metaSize = typography.meta;
   const secondarySize = typography.secondary;
   const nicknameSize = typography.nickname;
@@ -380,8 +373,7 @@ export function PersonCardWithMedia({
                     <FullNameRow
                       person={person}
                       showBirth={showBirth}
-                      givenSize={givenSize}
-                      patronymicSize={patronymicSize}
+                      nameSize={nameLineSize}
                     />
                     {!trimField(person.surname) &&
                       !trimField(person.givenName) &&
@@ -408,11 +400,6 @@ export function PersonCardWithMedia({
                         {ageLabel}
                       </span>
                     )}
-                  </div>
-                )}
-                {religion && (
-                  <div className="person-card-html__religion" style={{ fontSize: secondarySize }}>
-                    {religion}
                   </div>
                 )}
                 {location && (

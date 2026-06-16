@@ -8,7 +8,6 @@ import {
   getCardBirthSuffix,
   getPersonLocationCardText,
 } from '../../models/person-utils';
-import { formatReligion } from '../../models/religion';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -67,8 +66,7 @@ function appendCombinedFullName(
   patronymic: string | undefined,
   birthPatronymic: string | undefined,
   showBirth: boolean,
-  givenSize: number,
-  patronymicSize: number,
+  nameSize: number,
   fontFamily: string,
 ): number {
   const givenMain = (given ?? '').trim();
@@ -85,10 +83,10 @@ function appendCombinedFullName(
   text.setAttribute('font-family', fontFamily);
 
   if (givenMain) {
-    appendTspan(text, givenMain, { fontSize: givenSize, fill: '#1c1917', fontFamily });
+    appendTspan(text, givenMain, { fontSize: nameSize, fill: '#1c1917', fontFamily });
     if (givenSuffix) {
       appendTspan(text, ` (${givenSuffix})`, {
-        fontSize: givenSize,
+        fontSize: nameSize,
         fill: '#78716c',
         fontFamily,
       });
@@ -96,16 +94,16 @@ function appendCombinedFullName(
   }
   if (patronymicMain) {
     if (givenMain) {
-      appendTspan(text, '\u00a0', { fontSize: givenSize, fill: '#1c1917', fontFamily });
+      appendTspan(text, '\u00a0', { fontSize: nameSize, fill: '#1c1917', fontFamily });
     }
     appendTspan(text, patronymicMain, {
-      fontSize: patronymicSize,
-      fill: '#57534e',
+      fontSize: nameSize,
+      fill: '#1c1917',
       fontFamily,
     });
     if (patronymicSuffix) {
       appendTspan(text, ` (${patronymicSuffix})`, {
-        fontSize: patronymicSize,
+        fontSize: nameSize,
         fill: '#78716c',
         fontFamily,
       });
@@ -113,7 +111,7 @@ function appendCombinedFullName(
   }
 
   parent.appendChild(text);
-  return y + Math.max(givenSize, patronymicSize) * 1.25;
+  return y + nameSize * 1.25;
 }
 
 export async function replaceForeignObjectsWithVectorCards(
@@ -221,10 +219,6 @@ export async function replaceForeignObjectsWithVectorCards(
     const nicknameAsPrimary = Boolean(cf.showNickname && person.nickname && cf.nicknamePriority);
     const dates = formatLifeDates(person, cf.dateFormat);
     const ageLabel = cf.showAge ? formatCardAge(person) : null;
-    const religionText =
-      cf.showReligion && (person.religion ?? 'none') !== 'none'
-        ? formatReligion(person.religion)
-        : null;
     const location = cf.showLocation ? getPersonLocationCardText(person) : null;
 
     const typography = resolveCardTypography(person, {
@@ -237,7 +231,7 @@ export async function replaceForeignObjectsWithVectorCards(
       footer: {
         hasDates: Boolean(dates),
         hasAge: Boolean(ageLabel),
-        hasReligion: Boolean(religionText),
+        hasReligion: false,
         hasLocation: Boolean(location),
         hasNickname: Boolean(cf.showNickname && person.nickname && !cf.nicknamePriority),
       },
@@ -294,7 +288,6 @@ export async function replaceForeignObjectsWithVectorCards(
         person.birthPatronymic,
         cf.showBirthName,
         typography.given,
-        typography.patronymic,
         fontFamily,
       );
       if (cf.showNickname && person.nickname && !cf.nicknamePriority) {
@@ -307,7 +300,7 @@ export async function replaceForeignObjectsWithVectorCards(
       }
     }
 
-    const hasDetails = Boolean(dates || ageLabel || religionText || location);
+    const hasDetails = Boolean(dates || ageLabel || location);
     if (hasDetails) {
       const detailsTop = textY + 3;
       const divider = document.createElementNS(SVG_NS, 'line');
@@ -329,15 +322,6 @@ export async function replaceForeignObjectsWithVectorCards(
         fontFamily,
       });
       textY += typography.meta * 1.25;
-    }
-
-    if (religionText) {
-      appendText(group, cx, textY + 1, religionText, {
-        fontSize: typography.secondary,
-        fill: '#78716c',
-        fontFamily,
-      });
-      textY += typography.secondary * 1.25 + 1;
     }
 
     if (location) {

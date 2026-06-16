@@ -202,14 +202,6 @@ export function DisplaySettingsPanel() {
           <label className="checkbox-label">
             <input
               type="checkbox"
-              checked={s.cardFields.showReligion}
-              onChange={(e) => updateFields({ showReligion: e.target.checked })}
-            />
-            Вероисповедание
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
               checked={s.cardFields.showPhoto}
               onChange={(e) => updateFields({ showPhoto: e.target.checked })}
             />

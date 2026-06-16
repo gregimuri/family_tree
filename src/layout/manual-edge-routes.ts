@@ -53,6 +53,15 @@ function mergeFamTreeRoute(auto: Point[], manual: Point[]): Point[] {
 function mergeBranchRoute(auto: Point[], manual: Point[]): Point[] {
   if (auto.length !== manual.length || auto.length < 2) return auto;
 
+  if (auto.length === 3) {
+    const forkDeltaY = manual[1].y - auto[1].y;
+    return [
+      { x: auto[0].x, y: auto[0].y },
+      { x: auto[0].x, y: snapEdgeCoord(auto[1].y + forkDeltaY) },
+      { ...auto[2] },
+    ];
+  }
+
   const merged = manual.map((p) => ({ ...p }));
   merged[0] = { x: auto[0].x, y: auto[0].y };
   merged[1].x = auto[0].x;
@@ -280,6 +289,14 @@ function constrainBranchPoint(points: Point[], index: number, snapped: Point): P
   const next = clonePoints(points);
   if (next.length === 2) {
     return next;
+  }
+
+  if (next.length === 3) {
+    if (index === 0 || index === 2) return next;
+    if (index === 1) {
+      next[1] = { x: next[0].x, y: snapEdgeCoord(snapped.y) };
+      return next;
+    }
   }
 
   if (next.length === 4) {

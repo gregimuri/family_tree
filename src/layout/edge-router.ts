@@ -20,13 +20,13 @@ export function marriageStemStartY(bondY: number, showLabel: boolean): number {
   return bondY + MARRIAGE_BOND_LABEL_GAP + MARRIAGE_BOND_LABEL_HEIGHT + MARRIAGE_STEM_GAP;
 }
 
-/** Bond anchors at inner bottom corners between partner cards. */
+/** Bond anchors at the bottom center of each partner card. */
 export function getCoupleBondGeometry(left: LayoutNode, right: LayoutNode) {
   const leftBottom = left.y + left.height;
   const rightBottom = right.y + right.height;
   const bondY = Math.max(leftBottom, rightBottom);
-  const leftX = left.x + left.width;
-  const rightX = right.x;
+  const leftX = left.x + left.width / 2;
+  const rightX = right.x + right.width / 2;
   return {
     bondY,
     leftBottom,
@@ -75,6 +75,12 @@ export function isBondEdge(edgeId: string): boolean {
 
 export function coupleBondMidpoint(points: { x: number; y: number }[]): { x: number; y: number } | null {
   if (points.length < 2) return null;
+  const bondY = Math.max(...points.map((p) => p.y));
+  const row = points.filter((p) => Math.abs(p.y - bondY) < 0.5);
+  if (row.length >= 2) {
+    const xs = row.map((p) => p.x);
+    return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: bondY };
+  }
   const start = points[0];
   const end = points[points.length - 1];
   return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };

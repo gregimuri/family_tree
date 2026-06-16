@@ -81,8 +81,13 @@ export function buildCardNameFontLines(
   }
 
   lines.push(
-    { text: cardLineText(fields.givenName, fields.birthGivenName, showBirth), base: 10 },
-    { text: cardLineText(fields.patronymic, fields.birthPatronymic, showBirth), base: 9 },
+    {
+      text: [cardLineText(fields.givenName, fields.birthGivenName, showBirth),
+        cardLineText(fields.patronymic, fields.birthPatronymic, showBirth)]
+        .filter((t) => t.trim())
+        .join(' '),
+      base: 10,
+    },
   );
 
   return lines;
@@ -212,8 +217,8 @@ export function resolveCardTypography(
     Boolean(getCardBirthSuffix(fields.surname, fields.birthSurname, showBirth) &&
       (fields.surname ?? '').trim());
   if (hasBirthSurnameLine) sizeIndex++;
-  const given = nicknameAsPrimary ? surname : (nameFontSizes[sizeIndex++] ?? 10 * cardScale);
-  const patronymic = nicknameAsPrimary ? surname : (nameFontSizes[sizeIndex] ?? 9 * cardScale);
+  const given = nicknameAsPrimary ? surname : (nameFontSizes[sizeIndex] ?? 10 * cardScale);
+  const patronymic = given;
 
   let typo: CardTypography = {
     surname,

@@ -10,7 +10,6 @@ import { createId } from '../../utils/create-id';
 import { AvatarEditor } from './AvatarEditor';
 import { MediaListThumb } from './MediaListThumb';
 import { DateField, GenderSelect, LocationSourceSelect, PlaceField, ResidencesEditor, formatPlaceText, getLocationSourceLabel, getPlaceForLocationSource, personHasResidences, placeHasValue, reconcileCardLocationSource } from './DossierFields';
-import { formatReligion, normalizeReligion, RELIGION_OPTIONS } from '../../models/religion';
 import { getPersonResidences, residenceCardSource } from '../../models/residences';
 import { PersonRelationships } from './PersonRelationships';
 import './DossierFields.css';
@@ -255,27 +254,6 @@ export function PersonDossier({ personId }: PersonDossierProps) {
                 <dd>{genderLabels[person.gender]}</dd>
               </>
             )}
-
-            <FactRow
-              label="Вероисповедание"
-              show={editMode || (person.religion ?? 'none') !== 'none'}
-              editMode={editMode}
-            >
-              {editMode ? (
-                <select
-                  value={person.religion ?? 'none'}
-                  onChange={(e) => saveField({ religion: normalizeReligion(e.target.value) })}
-                >
-                  {RELIGION_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                formatReligion(person.religion)
-              )}
-            </FactRow>
 
             <FactRow label="Дата рождения" show={!!dateToText(person.birth?.date)} editMode={editMode}>
               {editMode ? (
