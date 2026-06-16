@@ -8,7 +8,7 @@ describe('julian date flag', () => {
 
     const withFlag = setDateJulianFlag(original, true)!;
     expect(withFlag).toEqual({ year: 1897, month: 7, day: 1, julian: true });
-    expect(dateToText(withFlag)).toBe('01.07.1897 ст.');
+    expect(dateToText(withFlag)).toBe('01.07.1897\u00a0ст.');
 
     const withoutFlag = setDateJulianFlag(withFlag, false)!;
     expect(withoutFlag).toEqual({ year: 1897, month: 7, day: 1 });
@@ -22,7 +22,7 @@ describe('julian date flag', () => {
     const textDate = { text: 'ок. 1875' };
     const flagged = setDateJulianFlag(textDate, true)!;
     expect(flagged).toEqual({ text: 'ок. 1875', julian: true });
-    expect(dateToText(flagged)).toBe('ок. 1875 ст.');
+    expect(dateToText(flagged)).toBe('ок. 1875\u00a0ст.');
     expect(setDateJulianFlag(flagged, false)).toEqual({ text: 'ок. 1875' });
   });
 });

@@ -59,6 +59,15 @@ export interface CardTypography {
   nickname: number;
 }
 
+export function scaleCardMetaFontSize(text: string, baseSize: number, innerWidth: number): number {
+  const t = text.trim();
+  if (!t) return baseSize;
+  const inner = Math.max(innerWidth - 14, 36);
+  const needed = t.length * baseSize * 0.54;
+  if (needed <= inner) return baseSize;
+  return Math.max(MIN_FONT_SIZE, Math.round(((baseSize * inner) / needed) * 10) / 10);
+}
+
 export function cardBodyTextHeight(cardHeight: number, hasPhoto: boolean): number {
   const bodyHeight = hasPhoto ? (cardHeight * 5) / 12 : cardHeight;
   const padding = hasPhoto ? 10 : 10;
@@ -81,7 +90,11 @@ export function estimateCardTextHeight(
   if (footer.hasDates || footer.hasAge || footer.hasReligion || footer.hasLocation) {
     if (nameLines.length > 0) h += DETAILS_GAP;
   }
-  if (footer.hasDates || footer.hasAge) h += typo.meta * 1.2;
+  if (footer.hasDates) h += typo.meta * 1.2;
+  if (footer.hasAge) {
+    if (footer.hasDates) h += ROW_GAP;
+    h += typo.meta * 1.2;
+  }
   if (footer.hasLocation) h += ROW_GAP + typo.secondary * 1.18;
 
   return h;

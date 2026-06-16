@@ -146,15 +146,21 @@
   width: 100%;
 }
 
-.person-card-html__meta-row {
-  font-size: 9px;
+.person-card-html__dates-row,
+.person-card-html__age-row {
+  max-width: 100%;
   line-height: 1.2;
   color: var(--color-text-secondary);
-  max-width: 100%;
+  text-align: center;
 }
 
-.person-card-html__dates,
-.person-card-html__age {
+.person-card-html__dates-row {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.person-card-html__age-row {
   white-space: nowrap;
 }
 

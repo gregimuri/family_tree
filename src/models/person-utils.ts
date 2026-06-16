@@ -50,13 +50,15 @@ function yearFromDate(date?: DateValue): number | undefined {
   return date?.year;
 }
 
+const JULIAN_SUFFIX = '\u00a0ст.';
+
 /** Years-only card line: numeric dates → year; text dates → full text (e.g. «ок. 1951»). */
 function formatDateForYearsMode(date?: DateValue): string {
   if (!date) return '';
   if (date.text?.trim()) return dateToText(date);
   const year = yearFromDate(date);
   if (year !== undefined) {
-    const suffix = date.julian ? ' ст.' : '';
+    const suffix = date.julian ? JULIAN_SUFFIX : '';
     return `${year}${suffix}`;
   }
   return '';
@@ -64,7 +66,7 @@ function formatDateForYearsMode(date?: DateValue): string {
 
 export function dateToText(date?: DateValue): string {
   if (!date) return '';
-  const suffix = date.julian ? ' ст.' : '';
+  const suffix = date.julian ? JULIAN_SUFFIX : '';
   if (date.text) return `${date.text}${suffix}`;
   const { day, month, year } = date;
   let base = '';

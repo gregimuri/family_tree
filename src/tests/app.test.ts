@@ -920,8 +920,8 @@ describe('dates', () => {
   });
 
   it('appends old-style suffix for julian dates', () => {
-    expect(dateToText({ year: 1897, month: 7, day: 1, julian: true })).toBe('01.07.1897 ст.');
-    expect(dateToText({ text: 'ок. 1875', julian: true })).toBe('ок. 1875 ст.');
+    expect(dateToText({ year: 1897, month: 7, day: 1, julian: true })).toBe('01.07.1897\u00a0ст.');
+    expect(dateToText({ text: 'ок. 1875', julian: true })).toBe('ок. 1875\u00a0ст.');
   });
 
   it('formats marriage dates: start only without divorce', () => {

@@ -7,7 +7,7 @@ import {
 } from '../../models/person-utils';
 import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
 import { buildCardNameLines, type CardNameLineEmphasis } from '../../layout/card-display-lines';
-import { resolveCardTypography } from '../../layout/card-name-font';
+import { resolveCardTypography, scaleCardMetaFontSize } from '../../layout/card-name-font';
 import './PersonCard.css';
 
 interface PersonCardProps {
@@ -133,6 +133,7 @@ export function PersonCardWithMedia({
   });
   const metaSize = typography.meta;
   const secondarySize = typography.secondary;
+  const datesSize = dates ? scaleCardMetaFontSize(dates, metaSize, width) : metaSize;
 
   const showSelection = selected || layoutSelected;
   const exportBorderColor = borderColor;
@@ -277,15 +278,14 @@ export function PersonCardWithMedia({
             )}
             {hasDetails && (
               <section className="person-card-html__details">
-                {(dates || ageLabel) && (
-                  <div className="person-card-html__meta-row" style={{ fontSize: metaSize }}>
-                    {dates && <span className="person-card-html__dates">{dates}</span>}
-                    {ageLabel && (
-                      <span className="person-card-html__age">
-                        {dates ? ' · ' : ''}
-                        {ageLabel}
-                      </span>
-                    )}
+                {dates && (
+                  <div className="person-card-html__dates-row" style={{ fontSize: datesSize }}>
+                    {dates}
+                  </div>
+                )}
+                {ageLabel && (
+                  <div className="person-card-html__age-row" style={{ fontSize: metaSize }}>
+                    {ageLabel}
                   </div>
                 )}
                 {location && (

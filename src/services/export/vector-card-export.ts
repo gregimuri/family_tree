@@ -1,7 +1,7 @@
 import type { LayoutNode, Person, Project, ViewSettings } from '../../types';
 import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
 import { buildCardNameLines, type CardNameLineEmphasis } from '../../layout/card-display-lines';
-import { resolveCardTypography } from '../../layout/card-name-font';
+import { resolveCardTypography, scaleCardMetaFontSize } from '../../layout/card-name-font';
 import { PDF_FONT_BOLD, PDF_FONT_REGULAR } from './pdf-font';
 import {
   formatCardAge,
@@ -214,9 +214,18 @@ export async function replaceForeignObjectsWithVectorCards(
       textY = detailsTop + 8;
     }
 
-    if (dates || ageLabel) {
-      const metaLine = [dates, ageLabel].filter(Boolean).join(' · ');
-      appendText(group, cx, textY, metaLine, {
+    if (dates) {
+      const datesSize = scaleCardMetaFontSize(dates, typography.meta, width);
+      appendText(group, cx, textY, dates, {
+        fontSize: datesSize,
+        fill: '#57534e',
+        fontFamily,
+      });
+      textY += datesSize * 1.25;
+    }
+
+    if (ageLabel) {
+      appendText(group, cx, textY, ageLabel, {
         fontSize: typography.meta,
         fill: '#57534e',
         fontFamily,
