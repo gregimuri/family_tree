@@ -225,7 +225,7 @@ export function resolveCardTypography(
   };
 
   const available = cardBodyTextHeight(height, hasPhoto);
-  let used = estimateCardTextHeight(typo, fields, showBirth, nicknameAsPrimary, footer);
+  const used = estimateCardTextHeight(typo, fields, showBirth, nicknameAsPrimary, footer);
   if (used > available && used > 0) {
     typo = scaleTypography(typo, available / used);
   }
