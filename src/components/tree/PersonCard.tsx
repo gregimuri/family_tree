@@ -3,11 +3,11 @@ import {
   formatCardAge,
   formatLifeDates,
   formatPersonName,
-  getCardBirthSuffix,
   getPersonLocationCardText,
 } from '../../models/person-utils';
 import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
-import { buildCardNameFontLines, computeCardNameFontSizes, resolveCardTypography } from '../../layout/card-name-font';
+import { buildCardNameLines, type CardNameLineEmphasis } from '../../layout/card-display-lines';
+import { resolveCardTypography } from '../../layout/card-name-font';
 import './PersonCard.css';
 
 interface PersonCardProps {
@@ -50,108 +50,17 @@ function trimField(value: string | undefined): string {
   return value?.trim() ?? '';
 }
 
-function BirthNameSuffix({
-  current,
-  birth,
-  showBirth,
-  fontSize,
-}: {
-  current: string | undefined;
-  birth: string | undefined;
-  showBirth: boolean;
-  fontSize?: number;
-}) {
-  const suffix = getCardBirthSuffix(current, birth, showBirth);
-  if (!suffix) return null;
-  return (
-    <span className="person-card-html__birth-name" style={fontSize ? { fontSize } : undefined}>
-      {' '}
-      ({suffix})
-    </span>
-  );
-}
-
-function SurnameBlock({
-  person,
-  showBirth,
-  surnameSize,
-  birthSurnameSize,
-}: {
-  person: Person;
-  showBirth: boolean;
-  surnameSize: number;
-  birthSurnameSize?: number;
-}) {
-  const main = trimField(person.surname);
-  const birth = getCardBirthSuffix(person.surname, person.birthSurname, showBirth);
-
-  if (!main && birth) {
-    return (
-      <div className="person-card-html__surname" style={{ fontSize: surnameSize }}>
-        ({birth})
-      </div>
-    );
+function nameLineClass(emphasis: CardNameLineEmphasis): string {
+  switch (emphasis) {
+    case 'surname':
+      return 'person-card-html__line person-card-html__line--surname';
+    case 'birth':
+      return 'person-card-html__line person-card-html__line--birth';
+    case 'nickname':
+      return 'person-card-html__line person-card-html__line--nickname';
+    default:
+      return 'person-card-html__line person-card-html__line--name';
   }
-
-  if (!main) return null;
-
-  return (
-    <div className="person-card-html__surname-block">
-      <div className="person-card-html__surname" style={{ fontSize: surnameSize }}>
-        {main}
-      </div>
-      {birth ? (
-        <div
-          className="person-card-html__birth-surname"
-          style={birthSurnameSize ? { fontSize: birthSurnameSize } : undefined}
-        >
-          ({birth})
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function FullNameRow({
-  person,
-  showBirth,
-  nameSize,
-}: {
-  person: Person;
-  showBirth: boolean;
-  nameSize: number;
-}) {
-  const given = trimField(person.givenName);
-  const patronymic = trimField(person.patronymic);
-  if (!given && !patronymic) return null;
-
-  return (
-    <div className="person-card-html__full-name">
-      {given ? (
-        <span className="person-card-html__given" style={{ fontSize: nameSize }}>
-          {given}
-          <BirthNameSuffix
-            current={person.givenName}
-            birth={person.birthGivenName}
-            showBirth={showBirth}
-            fontSize={nameSize}
-          />
-        </span>
-      ) : null}
-      {given && patronymic ? ' ' : null}
-      {patronymic ? (
-        <span className="person-card-html__patronymic" style={{ fontSize: nameSize }}>
-          {patronymic}
-          <BirthNameSuffix
-            current={person.patronymic}
-            birth={person.birthPatronymic}
-            showBirth={showBirth}
-            fontSize={nameSize}
-          />
-        </span>
-      ) : null}
-    </div>
-  );
 }
 
 export function PersonCardWithMedia({
@@ -202,8 +111,14 @@ export function PersonCardWithMedia({
   const cardScale = width / CARD_W;
   const nicknameAsPrimary = Boolean(cf.showNickname && person.nickname && cf.nicknamePriority);
   const hasDetails = Boolean(dates || ageLabel || location);
+  const nameLines = buildCardNameLines(person, {
+    showBirth,
+    showNickname: Boolean(cf.showNickname),
+    nicknameAsPrimary,
+  });
   const typography = resolveCardTypography(person, {
     showBirth,
+    showNickname: Boolean(cf.showNickname),
     nicknameAsPrimary,
     width,
     height,
@@ -214,21 +129,10 @@ export function PersonCardWithMedia({
       hasAge: Boolean(ageLabel),
       hasReligion: false,
       hasLocation: Boolean(location),
-      hasNickname: Boolean(cf.showNickname && person.nickname && !cf.nicknamePriority),
     },
   });
-  const { surname: surnameSize, given: nameLineSize } = typography;
   const metaSize = typography.meta;
   const secondarySize = typography.secondary;
-  const nicknameSize = typography.nickname;
-  const nameLines = buildCardNameFontLines(person, showBirth, nicknameAsPrimary);
-  const nameFontSizes = computeCardNameFontSizes(nameLines, width, cardScale);
-  const birthSurnameSize =
-    !nicknameAsPrimary &&
-    getCardBirthSuffix(person.surname, person.birthSurname, showBirth) &&
-    person.surname?.trim()
-      ? nameFontSizes[1]
-      : undefined;
 
   const showSelection = selected || layoutSelected;
   const exportBorderColor = borderColor;
@@ -301,11 +205,11 @@ export function PersonCardWithMedia({
     : undefined;
 
   const hasIdentity =
-    nicknameAsPrimary ||
-    trimField(person.surname) ||
-    trimField(person.givenName) ||
-    trimField(person.patronymic) ||
-    (cf.showNickname && person.nickname);
+    nameLines.length > 0 ||
+    (!nicknameAsPrimary &&
+      !trimField(person.surname) &&
+      !trimField(person.givenName) &&
+      !trimField(person.patronymic));
 
   return (
     <g
@@ -355,36 +259,18 @@ export function PersonCardWithMedia({
           <div className="person-card-html__body">
             {hasIdentity && (
               <section className="person-card-html__identity">
-                {nicknameAsPrimary ? (
+                {nameLines.map((line, index) => (
                   <div
-                    className="person-card-html__nickname-primary"
-                    style={{ fontSize: surnameSize }}
+                    key={line.kind}
+                    className={nameLineClass(line.emphasis)}
+                    style={{ fontSize: typography.lineSizes[index] ?? line.base * cardScale }}
                   >
-                    {person.nickname}
+                    {line.text}
                   </div>
-                ) : (
-                  <>
-                    <SurnameBlock
-                      person={person}
-                      showBirth={showBirth}
-                      surnameSize={surnameSize}
-                      birthSurnameSize={birthSurnameSize}
-                    />
-                    <FullNameRow
-                      person={person}
-                      showBirth={showBirth}
-                      nameSize={nameLineSize}
-                    />
-                    {!trimField(person.surname) &&
-                      !trimField(person.givenName) &&
-                      !trimField(person.patronymic) && (
-                        <div className="person-card-html__given">{formatPersonName(person)}</div>
-                      )}
-                  </>
-                )}
-                {cf.showNickname && person.nickname && !cf.nicknamePriority && (
-                  <div className="person-card-html__nickname" style={{ fontSize: nicknameSize }}>
-                    «{person.nickname}»
+                ))}
+                {nameLines.length === 0 && (
+                  <div className="person-card-html__line person-card-html__line--name">
+                    {formatPersonName(person)}
                   </div>
                 )}
               </section>

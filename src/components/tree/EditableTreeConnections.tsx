@@ -1,13 +1,15 @@
-import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { LayoutEdge, Project, DateDisplayFormat } from '../../types';
-import { branchPath, coupleBondPath, edgePath, isBondEdge } from '../../layout/edge-router';
+import { branchPath, coupleBondMidpoint, coupleBondPath, edgePath, isBondEdge } from '../../layout/edge-router';
 import { CARD_GRID_CELL, snapToGridCorner } from '../../layout/card-dimensions';
 import {
   constrainManualRoutePoint,
   isLockedManualRoutePoint,
+  previewEdgeRoutes,
 } from '../../layout/manual-edge-routes';
 import { useProjectStore } from '../../store/project-store';
 import { PedigreeConnections, MarriageBonds } from './TreeConnections';
+
 interface EditableTreeConnectionsProps {
   edges: LayoutEdge[];
   theme: 'clean' | 'forest';
@@ -42,12 +44,26 @@ export function EditableTreeConnections({
 }: EditableTreeConnectionsProps) {
   const beginLayoutEditGesture = useProjectStore((s) => s.beginLayoutEditGesture);
   const endLayoutEditGesture = useProjectStore((s) => s.endLayoutEditGesture);
-
-  const selectedEdge = useMemo(
-    () => edges.find((e) => e.id === selectedEdgeId) ?? null,
-    [edges, selectedEdgeId],
+  const [dragPreview, setDragPreview] = useState<{ edgeId: string; points: { x: number; y: number }[] } | null>(
+    null,
   );
   const dragPointsRef = useRef<{ x: number; y: number }[]>([]);
+  const dragEdgeIdRef = useRef<string | null>(null);
+
+  const displayEdges = useMemo(() => {
+    if (!dragPreview) return edges;
+    return previewEdgeRoutes(edges, dragPreview.edgeId, dragPreview.points, project);
+  }, [dragPreview, edges, project]);
+
+  const selectedEdge = useMemo(
+    () => displayEdges.find((e) => e.id === selectedEdgeId) ?? null,
+    [displayEdges, selectedEdgeId],
+  );
+
+  const bondMidHandle = useMemo(() => {
+    if (!selectedEdge || !isBondEdge(selectedEdge.id) || selectedEdge.points.length < 2) return null;
+    return coupleBondMidpoint(selectedEdge.points);
+  }, [selectedEdge]);
 
   const startPointDrag = (
     edge: LayoutEdge,
@@ -59,6 +75,7 @@ export function EditableTreeConnections({
     e.stopPropagation();
 
     beginLayoutEditGesture();
+    dragEdgeIdRef.current = edge.id;
     dragPointsRef.current = edge.points.map((p) => ({ ...p }));
 
     const target = e.currentTarget;
@@ -74,7 +91,7 @@ export function EditableTreeConnections({
         snapped,
       );
       dragPointsRef.current = next;
-      onUpdateRoute(edge.id, next);
+      setDragPreview({ edgeId: edge.id, points: next });
     };
 
     const up = (ev: globalThis.PointerEvent) => {
@@ -83,6 +100,11 @@ export function EditableTreeConnections({
       target.removeEventListener('pointerup', up);
       target.removeEventListener('pointercancel', up);
       endLayoutEditGesture();
+      if (dragEdgeIdRef.current) {
+        onUpdateRoute(dragEdgeIdRef.current, dragPointsRef.current);
+      }
+      dragEdgeIdRef.current = null;
+      setDragPreview(null);
     };
 
     target.addEventListener('pointermove', move);
@@ -90,10 +112,15 @@ export function EditableTreeConnections({
     target.addEventListener('pointercancel', up);
   };
 
+  const startBondMidDrag = (edge: LayoutEdge, e: ReactPointerEvent<SVGCircleElement>) => {
+    const rowIndex = edge.points.findIndex((p) => Math.abs(p.y - Math.max(...edge.points.map((pt) => pt.y))) < 0.5);
+    startPointDrag(edge, rowIndex >= 0 ? rowIndex : 0, e);
+  };
+
   return (
     <g className="tree-connections-editable">
       {active &&
-        edges.map((edge) => (
+        displayEdges.map((edge) => (
           <path
             key={`hit-${edge.id}`}
             d={pathD(edge, theme)}
@@ -110,14 +137,14 @@ export function EditableTreeConnections({
         ))}
 
       <PedigreeConnections
-        edges={edges}
+        edges={displayEdges}
         theme={theme}
         highlightEdgeId={selectedEdgeId}
         pointerEvents={active ? 'none' : 'auto'}
       />
 
       <MarriageBonds
-        edges={edges}
+        edges={displayEdges}
         theme={theme}
         project={project}
         marriageDateFormat={marriageDateFormat}
@@ -126,20 +153,33 @@ export function EditableTreeConnections({
         onUnionDoubleClick={onUnionDoubleClick}
       />
 
-      {active &&
-        selectedEdge?.points.map((point, index) => {
-          if (isLockedManualRoutePoint(selectedEdge.id, index, selectedEdge.points)) return null;
-          return (
+      {active && selectedEdge && (
+        <>
+          {selectedEdge.points.map((point, index) => {
+            if (isLockedManualRoutePoint(selectedEdge.id, index, selectedEdge.points)) return null;
+            return (
+              <circle
+                key={`${selectedEdge.id}-${index}`}
+                cx={point.x}
+                cy={point.y}
+                r={5}
+                className="tree-edge-handle"
+                onPointerDown={(e) => startPointDrag(selectedEdge, index, e)}
+              />
+            );
+          })}
+          {bondMidHandle && (
             <circle
-              key={`${selectedEdge.id}-${index}`}
-              cx={point.x}
-              cy={point.y}
+              key={`${selectedEdge.id}-mid`}
+              cx={bondMidHandle.x}
+              cy={bondMidHandle.y}
               r={5}
-              className="tree-edge-handle"
-              onPointerDown={(e) => startPointDrag(selectedEdge, index, e)}
+              className="tree-edge-handle tree-edge-handle--bond-mid"
+              onPointerDown={(e) => startBondMidDrag(selectedEdge, e)}
             />
-          );
-        })}
+          )}
+        </>
+      )}
     </g>
   );
 }

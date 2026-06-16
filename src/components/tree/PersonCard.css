@@ -53,7 +53,7 @@
 }
 
 .person-card-html--with-photo .person-card-html__photo {
-  flex: 8 0 0;
+  flex: 7 0 0;
   min-height: 0;
   display: flex;
   align-items: stretch;
@@ -71,7 +71,7 @@
 }
 
 .person-card-html__body {
-  flex: 4 0 0;
+  flex: 5 0 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -96,82 +96,41 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-}
-
-.person-card-html__surname-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: 0;
-  max-width: 100%;
+  width: 100%;
 }
 
-.person-card-html__surname {
-  font-size: 11px;
+.person-card-html__line {
+  max-width: 100%;
+  line-height: 1.18;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.person-card-html__line--surname {
   font-weight: 700;
-  line-height: 1.15;
   color: var(--color-text);
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
 }
 
-.person-card-html__birth-surname {
-  margin-top: 1px;
-  font-weight: 400;
-  line-height: 1.15;
-  color: var(--color-text-secondary);
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
-}
-
-.person-card-html__full-name {
-  display: block;
-  max-width: 100%;
-  margin-top: 1px;
-  line-height: 1.2;
-  text-align: center;
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
-}
-
-.person-card-html__given,
-.person-card-html__patronymic {
-  display: inline;
-  font-size: 10px;
+.person-card-html__line--name {
   font-weight: 500;
   color: var(--color-text);
 }
 
-.person-card-html__birth-name {
+.person-card-html__line--birth {
   font-weight: 400;
   color: var(--color-text-secondary);
 }
 
-.person-card-html--forest .person-card-html__surname,
-.person-card-html--forest .person-card-html__given,
-.person-card-html--forest .person-card-html__patronymic {
-  font-family: Georgia, 'Times New Roman', serif;
-}
-
-.person-card-html__nickname,
-.person-card-html__nickname-primary {
-  font-size: 9px;
-  line-height: 1.2;
+.person-card-html__line--nickname {
+  margin-top: 1px;
+  font-weight: 400;
   color: var(--color-text-muted);
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
 }
 
-.person-card-html__nickname {
-  margin-top: 2px;
-}
-
-.person-card-html__nickname-primary {
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--color-text);
+.person-card-html--forest .person-card-html__line--surname,
+.person-card-html--forest .person-card-html__line--name {
+  font-family: Georgia, 'Times New Roman', serif;
 }
 
 .person-card-html__details {
@@ -197,15 +156,6 @@
 .person-card-html__dates,
 .person-card-html__age {
   white-space: nowrap;
-}
-
-.person-card-html__religion {
-  font-size: 8px;
-  line-height: 1.2;
-  color: var(--color-text-muted);
-  max-width: 100%;
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
 }
 
 .person-card-html__location {
@@ -234,4 +184,10 @@
 
 .person-card--forest .person-card-html__details {
   border-top-color: rgba(93, 64, 55, 0.18);
+}
+
+.tree-edge-handle--bond-mid {
+  fill: #fef08a;
+  stroke: #ca8a04;
+  stroke-width: 1.5;
 }

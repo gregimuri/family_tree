@@ -9,8 +9,8 @@ export const CARD_PHOTO_ASPECT = 3 / 4;
 /** Высота карточки с фото (12 клеток). */
 export const CARD_H_FULL = 240;
 
-/** Высота карточки без фото (4 клетки). */
-export const CARD_H_TEXT = 80;
+/** Высота карточки без фото (6 клеток). */
+export const CARD_H_TEXT = 120;
 
 /** Клетка сетки: 1/6 ширины и 1/12 высоты карточки с фото (= 1/4 без фото). */
 export const CARD_GRID_CELL = CARD_W / 6;

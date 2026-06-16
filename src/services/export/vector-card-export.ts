@@ -1,11 +1,11 @@
 import type { LayoutNode, Person, Project, ViewSettings } from '../../types';
 import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
+import { buildCardNameLines, type CardNameLineEmphasis } from '../../layout/card-display-lines';
 import { resolveCardTypography } from '../../layout/card-name-font';
 import { PDF_FONT_BOLD, PDF_FONT_REGULAR } from './pdf-font';
 import {
   formatCardAge,
   formatLifeDates,
-  getCardBirthSuffix,
   getPersonLocationCardText,
 } from '../../models/person-utils';
 
@@ -42,76 +42,22 @@ function appendText(
   parent.appendChild(el);
 }
 
-function appendTspan(
-  parent: SVGTextElement,
-  text: string,
-  options: { fontSize: number; fill?: string; fontFamily?: string; fontWeight?: number },
-): void {
-  if (!text) return;
-  const tspan = document.createElementNS(SVG_NS, 'tspan');
-  tspan.setAttribute('font-size', String(options.fontSize));
-  tspan.setAttribute('fill', options.fill ?? '#44403c');
-  tspan.setAttribute('font-family', options.fontFamily ?? PDF_FONT_REGULAR);
-  if (options.fontWeight) tspan.setAttribute('font-weight', String(options.fontWeight));
-  tspan.textContent = text;
-  parent.appendChild(tspan);
-}
-
-function appendCombinedFullName(
-  parent: SVGGElement,
-  x: number,
-  y: number,
-  given: string | undefined,
-  birthGiven: string | undefined,
-  patronymic: string | undefined,
-  birthPatronymic: string | undefined,
-  showBirth: boolean,
-  nameSize: number,
-  fontFamily: string,
-): number {
-  const givenMain = (given ?? '').trim();
-  const patronymicMain = (patronymic ?? '').trim();
-  if (!givenMain && !patronymicMain) return y;
-
-  const givenSuffix = getCardBirthSuffix(given, birthGiven, showBirth);
-  const patronymicSuffix = getCardBirthSuffix(patronymic, birthPatronymic, showBirth);
-
-  const text = document.createElementNS(SVG_NS, 'text');
-  text.setAttribute('x', String(x));
-  text.setAttribute('y', String(y));
-  text.setAttribute('text-anchor', 'middle');
-  text.setAttribute('font-family', fontFamily);
-
-  if (givenMain) {
-    appendTspan(text, givenMain, { fontSize: nameSize, fill: '#1c1917', fontFamily });
-    if (givenSuffix) {
-      appendTspan(text, ` (${givenSuffix})`, {
-        fontSize: nameSize,
-        fill: '#78716c',
-        fontFamily,
-      });
-    }
+function lineStyle(emphasis: CardNameLineEmphasis): {
+  fill: string;
+  fontWeight?: number;
+  fontFamily: string;
+  lineHeight: number;
+} {
+  switch (emphasis) {
+    case 'surname':
+      return { fill: '#1c1917', fontWeight: 700, fontFamily: PDF_FONT_BOLD, lineHeight: 1.2 };
+    case 'birth':
+      return { fill: '#78716c', fontFamily: PDF_FONT_REGULAR, lineHeight: 1.18 };
+    case 'nickname':
+      return { fill: '#78716c', fontFamily: PDF_FONT_REGULAR, lineHeight: 1.18 };
+    default:
+      return { fill: '#1c1917', fontWeight: 500, fontFamily: PDF_FONT_REGULAR, lineHeight: 1.18 };
   }
-  if (patronymicMain) {
-    if (givenMain) {
-      appendTspan(text, '\u00a0', { fontSize: nameSize, fill: '#1c1917', fontFamily });
-    }
-    appendTspan(text, patronymicMain, {
-      fontSize: nameSize,
-      fill: '#1c1917',
-      fontFamily,
-    });
-    if (patronymicSuffix) {
-      appendTspan(text, ` (${patronymicSuffix})`, {
-        fontSize: nameSize,
-        fill: '#78716c',
-        fontFamily,
-      });
-    }
-  }
-
-  parent.appendChild(text);
-  return y + nameSize * 1.25;
 }
 
 export async function replaceForeignObjectsWithVectorCards(
@@ -137,12 +83,11 @@ export async function replaceForeignObjectsWithVectorCards(
     const x = Number.parseFloat(foreignObject.getAttribute('x') ?? '0');
     const y = Number.parseFloat(foreignObject.getAttribute('y') ?? '0');
     const width = Number.parseFloat(foreignObject.getAttribute('width') ?? '120');
-    const height = Number.parseFloat(foreignObject.getAttribute('height') ?? '80');
+    const height = Number.parseFloat(foreignObject.getAttribute('height') ?? '120');
     const cardScale = width / CARD_W;
     const cx = width / 2;
     const border = cardBorderColor(person, theme);
     const fontFamily = PDF_FONT_REGULAR;
-    const fontFamilyBold = PDF_FONT_BOLD;
     const bg = theme === 'forest' ? '#fafaf9' : '#ffffff';
     const rx = theme === 'forest' ? 8 : 12;
 
@@ -159,7 +104,7 @@ export async function replaceForeignObjectsWithVectorCards(
     group.appendChild(cardRect);
 
     const hasPhoto = personShowsCardPhoto(project, person, settings);
-    const photoH = hasPhoto ? Math.round((height * 8) / 12) : 0;
+    const photoH = hasPhoto ? Math.round((height * 7) / 12) : 0;
     let textY = hasPhoto ? photoH + 14 : 14;
 
     if (hasPhoto && person.avatar?.mediaId) {
@@ -220,9 +165,15 @@ export async function replaceForeignObjectsWithVectorCards(
     const dates = formatLifeDates(person, cf.dateFormat);
     const ageLabel = cf.showAge ? formatCardAge(person) : null;
     const location = cf.showLocation ? getPersonLocationCardText(person) : null;
+    const nameLines = buildCardNameLines(person, {
+      showBirth: cf.showBirthName,
+      showNickname: Boolean(cf.showNickname),
+      nicknameAsPrimary,
+    });
 
     const typography = resolveCardTypography(person, {
       showBirth: cf.showBirthName,
+      showNickname: Boolean(cf.showNickname),
       nicknameAsPrimary,
       width,
       height,
@@ -233,71 +184,20 @@ export async function replaceForeignObjectsWithVectorCards(
         hasAge: Boolean(ageLabel),
         hasReligion: false,
         hasLocation: Boolean(location),
-        hasNickname: Boolean(cf.showNickname && person.nickname && !cf.nicknamePriority),
       },
     });
 
-    if (nicknameAsPrimary) {
-      appendText(group, cx, textY, person.nickname!, {
-        fontSize: typography.surname,
-        fontWeight: 700,
-        fontFamily: fontFamilyBold,
+    for (let lineIndex = 0; lineIndex < nameLines.length; lineIndex++) {
+      const line = nameLines[lineIndex]!;
+      const size = typography.lineSizes[lineIndex] ?? line.base * cardScale;
+      const style = lineStyle(line.emphasis);
+      appendText(group, cx, textY, line.text, {
+        fontSize: size,
+        fontWeight: style.fontWeight,
+        fill: style.fill,
+        fontFamily: style.fontFamily,
       });
-      textY += typography.surname * 1.25;
-    } else {
-      const surnameMainSize = typography.surname;
-      const surnameBirthSize = typography.surname * 0.9;
-      const surnameMain = (person.surname ?? '').trim();
-      const surnameBirth = getCardBirthSuffix(person.surname, person.birthSurname, cf.showBirthName);
-
-      if (!surnameMain && surnameBirth) {
-        appendText(group, cx, textY, `(${surnameBirth})`, {
-          fontSize: surnameMainSize,
-          fontWeight: 700,
-          fill: '#1c1917',
-          fontFamily: fontFamilyBold,
-        });
-        textY += surnameMainSize * 1.25;
-      } else {
-        if (surnameMain) {
-          appendText(group, cx, textY, surnameMain, {
-            fontSize: surnameMainSize,
-            fontWeight: 700,
-            fill: '#1c1917',
-            fontFamily: fontFamilyBold,
-          });
-          textY += surnameMainSize * 1.2;
-        }
-        if (surnameBirth && surnameMain) {
-          appendText(group, cx, textY, `(${surnameBirth})`, {
-            fontSize: surnameBirthSize,
-            fill: '#78716c',
-            fontFamily,
-          });
-          textY += surnameBirthSize * 1.2;
-        }
-      }
-
-      textY = appendCombinedFullName(
-        group,
-        cx,
-        textY + 1,
-        person.givenName,
-        person.birthGivenName,
-        person.patronymic,
-        person.birthPatronymic,
-        cf.showBirthName,
-        typography.given,
-        fontFamily,
-      );
-      if (cf.showNickname && person.nickname && !cf.nicknamePriority) {
-        appendText(group, cx, textY, `«${person.nickname}»`, {
-          fontSize: typography.nickname,
-          fill: '#78716c',
-          fontFamily,
-        });
-        textY += typography.nickname * 1.25 + 2;
-      }
+      textY += size * style.lineHeight;
     }
 
     const hasDetails = Boolean(dates || ageLabel || location);

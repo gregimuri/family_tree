@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createEmptyProject, createEmptyPerson } from '../models/defaults';
 import {
+  buildCardNameLines,
   cardBodyTextHeight,
   computeCardNameFontSizes,
   estimateCardTextHeight,
@@ -20,11 +21,11 @@ import {
 } from '../layout/card-dimensions';
 
 describe('card dimensions', () => {
-  it('uses 6x12 grid for full card and 6x4 for text-only', () => {
+  it('uses 6x12 grid for full card and 6x6 for text-only', () => {
     expect(CARD_GRID_CELL).toBe(CARD_W / 6);
     expect(CARD_H_FULL).toBe(CARD_GRID_CELL * 12);
-    expect(CARD_H_TEXT).toBe(CARD_GRID_CELL * 4);
-    expect(CARD_H_TEXT).toBe(CARD_H_FULL / 3);
+    expect(CARD_H_TEXT).toBe(CARD_GRID_CELL * 6);
+    expect(CARD_H_TEXT).toBe(CARD_H_FULL / 2);
     expect(CARD_PHOTO_ASPECT).toBeCloseTo(0.75);
   });
 
@@ -72,10 +73,15 @@ describe('card dimensions', () => {
       hasAge: false,
       hasReligion: false,
       hasLocation: true,
-      hasNickname: false,
     };
+    const nameLines = buildCardNameLines(fields, {
+      showBirth: false,
+      showNickname: false,
+      nicknameAsPrimary: false,
+    });
     const typo = resolveCardTypography(fields, {
       showBirth: false,
+      showNickname: false,
       nicknameAsPrimary: false,
       width: CARD_W,
       height: CARD_H_TEXT,
@@ -84,8 +90,8 @@ describe('card dimensions', () => {
       footer,
     });
     const available = cardBodyTextHeight(CARD_H_TEXT, false);
-    const used = estimateCardTextHeight(typo, fields, false, false, footer);
+    const used = estimateCardTextHeight(nameLines, typo.lineSizes, footer, typo);
     expect(used).toBeLessThanOrEqual(available + 0.5);
-    expect(typo.patronymic).toBeLessThan(12);
+    expect(typo.lineSizes.length).toBeGreaterThan(0);
   });
 });

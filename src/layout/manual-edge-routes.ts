@@ -171,24 +171,14 @@ export function rebuildEdgePathD(
   return undefined;
 }
 
-export function applyManualEdgeRoutes(layout: LayoutResult, project: Project): LayoutResult {
-  const manual = project.manualEdgeRoutes;
-  if (!manual || Object.keys(manual).length === 0) return layout;
-
-  const mergedEdges = layout.edges.map((edge) => {
-    const override = manual[edge.id];
-    if (!override || override.length < 2) return edge;
-    const points = mergeManualRoute(edge, override);
-    return { ...edge, points };
-  });
-
+export function recomputeEdgePaths(edges: LayoutEdge[], project: Project): LayoutEdge[] {
   const bondByUnion = new Map<string, LayoutEdge>();
-  for (const edge of mergedEdges) {
+  for (const edge of edges) {
     const unionId = parseBondUnionId(edge.id);
     if (unionId) bondByUnion.set(unionId, edge);
   }
 
-  const edges = mergedEdges.map((edge) => {
+  return edges.map((edge) => {
     const unionId = famEdgeUnionId(edge.id, bondByUnion.keys());
     const bondEdge = unionId ? bondByUnion.get(unionId) : undefined;
     const bond = bondEdge ? bondRouteContext(bondEdge, project) : undefined;
@@ -210,8 +200,34 @@ export function applyManualEdgeRoutes(layout: LayoutResult, project: Project): L
     if (pathD) return { ...edge, pathD };
     return edge;
   });
+}
+
+export function applyManualEdgeRoutes(layout: LayoutResult, project: Project): LayoutResult {
+  const manual = project.manualEdgeRoutes;
+  if (!manual || Object.keys(manual).length === 0) return layout;
+
+  const mergedEdges = layout.edges.map((edge) => {
+    const override = manual[edge.id];
+    if (!override || override.length < 2) return edge;
+    const points = mergeManualRoute(edge, override);
+    return { ...edge, points };
+  });
+
+  const edges = recomputeEdgePaths(mergedEdges, project);
 
   return { ...layout, edges };
+}
+
+export function previewEdgeRoutes(
+  edges: LayoutEdge[],
+  edgeId: string,
+  points: Point[],
+  project: Project,
+): LayoutEdge[] {
+  const patched = edges.map((edge) =>
+    edge.id === edgeId ? { ...edge, points: clonePoints(points) } : edge,
+  );
+  return recomputeEdgePaths(patched, project);
 }
 
 /** Route points that stay fixed to cards or marriage anchors while editing. */

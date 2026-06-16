@@ -1,9 +1,8 @@
-import { getCardBirthSuffix } from '../models/person-utils';
+import { buildCardNameLines, cardNameLineHeight, type CardNameLine } from './card-display-lines';
 
-const NAME_LINE_HEIGHT = 1.25;
-const SURNAME_LINE_HEIGHT = 1.2;
 const ROW_GAP = 1;
 const MIN_FONT_SIZE = 5.5;
+const DETAILS_GAP = 4;
 
 /** Подбор размера строки ФИО: короткие имена крупнее, длинные — мельче. */
 export function scaleCardLineFontSize(
@@ -28,7 +27,7 @@ export function computeCardNameFontSizes(
 ): number[] {
   const visible = lines.filter((l) => l.text.trim());
   const lineCount = visible.length;
-  const heightFactor = lineCount > 4 ? 0.82 : lineCount > 3 ? 0.9 : 1;
+  const heightFactor = lineCount > 6 ? 0.78 : lineCount > 4 ? 0.86 : lineCount > 3 ? 0.92 : 1;
   const widthMaxScale = Math.min(1.35, 1.05 + cardScale * 0.25);
   return lines.map(({ text, base }) => {
     if (!text.trim()) return base * cardScale;
@@ -39,142 +38,61 @@ export function computeCardNameFontSizes(
   });
 }
 
-function cardLineText(
-  current: string | undefined,
-  birth: string | undefined,
-  showBirth: boolean,
-): string {
-  const main = (current ?? '').trim();
-  const suffix = getCardBirthSuffix(current, birth, showBirth);
-  if (!main && suffix) return `(${suffix})`;
-  if (suffix) return `${main} (${suffix})`;
-  return main;
-}
-
-/** Строки ФИО для расчёта размеров шрифта (фамилия при рождении — отдельная строка). */
-export function buildCardNameFontLines(
-  fields: {
-    surname?: string;
-    birthSurname?: string;
-    givenName?: string;
-    birthGivenName?: string;
-    patronymic?: string;
-    birthPatronymic?: string;
-    nickname?: string;
-  },
-  showBirth: boolean,
-  nicknameAsPrimary: boolean,
-): { text: string; base: number }[] {
-  if (nicknameAsPrimary) {
-    return [{ text: fields.nickname ?? '', base: 11 }];
-  }
-
-  const lines: { text: string; base: number }[] = [];
-  const surnameMain = (fields.surname ?? '').trim();
-  const surnameBirth = getCardBirthSuffix(fields.surname, fields.birthSurname, showBirth);
-
-  if (!surnameMain && surnameBirth) {
-    lines.push({ text: `(${surnameBirth})`, base: 11 });
-  } else {
-    if (surnameMain) lines.push({ text: surnameMain, base: 11 });
-    if (surnameBirth) lines.push({ text: `(${surnameBirth})`, base: 10 });
-  }
-
-  lines.push(
-    {
-      text: [cardLineText(fields.givenName, fields.birthGivenName, showBirth),
-        cardLineText(fields.patronymic, fields.birthPatronymic, showBirth)]
-        .filter((t) => t.trim())
-        .join(' '),
-      base: 10,
-    },
-  );
-
-  return lines;
-}
-
 export interface CardFooterFlags {
   hasDates: boolean;
   hasAge: boolean;
   hasReligion: boolean;
   hasLocation: boolean;
-  hasNickname: boolean;
 }
 
 export interface CardTypography {
-  surname: number;
-  given: number;
-  patronymic: number;
-  nickname: number;
+  lineSizes: number[];
   meta: number;
   secondary: number;
+  /** @deprecated use lineSizes */
+  surname: number;
+  /** @deprecated use lineSizes */
+  given: number;
+  /** @deprecated use lineSizes */
+  patronymic: number;
+  /** @deprecated use lineSizes */
+  nickname: number;
 }
 
 export function cardBodyTextHeight(cardHeight: number, hasPhoto: boolean): number {
-  const bodyHeight = hasPhoto ? (cardHeight * 4) / 12 : cardHeight;
-  const padding = hasPhoto ? 10 : 12;
-  return Math.max(24, bodyHeight - padding);
+  const bodyHeight = hasPhoto ? (cardHeight * 5) / 12 : cardHeight;
+  const padding = hasPhoto ? 10 : 10;
+  return Math.max(28, bodyHeight - padding);
 }
 
 export function estimateCardTextHeight(
-  typo: CardTypography,
-  fields: {
-    surname?: string;
-    birthSurname?: string;
-    givenName?: string;
-    birthGivenName?: string;
-    patronymic?: string;
-    birthPatronymic?: string;
-    nickname?: string;
-  },
-  showBirth: boolean,
-  nicknameAsPrimary: boolean,
+  nameLines: CardNameLine[],
+  lineSizes: number[],
   footer: CardFooterFlags,
+  typo: Pick<CardTypography, 'meta' | 'secondary'>,
 ): number {
-  if (nicknameAsPrimary && fields.nickname?.trim()) {
-    let h = typo.nickname * NAME_LINE_HEIGHT;
-    if (footer.hasNickname) h += typo.nickname * NAME_LINE_HEIGHT + ROW_GAP;
-    if (footer.hasDates || footer.hasAge) h += typo.meta * NAME_LINE_HEIGHT + 2;
-    if (footer.hasReligion) h += typo.secondary * NAME_LINE_HEIGHT + ROW_GAP;
-    if (footer.hasLocation) h += typo.secondary * NAME_LINE_HEIGHT + ROW_GAP;
-    return h;
-  }
-
   let h = 0;
-  const surnameMain = (fields.surname ?? '').trim();
-  const surnameBirth = getCardBirthSuffix(fields.surname, fields.birthSurname, showBirth);
-  const given = cardLineText(fields.givenName, fields.birthGivenName, showBirth);
-  const patronymic = cardLineText(fields.patronymic, fields.birthPatronymic, showBirth);
-
-  if (surnameMain) h += typo.surname * SURNAME_LINE_HEIGHT;
-  else if (surnameBirth) h += typo.surname * SURNAME_LINE_HEIGHT;
-
-  if (surnameBirth && surnameMain) {
-    h += ROW_GAP + typo.surname * 0.9 * SURNAME_LINE_HEIGHT;
-  }
-
-  if (given || patronymic) {
-    h += ROW_GAP + Math.max(
-      given ? typo.given * NAME_LINE_HEIGHT : 0,
-      patronymic ? typo.patronymic * NAME_LINE_HEIGHT : 0,
-    );
-  }
-  if (footer.hasNickname) h += ROW_GAP + typo.nickname * NAME_LINE_HEIGHT;
+  nameLines.forEach((line, index) => {
+    const size = lineSizes[index] ?? line.base;
+    if (h > 0) h += ROW_GAP;
+    h += size * cardNameLineHeight(line.emphasis);
+  });
 
   if (footer.hasDates || footer.hasAge || footer.hasReligion || footer.hasLocation) {
-    h += 4;
+    if (nameLines.length > 0) h += DETAILS_GAP;
   }
-  if (footer.hasDates || footer.hasAge) h += typo.meta * NAME_LINE_HEIGHT;
-  if (footer.hasReligion) h += ROW_GAP + typo.secondary * NAME_LINE_HEIGHT;
-  if (footer.hasLocation) h += ROW_GAP + typo.secondary * NAME_LINE_HEIGHT;
+  if (footer.hasDates || footer.hasAge) h += typo.meta * 1.2;
+  if (footer.hasLocation) h += ROW_GAP + typo.secondary * 1.18;
 
   return h;
 }
 
 function scaleTypography(typo: CardTypography, factor: number): CardTypography {
   const scale = (value: number) => Math.max(MIN_FONT_SIZE, Math.round(value * factor * 10) / 10);
+  const lineSizes = typo.lineSizes.map(scale);
   return {
-    surname: scale(typo.surname),
+    lineSizes,
+    surname: lineSizes[0] ?? scale(typo.surname),
     given: scale(typo.given),
     patronymic: scale(typo.patronymic),
     nickname: scale(typo.nickname),
@@ -196,6 +114,7 @@ export function resolveCardTypography(
   },
   options: {
     showBirth: boolean;
+    showNickname: boolean;
     nicknameAsPrimary: boolean;
     width: number;
     height: number;
@@ -204,36 +123,28 @@ export function resolveCardTypography(
     footer: CardFooterFlags;
   },
 ): CardTypography {
-  const { showBirth, nicknameAsPrimary, width, height, hasPhoto, cardScale, footer } = options;
-  const nameLines = buildCardNameFontLines(fields, showBirth, nicknameAsPrimary);
+  const { showBirth, showNickname, nicknameAsPrimary, width, height, hasPhoto, cardScale, footer } =
+    options;
+  const nameLines = buildCardNameLines(fields, { showBirth, showNickname, nicknameAsPrimary });
   const nameFontSizes = computeCardNameFontSizes(nameLines, width, cardScale);
 
-  let sizeIndex = 0;
-  const surname = nicknameAsPrimary
-    ? (nameFontSizes[0] ?? 11 * cardScale)
-    : (nameFontSizes[sizeIndex++] ?? 11 * cardScale);
-  const hasBirthSurnameLine =
-    !nicknameAsPrimary &&
-    Boolean(getCardBirthSuffix(fields.surname, fields.birthSurname, showBirth) &&
-      (fields.surname ?? '').trim());
-  if (hasBirthSurnameLine) sizeIndex++;
-  const given = nicknameAsPrimary ? surname : (nameFontSizes[sizeIndex] ?? 10 * cardScale);
-  const patronymic = given;
-
   let typo: CardTypography = {
-    surname,
-    given,
-    patronymic,
-    nickname: 9 * cardScale,
+    lineSizes: nameFontSizes,
+    surname: nameFontSizes[0] ?? 11 * cardScale,
+    given: nameFontSizes.find((_, i) => nameLines[i]?.emphasis === 'name') ?? 10 * cardScale,
+    patronymic: nameFontSizes.find((_, i) => nameLines[i]?.kind === 'patronymic') ?? 10 * cardScale,
+    nickname: nameFontSizes.find((_, i) => nameLines[i]?.kind === 'nickname') ?? 9 * cardScale,
     meta: 9 * cardScale,
     secondary: 8 * cardScale,
   };
 
   const available = cardBodyTextHeight(height, hasPhoto);
-  const used = estimateCardTextHeight(typo, fields, showBirth, nicknameAsPrimary, footer);
+  const used = estimateCardTextHeight(nameLines, nameFontSizes, footer, typo);
   if (used > available && used > 0) {
     typo = scaleTypography(typo, available / used);
   }
 
   return typo;
 }
+
+export { buildCardNameLines };

@@ -411,7 +411,7 @@ export function TreeView() {
         <div className="manual-layout-bar">
           <Icons.Move size={16} />
           <span>
-            Карточки — перетаскивание; рамкой — выбор нескольких; Shift+рамка или Shift+клик — добавить в выбор.
+            Карточки — перетаскивание; линии — клик и маркеры; рамкой — выбор нескольких; Shift+рамка или Shift+клик — добавить в выбор.
           </span>
           {layoutSelectedCount > 0 && (
             <span className="manual-layout-bar__count">Выбрано: {layoutSelectedCount}</span>
