@@ -60,7 +60,7 @@ export function buildCardNameLines(
       lines.push({ kind: 'surname', text: surnameMain, base: 11, emphasis: 'surname' });
     }
     if (surnameBirth) {
-      lines.push({ kind: 'birthSurname', text: surnameBirth, base: 10, emphasis: 'birth' });
+      lines.push({ kind: 'birthSurname', text: `(${surnameBirth})`, base: 10, emphasis: 'birth' });
     }
   }
 
@@ -68,14 +68,14 @@ export function buildCardNameLines(
     lines.push({ kind: 'given', text: givenMain, base: 10, emphasis: 'name' });
   }
   if (givenBirth) {
-    lines.push({ kind: 'birthGiven', text: givenBirth, base: 10, emphasis: 'birth' });
+    lines.push({ kind: 'birthGiven', text: `(${givenBirth})`, base: 10, emphasis: 'birth' });
   }
 
   if (patronymicMain) {
     lines.push({ kind: 'patronymic', text: patronymicMain, base: 10, emphasis: 'name' });
   }
   if (patronymicBirth) {
-    lines.push({ kind: 'birthPatronymic', text: patronymicBirth, base: 10, emphasis: 'birth' });
+    lines.push({ kind: 'birthPatronymic', text: `(${patronymicBirth})`, base: 10, emphasis: 'birth' });
   }
 
   if (showNickname && fields.nickname?.trim() && !nicknameAsPrimary) {

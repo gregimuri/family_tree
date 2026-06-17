@@ -8,6 +8,7 @@ import {
 import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
 import { buildCardNameLines, type CardNameLineEmphasis } from '../../layout/card-display-lines';
 import { resolveCardTypography, scaleCardMetaFontSize } from '../../layout/card-name-font';
+import { avatarCropImageStyle, normalizeAvatarCrop } from '../../utils/avatar-crop';
 import './PersonCard.css';
 
 interface PersonCardProps {
@@ -106,6 +107,13 @@ export function PersonCardWithMedia({
         return media ? getMediaUrl(media.filename) : undefined;
       })()
     : undefined;
+  const avatarCrop = person.avatar ? normalizeAvatarCrop(person.avatar) : null;
+  const fullFrameAvatar =
+    !avatarCrop ||
+    (avatarCrop.width >= 0.999 &&
+      avatarCrop.height >= 0.999 &&
+      avatarCrop.x <= 0.001 &&
+      avatarCrop.y <= 0.001);
 
   const showBirth = cf.showBirthName;
   const cardScale = width / CARD_W;
@@ -254,7 +262,18 @@ export function PersonCardWithMedia({
           )}
           {hasPhoto && avatarUrl && (
             <div className="person-card-html__photo">
-              <img className="person-card-html__avatar" src={avatarUrl} alt="" />
+              <div className="person-card-html__photo-frame">
+                <img
+                  className={
+                    fullFrameAvatar
+                      ? 'person-card-html__avatar person-card-html__avatar--full'
+                      : 'person-card-html__avatar'
+                  }
+                  src={avatarUrl}
+                  alt=""
+                  style={fullFrameAvatar || !avatarCrop ? undefined : avatarCropImageStyle(avatarCrop)}
+                />
+              </div>
             </div>
           )}
           <div className="person-card-html__body">

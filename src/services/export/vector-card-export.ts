@@ -2,6 +2,7 @@ import type { LayoutNode, Person, Project, ViewSettings } from '../../types';
 import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
 import { buildCardNameLines, type CardNameLineEmphasis } from '../../layout/card-display-lines';
 import { resolveCardTypography, scaleCardMetaFontSize } from '../../layout/card-name-font';
+import { normalizeAvatarCrop } from '../../utils/avatar-crop';
 import { PDF_FONT_BOLD, PDF_FONT_REGULAR } from './pdf-font';
 import {
   formatCardAge,
@@ -104,7 +105,7 @@ export async function replaceForeignObjectsWithVectorCards(
     group.appendChild(cardRect);
 
     const hasPhoto = personShowsCardPhoto(project, person, settings);
-    const photoH = hasPhoto ? Math.round((height * 7) / 12) : 0;
+    const photoH = hasPhoto ? Math.round((height * 8) / 12) : 0;
     let textY = hasPhoto ? photoH + 14 : 14;
 
     if (hasPhoto && person.avatar?.mediaId) {
@@ -136,15 +137,19 @@ export async function replaceForeignObjectsWithVectorCards(
           clip.appendChild(clipRect);
           defs.appendChild(clip);
 
+          const crop = person.avatar ? normalizeAvatarCrop(person.avatar) : { x: 0, y: 0, width: 1, height: 1 };
+          const imgW = width / crop.width;
+          const imgH = photoH / crop.height;
+
           const image = document.createElementNS(SVG_NS, 'image');
           image.setAttribute('href', dataUrl);
           image.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataUrl);
-          image.setAttribute('x', '0');
-          image.setAttribute('y', '0');
-          image.setAttribute('width', String(width));
-          image.setAttribute('height', String(photoH));
+          image.setAttribute('x', String(-crop.x * imgW));
+          image.setAttribute('y', String(-crop.y * imgH));
+          image.setAttribute('width', String(imgW));
+          image.setAttribute('height', String(imgH));
           image.setAttribute('clip-path', `url(#${clipId})`);
-          image.setAttribute('preserveAspectRatio', 'xMidYMin slice');
+          image.setAttribute('preserveAspectRatio', 'none');
           group.appendChild(image);
 
           const divider = document.createElementNS(SVG_NS, 'line');

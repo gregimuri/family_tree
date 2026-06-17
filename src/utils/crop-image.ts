@@ -2,7 +2,7 @@ import type { Area } from 'react-easy-crop';
 
 const TO_RADIANS = Math.PI / 180;
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);

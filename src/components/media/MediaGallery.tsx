@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { AvatarCrop, MediaItem } from '../../types';
 import { useProjectStore } from '../../store/project-store';
 import { createId } from '../../utils/create-id';
+import { avatarFromPhotoRegion } from '../../utils/avatar-crop';
 import { PersonSearchDialog } from '../dossier/PersonSearchDialog';
 import { MediaListThumb } from '../dossier/MediaListThumb';
 import './MediaGallery.css';
@@ -73,7 +74,8 @@ export function MediaGallery({ onClose, canEdit }: MediaGalleryProps) {
     const person = project.persons[personId];
     if (!media || media.type !== 'photo' || !person) return;
 
-    const avatar: AvatarCrop = {
+    const regionAvatar = avatarFromPhotoRegion(media, personId);
+    const avatar: AvatarCrop = regionAvatar ?? {
       mediaId: media.id,
       x: 0,
       y: 0,

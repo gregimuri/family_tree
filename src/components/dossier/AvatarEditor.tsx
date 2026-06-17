@@ -5,7 +5,8 @@ import type { AvatarCrop, MediaItem } from '../../types';
 import { CARD_PHOTO_ASPECT } from '../../layout/card-dimensions';
 import { useProjectStore } from '../../store/project-store';
 import { createId } from '../../utils/create-id';
-import { getCroppedImageBlob } from '../../utils/crop-image';
+import { getCroppedImageBlob, loadImage } from '../../utils/crop-image';
+import { buildAvatarCropFromPixels, isSharedMedia } from '../../utils/avatar-crop';
 import './AvatarEditor.css';
 
 interface AvatarEditorProps {
@@ -39,6 +40,7 @@ export function AvatarEditor({
   const addMedia = useProjectStore((s) => s.addMedia);
   const replaceMediaBlob = useProjectStore((s) => s.replaceMediaBlob);
   const deleteMedia = useProjectStore((s) => s.deleteMedia);
+  const updateMedia = useProjectStore((s) => s.updateMedia);
   const getMediaUrl = useProjectStore((s) => s.getMediaUrl);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -105,28 +107,34 @@ export function AvatarEditor({
     setSaving(true);
     setError(null);
     try {
-      const croppedBlob = await getCroppedImageBlob(imageUrl, croppedAreaPixels, rotation);
-      replaceMediaBlob(currentMedia.filename, croppedBlob);
-
-      const avatar: AvatarCrop = {
+      const image = await loadImage(imageUrl);
+      const shared = isSharedMedia(currentProject, mediaId);
+      let avatar = buildAvatarCropFromPixels(
         mediaId,
-        x: 0,
-        y: 0,
-        width: croppedAreaPixels.width,
-        height: croppedAreaPixels.height,
-        rotation: 0,
-        scale: 1,
-      };
+        croppedAreaPixels,
+        image.naturalWidth,
+        image.naturalHeight,
+      );
+
+      if (!shared) {
+        const croppedBlob = await getCroppedImageBlob(imageUrl, croppedAreaPixels, rotation);
+        replaceMediaBlob(currentMedia.filename, croppedBlob);
+        avatar = { mediaId, x: 0, y: 0, width: 1, height: 1, rotation: 0, scale: 1 };
+      }
 
       let mediaIds = [...(linkedMediaIds ?? currentPerson.mediaIds)];
       if (!mediaIds.includes(mediaId)) {
         mediaIds.push(mediaId);
       }
 
+      const personIds = currentMedia.personIds.includes(personId)
+        ? currentMedia.personIds
+        : [...currentMedia.personIds, personId];
+
       const priorAvatarId = currentPerson.avatar?.mediaId;
       if (priorAvatarId && priorAvatarId !== mediaId) {
         const prior = currentProject.media[priorAvatarId];
-        if (prior?.filename.startsWith('avatar-')) {
+        if (prior?.filename.startsWith('avatar-') && !isSharedMedia(currentProject, priorAvatarId)) {
           mediaIds = mediaIds.filter((id) => id !== priorAvatarId);
           deleteMedia(priorAvatarId);
         }
@@ -136,6 +144,7 @@ export function AvatarEditor({
         onAvatarSaved(avatar, mediaIds);
       } else {
         updatePerson({ ...currentPerson, avatar, mediaIds });
+        updateMedia({ ...currentMedia, personIds });
       }
       onClose();
     } catch (e) {
