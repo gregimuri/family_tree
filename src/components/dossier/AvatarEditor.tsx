@@ -5,7 +5,7 @@ import type { AvatarCrop, MediaItem } from '../../types';
 import { CARD_PHOTO_ASPECT } from '../../layout/card-dimensions';
 import { useProjectStore } from '../../store/project-store';
 import { createId } from '../../utils/create-id';
-import { getCroppedImageBlob, loadImage } from '../../utils/crop-image';
+import { loadImage } from '../../utils/crop-image';
 import { buildAvatarCropFromPixels, isSharedMedia } from '../../utils/avatar-crop';
 import './AvatarEditor.css';
 
@@ -40,7 +40,6 @@ export function AvatarEditor({
   const project = useProjectStore((s) => s.project);
   const updatePerson = useProjectStore((s) => s.updatePerson);
   const addMedia = useProjectStore((s) => s.addMedia);
-  const replaceMediaBlob = useProjectStore((s) => s.replaceMediaBlob);
   const deleteMedia = useProjectStore((s) => s.deleteMedia);
   const updateMedia = useProjectStore((s) => s.updateMedia);
   const getMediaUrl = useProjectStore((s) => s.getMediaUrl);
@@ -63,9 +62,14 @@ export function AvatarEditor({
   const person = project.persons[personId];
   const media = mediaId ? project.media[mediaId] : null;
   const imageUrl = media ? getMediaUrl(media.filename) : undefined;
-  const archivePhotos = (linkedMediaIds ?? person.mediaIds)
-    .map((id) => project.media[id])
-    .filter((item): item is MediaItem => Boolean(item && item.type === 'photo'));
+  const archivePhotos = Object.values(project.media)
+    .filter((item): item is MediaItem => item.type === 'photo')
+    .sort((a, b) => {
+      const aLinked = (linkedMediaIds ?? person.mediaIds).includes(a.id) ? 0 : 1;
+      const bLinked = (linkedMediaIds ?? person.mediaIds).includes(b.id) ? 0 : 1;
+      if (aLinked !== bLinked) return aLinked - bLinked;
+      return (a.description || a.filename).localeCompare(b.description || b.filename, 'ru');
+    });
 
   const selectMedia = (id: string) => {
     setMediaId(id);
@@ -78,6 +82,21 @@ export function AvatarEditor({
   };
 
   const onFile = (file: File) => {
+    const existing = Object.values(project.media).find(
+      (item) => item.type === 'photo' && item.filename === file.name,
+    );
+    if (existing) {
+      onMediaLinked?.(existing.id);
+      if (!onMediaLinked) {
+        const mediaIds = person.mediaIds.includes(existing.id)
+          ? person.mediaIds
+          : [...person.mediaIds, existing.id];
+        updatePerson({ ...person, mediaIds });
+      }
+      selectMedia(existing.id);
+      return;
+    }
+
     const id = createId();
     const item: MediaItem = {
       id,
@@ -110,19 +129,13 @@ export function AvatarEditor({
     setError(null);
     try {
       const image = await loadImage(imageUrl);
-      const shared = isSharedMedia(currentProject, mediaId, personId);
-      let avatar = buildAvatarCropFromPixels(
+      const avatar = buildAvatarCropFromPixels(
         mediaId,
         croppedAreaPixels,
         image.naturalWidth,
         image.naturalHeight,
       );
-
-      if (!shared) {
-        const croppedBlob = await getCroppedImageBlob(imageUrl, croppedAreaPixels, rotation);
-        replaceMediaBlob(currentMedia.filename, croppedBlob);
-        avatar = { mediaId, x: 0, y: 0, width: 1, height: 1, rotation: 0, scale: 1 };
-      }
+      avatar.rotation = rotation;
 
       let mediaIds = [...(linkedMediaIds ?? currentPerson.mediaIds)];
       if (!mediaIds.includes(mediaId)) {
@@ -168,7 +181,7 @@ export function AvatarEditor({
           )}
           {archivePhotos.length > 0 && (
             <div className="avatar-editor-archive">
-              <span className="avatar-editor-archive__label">Из архива:</span>
+              <span className="avatar-editor-archive__label">Фото проекта:</span>
               <div className="avatar-editor-archive__list">
                 {archivePhotos.map((item) => {
                   const url = getMediaUrl(item.filename);

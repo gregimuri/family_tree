@@ -9,8 +9,11 @@ export const CARD_PHOTO_ASPECT = 3 / 4;
 /** Высота карточки с фото (12 клеток). */
 export const CARD_H_FULL = 240;
 
-/** Высота карточки без фото — только текстовый блок (6 клеток). */
-export const CARD_H_TEXT = 120;
+/** Высота текстового блока на карточке с фото (4/12). */
+export const CARD_BODY_HEIGHT = (CARD_H_FULL * 4) / 12;
+
+/** Высота карточки без фото — только текстовый блок, как на карточке с фото. */
+export const CARD_H_TEXT = CARD_BODY_HEIGHT;
 
 /** Доля высоты карточки под фото (8/12 ≈ 3:4 при ширине CARD_W). */
 export const CARD_PHOTO_HEIGHT = (CARD_H_FULL * 8) / 12;

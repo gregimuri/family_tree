@@ -21,11 +21,11 @@ import {
 } from '../layout/card-dimensions';
 
 describe('card dimensions', () => {
-  it('uses 6x12 grid for full card and 6x6 for text-only', () => {
+  it('uses 6x12 grid for full card and 4/12 text band for text-only', () => {
     expect(CARD_GRID_CELL).toBe(CARD_W / 6);
     expect(CARD_H_FULL).toBe(CARD_GRID_CELL * 12);
-    expect(CARD_H_TEXT).toBe(CARD_GRID_CELL * 6);
-    expect(CARD_H_TEXT).toBe(CARD_H_FULL / 2);
+    expect(CARD_H_TEXT).toBe(CARD_GRID_CELL * 4);
+    expect(CARD_H_TEXT).toBe((CARD_H_FULL * 4) / 12);
     expect(CARD_PHOTO_ASPECT).toBeCloseTo(0.75);
   });
 
