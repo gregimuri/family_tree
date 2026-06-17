@@ -105,8 +105,8 @@ export async function replaceForeignObjectsWithVectorCards(
     group.appendChild(cardRect);
 
     const hasPhoto = personShowsCardPhoto(project, person, settings);
-    const photoH = hasPhoto ? Math.round((height * 8) / 12) : 0;
-    let textY = hasPhoto ? photoH + 14 : 14;
+    const photoH = Math.round((height * 8) / 12);
+    let textY = photoH + 14;
 
     if (hasPhoto && person.avatar?.mediaId) {
       const media = project.media[person.avatar.mediaId];

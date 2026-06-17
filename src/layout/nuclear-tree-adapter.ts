@@ -1,7 +1,7 @@
 import type { LayoutNode, Person, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
 import { CARD_W, COUPLE_GAP, GROUP_GAP, LAYER_GAP, getCardScale } from './graph-builder';
-import { CARD_H_TEXT, getCardDimensions } from './card-dimensions';
+import { CARD_H_FULL, getCardDimensions } from './card-dimensions';
 import {
   computeNuclearTreeLayout,
   type LayoutOptions,
@@ -95,7 +95,7 @@ export function graphPersonNodes(graph: GraphResult): GraphPersonNode[] {
 export function buildNuclearLayoutOptions(project: Project): LayoutOptions {
   const settings = project.viewSettings;
   const scale = getCardScale(0, false, 0, settings.cardSizeMode);
-  const nodeHeight = CARD_H_TEXT * scale;
+  const nodeHeight = CARD_H_FULL * scale;
   return {
     nodeWidth: CARD_W * scale,
     nodeHeight,

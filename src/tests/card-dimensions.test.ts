@@ -21,24 +21,24 @@ import {
 } from '../layout/card-dimensions';
 
 describe('card dimensions', () => {
-  it('uses 6x12 grid for full card and 6x6 for text-only', () => {
+  it('uses 6x12 grid for full card and 4/12 for text band', () => {
     expect(CARD_GRID_CELL).toBe(CARD_W / 6);
     expect(CARD_H_FULL).toBe(CARD_GRID_CELL * 12);
-    expect(CARD_H_TEXT).toBe(CARD_GRID_CELL * 6);
-    expect(CARD_H_TEXT).toBe(CARD_H_FULL / 2);
+    expect(CARD_H_TEXT).toBe(CARD_GRID_CELL * 4);
+    expect(CARD_H_TEXT).toBe((CARD_H_FULL * 4) / 12);
     expect(CARD_PHOTO_ASPECT).toBeCloseTo(0.75);
   });
 
-  it('omits photo area when setting disabled or avatar missing', () => {
+  it('uses uniform card height with or without photo', () => {
     let project = createEmptyProject();
     const person = createEmptyPerson({ givenName: 'Test' });
     project = { ...project, persons: { ...project.persons, [person.id]: person } };
 
     expect(personShowsCardPhoto(project, person, project.viewSettings)).toBe(false);
 
-    const withPhoto = getCardDimensions(project, person, project.viewSettings, 1);
-    expect(withPhoto.h).toBe(CARD_H_TEXT);
-    expect(withPhoto.hasPhoto).toBe(false);
+    const dims = getCardDimensions(project, person, project.viewSettings, 1);
+    expect(dims.h).toBe(CARD_H_FULL);
+    expect(dims.hasPhoto).toBe(false);
   });
 
   it('snaps card top-left to grid corners', () => {
@@ -62,7 +62,7 @@ describe('card dimensions', () => {
     expect(small).toBeLessThan(full);
   });
 
-  it('fits default FIO and footer into text-only card height', () => {
+  it('fits default FIO and footer into card text band', () => {
     const fields = {
       surname: 'Иванов',
       givenName: 'Иван',
@@ -84,12 +84,12 @@ describe('card dimensions', () => {
       showNickname: false,
       nicknameAsPrimary: false,
       width: CARD_W,
-      height: CARD_H_TEXT,
+      height: CARD_H_FULL,
       hasPhoto: false,
       cardScale: 1,
       footer,
     });
-    const available = cardBodyTextHeight(CARD_H_TEXT, false);
+    const available = cardBodyTextHeight(CARD_H_FULL, false);
     const used = estimateCardTextHeight(nameLines, typo.lineSizes, footer, typo);
     expect(used).toBeLessThanOrEqual(available + 0.5);
     expect(typo.lineSizes.length).toBeGreaterThan(0);

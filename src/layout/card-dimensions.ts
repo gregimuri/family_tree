@@ -6,13 +6,16 @@ export const CARD_W = 120;
 /** Соотношение сторон фото на карточке (ширина : высота). */
 export const CARD_PHOTO_ASPECT = 3 / 4;
 
-/** Высота карточки с фото (12 клеток). */
+/** Высота карточки (единая для всех, с фото и без). */
 export const CARD_H_FULL = 240;
 
-/** Высота карточки без фото (6 клеток). */
-export const CARD_H_TEXT = 120;
+/** Высота текстового блока: 4/12 от полной карточки. */
+export const CARD_H_TEXT = (CARD_H_FULL * 4) / 12;
 
-/** Клетка сетки: 1/6 ширины и 1/12 высоты карточки с фото (= 1/4 без фото). */
+/** Доля высоты карточки под фото (8/12 ≈ 3:4 при ширине CARD_W). */
+export const CARD_PHOTO_HEIGHT = (CARD_H_FULL * 8) / 12;
+
+/** Клетка сетки: 1/6 ширины и 1/12 высоты полной карточки. */
 export const CARD_GRID_CELL = CARD_W / 6;
 
 export function personShowsCardPhoto(
@@ -31,8 +34,10 @@ export function getCardHeight(
   settings: ViewSettings,
   scale: number,
 ): number {
-  const hasPhoto = personShowsCardPhoto(project, person, settings);
-  return (hasPhoto ? CARD_H_FULL : CARD_H_TEXT) * scale;
+  void project;
+  void person;
+  void settings;
+  return CARD_H_FULL * scale;
 }
 
 export function getCardDimensions(
@@ -44,7 +49,7 @@ export function getCardDimensions(
   const hasPhoto = personShowsCardPhoto(project, person, settings);
   return {
     w: CARD_W * scale,
-    h: (hasPhoto ? CARD_H_FULL : CARD_H_TEXT) * scale,
+    h: CARD_H_FULL * scale,
     hasPhoto,
   };
 }
