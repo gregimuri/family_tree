@@ -21,11 +21,11 @@ import {
 } from '../layout/card-dimensions';
 
 describe('card dimensions', () => {
-  it('uses 6x12 grid for full card and 4/12 text band for text-only', () => {
+  it('uses 6x5 text band and adds 8 cells for photo', () => {
     expect(CARD_GRID_CELL).toBe(CARD_W / 6);
-    expect(CARD_H_FULL).toBe(CARD_GRID_CELL * 12);
-    expect(CARD_H_TEXT).toBe(CARD_GRID_CELL * 4);
-    expect(CARD_H_TEXT).toBe((CARD_H_FULL * 4) / 12);
+    expect(CARD_H_TEXT).toBe(CARD_GRID_CELL * 5);
+    expect(CARD_H_FULL).toBe(CARD_GRID_CELL * 13);
+    expect(CARD_H_FULL).toBe(CARD_H_TEXT + CARD_GRID_CELL * 8);
     expect(CARD_PHOTO_ASPECT).toBeCloseTo(0.75);
   });
 
@@ -47,7 +47,7 @@ describe('card dimensions', () => {
 
     const snapped = snapCardCenterToGridCorners(65, 125, CARD_W, CARD_H_FULL, CARD_GRID_CELL);
     expect(snapped.x).toBe(60);
-    expect(snapped.y).toBe(120);
+    expect(snapped.y).toBe(130);
   });
 
   it('snaps arbitrary points to grid corners', () => {

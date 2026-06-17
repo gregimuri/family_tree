@@ -3,23 +3,25 @@ import type { Person, Project, ViewSettings } from '../types';
 /** Ширина карточки (6 клеток сетки). */
 export const CARD_W = 120;
 
-/** Соотношение сторон фото на карточке (ширина : высота). */
-export const CARD_PHOTO_ASPECT = 3 / 4;
-
-/** Высота карточки с фото (12 клеток). */
-export const CARD_H_FULL = 240;
-
-/** Высота текстового блока на карточке с фото (4/12). */
-export const CARD_BODY_HEIGHT = (CARD_H_FULL * 4) / 12;
-
-/** Высота карточки без фото — только текстовый блок, как на карточке с фото. */
-export const CARD_H_TEXT = CARD_BODY_HEIGHT;
-
-/** Доля высоты карточки под фото (8/12 ≈ 3:4 при ширине CARD_W). */
-export const CARD_PHOTO_HEIGHT = (CARD_H_FULL * 8) / 12;
-
-/** Клетка сетки: 1/6 ширины и 1/12 высоты полной карточки. */
+/** Клетка сетки: 1/6 ширины карточки (= 20 px). */
 export const CARD_GRID_CELL = CARD_W / 6;
+
+/** Текстовый блок: 5 клеток по высоте (с фото и без). */
+export const CARD_BODY_CELLS = 5;
+export const CARD_BODY_HEIGHT = CARD_GRID_CELL * CARD_BODY_CELLS;
+
+/** Фото: 8 клеток по высоте (добавляется к текстовому блоку). */
+export const CARD_PHOTO_CELLS = 8;
+export const CARD_PHOTO_HEIGHT = CARD_GRID_CELL * CARD_PHOTO_CELLS;
+
+/** Соотношение сторон фото на карточке (ширина : высота). */
+export const CARD_PHOTO_ASPECT = CARD_W / CARD_PHOTO_HEIGHT;
+
+/** Карточка с фото: 13 клеток (8 + 5). */
+export const CARD_H_FULL = CARD_PHOTO_HEIGHT + CARD_BODY_HEIGHT;
+
+/** Карточка без фото: 5 клеток — только текст. */
+export const CARD_H_TEXT = CARD_BODY_HEIGHT;
 
 export function personShowsCardPhoto(
   project: Project,

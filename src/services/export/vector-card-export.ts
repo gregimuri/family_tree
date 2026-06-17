@@ -1,5 +1,5 @@
 import type { LayoutNode, Person, Project, ViewSettings } from '../../types';
-import { personShowsCardPhoto, CARD_W } from '../../layout/card-dimensions';
+import { personShowsCardPhoto, CARD_W, CARD_PHOTO_CELLS, CARD_BODY_CELLS } from '../../layout/card-dimensions';
 import { buildCardNameLines, type CardNameLineEmphasis } from '../../layout/card-display-lines';
 import { resolveCardTypography, scaleCardMetaFontSize } from '../../layout/card-name-font';
 import { normalizeAvatarCrop } from '../../utils/avatar-crop';
@@ -105,7 +105,9 @@ export async function replaceForeignObjectsWithVectorCards(
     group.appendChild(cardRect);
 
     const hasPhoto = personShowsCardPhoto(project, person, settings);
-    const photoH = hasPhoto ? Math.round((height * 8) / 12) : 0;
+    const photoH = hasPhoto
+      ? Math.round((height * CARD_PHOTO_CELLS) / (CARD_PHOTO_CELLS + CARD_BODY_CELLS))
+      : 0;
     let textY = hasPhoto ? photoH + 14 : 14;
 
     if (hasPhoto && person.avatar?.mediaId) {

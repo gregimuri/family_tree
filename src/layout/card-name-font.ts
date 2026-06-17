@@ -1,4 +1,5 @@
 import { buildCardNameLines, cardNameLineHeight, type CardNameLine } from './card-display-lines';
+import { CARD_BODY_CELLS, CARD_PHOTO_CELLS } from './card-dimensions';
 
 const ROW_GAP = 1;
 const MIN_FONT_SIZE = 5.5;
@@ -69,7 +70,9 @@ export function scaleCardMetaFontSize(text: string, baseSize: number, innerWidth
 }
 
 export function cardBodyTextHeight(cardHeight: number, hasPhoto: boolean): number {
-  const bodyHeight = hasPhoto ? (cardHeight * 4) / 12 : cardHeight;
+  const bodyHeight = hasPhoto
+    ? (cardHeight * CARD_BODY_CELLS) / (CARD_PHOTO_CELLS + CARD_BODY_CELLS)
+    : cardHeight;
   const padding = 10;
   return Math.max(28, bodyHeight - padding);
 }
