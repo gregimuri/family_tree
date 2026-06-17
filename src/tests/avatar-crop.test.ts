@@ -66,6 +66,25 @@ describe('avatar crop', () => {
     expect(isSharedMedia(project, mediaId)).toBe(true);
   });
 
+  it('treats media linked to another person as shared when cropping', () => {
+    const project = createEmptyProject();
+    const mediaId = 'family-photo';
+    const [a, b] = Object.keys(project.persons);
+    project.media[mediaId] = {
+      id: mediaId,
+      type: 'photo',
+      filename: 'family.jpg',
+      description: 'Семейное',
+      personIds: [a],
+    };
+    project.persons[a] = {
+      ...project.persons[a],
+      avatar: { mediaId, x: 0, y: 0, width: 1, height: 1, rotation: 0, scale: 1 },
+    };
+    expect(isSharedMedia(project, mediaId, b)).toBe(true);
+    expect(isSharedMedia(project, mediaId, a)).toBe(false);
+  });
+
   it('uses photo region when assigning avatar from mass photo', () => {
     const person = createEmptyPerson({ givenName: 'Anna', surname: 'Ivanova', gender: 'female' });
     const media = {

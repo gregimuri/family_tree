@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import type { AvatarCrop, MediaItem } from '../../types';
+import type { MediaItem } from '../../types';
 import { useProjectStore } from '../../store/project-store';
 import { createId } from '../../utils/create-id';
-import { avatarFromPhotoRegion } from '../../utils/avatar-crop';
+import { AvatarEditor } from '../dossier/AvatarEditor';
 import { PersonSearchDialog } from '../dossier/PersonSearchDialog';
 import { MediaListThumb } from '../dossier/MediaListThumb';
 import './MediaGallery.css';
@@ -33,11 +33,11 @@ export function MediaGallery({ onClose, canEdit }: MediaGalleryProps) {
   const updateMedia = useProjectStore((s) => s.updateMedia);
   const deleteMedia = useProjectStore((s) => s.deleteMedia);
   const addMedia = useProjectStore((s) => s.addMedia);
-  const updatePerson = useProjectStore((s) => s.updatePerson);
   const openMediaViewer = useProjectStore((s) => s.openMediaViewer);
 
   const [query, setQuery] = useState('');
   const [avatarPickMediaId, setAvatarPickMediaId] = useState<string | null>(null);
+  const [avatarAssign, setAvatarAssign] = useState<{ mediaId: string; personId: string } | null>(null);
 
   const items = useMemo(() => {
     if (!project) return [];
@@ -74,25 +74,7 @@ export function MediaGallery({ onClose, canEdit }: MediaGalleryProps) {
     const person = project.persons[personId];
     if (!media || media.type !== 'photo' || !person) return;
 
-    const regionAvatar = avatarFromPhotoRegion(media, personId);
-    const avatar: AvatarCrop = regionAvatar ?? {
-      mediaId: media.id,
-      x: 0,
-      y: 0,
-      width: 1,
-      height: 1,
-      rotation: 0,
-      scale: 1,
-    };
-    const mediaIds = person.mediaIds.includes(media.id)
-      ? person.mediaIds
-      : [...person.mediaIds, media.id];
-    const personIds = media.personIds.includes(personId)
-      ? media.personIds
-      : [...media.personIds, personId];
-
-    updatePerson({ ...person, avatar, mediaIds });
-    updateMedia({ ...media, personIds });
+    setAvatarAssign({ mediaId: avatarPickMediaId, personId });
     setAvatarPickMediaId(null);
   };
 
@@ -206,6 +188,15 @@ export function MediaGallery({ onClose, canEdit }: MediaGalleryProps) {
           hint="Выберите персону, для которой это изображение станет фотографией на карточке."
           onSelect={assignPhotoToPerson}
           onClose={() => setAvatarPickMediaId(null)}
+        />
+      )}
+
+      {avatarAssign && (
+        <AvatarEditor
+          personId={avatarAssign.personId}
+          allowUpload={false}
+          initialMediaId={avatarAssign.mediaId}
+          onClose={() => setAvatarAssign(null)}
         />
       )}
     </div>

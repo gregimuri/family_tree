@@ -54,18 +54,21 @@ export function avatarFromPhotoRegion(media: MediaItem, personId: string): Avata
   };
 }
 
-export function isSharedMedia(project: Project, mediaId: string): boolean {
+export function isSharedMedia(project: Project, mediaId: string, editingPersonId?: string): boolean {
   const media = project.media[mediaId];
   if (!media) return false;
   if ((media.photoRegions?.length ?? 0) > 0) return true;
-  if (media.personIds.length > 1) return true;
-  let avatarCount = 0;
+
+  const otherPersonIds = editingPersonId
+    ? media.personIds.filter((id) => id !== editingPersonId)
+    : media.personIds;
+  if (otherPersonIds.length > 0) return true;
+
   for (const person of Object.values(project.persons)) {
-    if (person.avatar?.mediaId === mediaId) {
-      avatarCount++;
-      if (avatarCount > 1) return true;
-    }
+    if (editingPersonId && person.id === editingPersonId) continue;
+    if (person.avatar?.mediaId === mediaId) return true;
   }
+
   return false;
 }
 

@@ -162,8 +162,7 @@ export function PersonCardWithMedia({
   const htmlClassName = [
     'person-card-html',
     'person-card-html--vertical',
-    'person-card-html--standard',
-    hasPhoto ? 'person-card-html--has-photo' : 'person-card-html--no-photo',
+    hasPhoto ? 'person-card-html--has-photo' : 'person-card-html--text-only',
     theme === 'forest' ? 'person-card-html--forest' : '',
     selected ? 'selected' : '',
     layoutSelected ? 'layout-selected' : '',
@@ -261,7 +260,7 @@ export function PersonCardWithMedia({
               ⋮⋮
             </div>
           )}
-          {hasPhoto && avatarUrl ? (
+          {hasPhoto && avatarUrl && (
             <div className="person-card-html__media person-card-html__photo">
               <div className="person-card-html__photo-frame">
                 <img
@@ -276,8 +275,6 @@ export function PersonCardWithMedia({
                 />
               </div>
             </div>
-          ) : (
-            <div className="person-card-html__media person-card-html__photo-spacer" aria-hidden />
           )}
           <div className="person-card-html__body">
             {hasIdentity && (

@@ -12,6 +12,7 @@ import './AvatarEditor.css';
 interface AvatarEditorProps {
   personId: string;
   allowUpload?: boolean;
+  initialMediaId?: string;
   linkedMediaIds?: string[];
   onMediaLinked?: (mediaId: string) => void;
   onAvatarSaved?: (avatar: AvatarCrop, mediaIds: string[]) => void;
@@ -30,6 +31,7 @@ function resetCropState() {
 export function AvatarEditor({
   personId,
   allowUpload = true,
+  initialMediaId,
   linkedMediaIds,
   onMediaLinked,
   onAvatarSaved,
@@ -48,7 +50,7 @@ export function AvatarEditor({
   const AVATAR_MAX_ZOOM = 10;
 
   const [mediaId, setMediaId] = useState<string | null>(
-    project?.persons[personId]?.avatar?.mediaId ?? null,
+    initialMediaId ?? project?.persons[personId]?.avatar?.mediaId ?? null,
   );
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -108,7 +110,7 @@ export function AvatarEditor({
     setError(null);
     try {
       const image = await loadImage(imageUrl);
-      const shared = isSharedMedia(currentProject, mediaId);
+      const shared = isSharedMedia(currentProject, mediaId, personId);
       let avatar = buildAvatarCropFromPixels(
         mediaId,
         croppedAreaPixels,
@@ -134,7 +136,7 @@ export function AvatarEditor({
       const priorAvatarId = currentPerson.avatar?.mediaId;
       if (priorAvatarId && priorAvatarId !== mediaId) {
         const prior = currentProject.media[priorAvatarId];
-        if (prior?.filename.startsWith('avatar-') && !isSharedMedia(currentProject, priorAvatarId)) {
+        if (prior?.filename.startsWith('avatar-') && !isSharedMedia(currentProject, priorAvatarId, personId)) {
           mediaIds = mediaIds.filter((id) => id !== priorAvatarId);
           deleteMedia(priorAvatarId);
         }

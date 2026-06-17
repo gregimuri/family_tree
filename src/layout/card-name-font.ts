@@ -68,8 +68,8 @@ export function scaleCardMetaFontSize(text: string, baseSize: number, innerWidth
   return Math.max(MIN_FONT_SIZE, Math.round(((baseSize * inner) / needed) * 10) / 10);
 }
 
-export function cardBodyTextHeight(cardHeight: number, _hasPhoto?: boolean): number {
-  const bodyHeight = (cardHeight * 4) / 12;
+export function cardBodyTextHeight(cardHeight: number, hasPhoto: boolean): number {
+  const bodyHeight = hasPhoto ? (cardHeight * 4) / 12 : cardHeight;
   const padding = 10;
   return Math.max(28, bodyHeight - padding);
 }

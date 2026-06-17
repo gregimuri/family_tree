@@ -32,7 +32,7 @@ import { pickPartnersForUnion } from '../layout/pedigree-edges';
 import type { LayoutEdge, LayoutNode } from '../types';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
-import { CARD_H_FULL, CARD_W } from '../layout/card-dimensions';
+import { CARD_H_TEXT, CARD_W } from '../layout/card-dimensions';
 import { parseBondUnionId, routeCoupleBond, bondEdgeId, familyConnectorBusSpan } from '../layout/edge-router';
 import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
 import { validateViewSettings, canUseUniformCards } from '../models/validation';
@@ -1522,7 +1522,7 @@ describe('delete person', () => {
     expect(viewport.width).toBeLessThan(frame.svgW);
     expect(viewport.height).toBeLessThan(frame.svgH);
     expect(viewport.width).toBeGreaterThan(CARD_W);
-    expect(viewport.height).toBeGreaterThan(CARD_H_FULL);
+    expect(viewport.height).toBeGreaterThan(CARD_H_TEXT);
   });
 
   it('fixed page export uses meet fit inside sheet bounds', () => {
