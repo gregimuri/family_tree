@@ -16,7 +16,11 @@ import { nodeSize, runPedigreeLayout } from './pedigree-layout';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
 
-function normalizeLayoutToFocus(project: Project, layout: LayoutResult): LayoutResult {
+function normalizeLayoutToFocus(
+  project: Project,
+  layout: LayoutResult,
+  graph: GraphResult,
+): LayoutResult {
   const focus = getCenterFocusPoint(project, layout);
   if (!focus) return layout;
 
@@ -24,10 +28,7 @@ function normalizeLayoutToFocus(project: Project, layout: LayoutResult): LayoutR
   const dy = -focus.y;
 
   const nodes = layout.nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }));
-  const edges = layout.edges.map((e) => ({
-    ...e,
-    points: e.points.map((p) => ({ x: p.x + dx, y: p.y + dy })),
-  }));
+  const edges = buildLayoutEdges(project, nodes, graph);
 
   return {
     nodes,
@@ -192,5 +193,5 @@ export function computeLayout(
     bounds: computeBounds(mergedNodes),
   };
 
-  return normalizeLayoutToFocus(project, layout);
+  return normalizeLayoutToFocus(project, layout, graph);
 }

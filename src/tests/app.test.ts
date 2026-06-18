@@ -33,7 +33,7 @@ import type { LayoutEdge, LayoutNode } from '../types';
 import { importGedcom, parseGedcomName, parseGedcomDate } from '../services/gedcom/import';
 import { exportGedcom } from '../services/gedcom/export';
 import { CARD_H_TEXT, CARD_W } from '../layout/card-dimensions';
-import { parseBondUnionId, routeCoupleBond, bondEdgeId, familyConnectorBusSpan } from '../layout/edge-router';
+import { parseBondUnionId, routeCoupleBond, bondEdgeId, familyConnectorBusSpan, coupleBondMidpoint, snapEdgeCoord } from '../layout/edge-router';
 import { computeExportViewport, configureSvgForFixedPage } from '../services/export/image-export';
 import { validateViewSettings, canUseUniformCards } from '../models/validation';
 import { formatPlaceText, placeHasValue } from '../components/dossier/DossierFields';
@@ -134,10 +134,16 @@ describe('layout', () => {
     const tree = layout.edges.find((e) => e.id.startsWith('fam-tree-') || e.id.startsWith('fam-branch-'));
     expect(bond).toBeTruthy();
     expect(bond!.points).toHaveLength(2);
-    const midX = (bond!.points[0].x + bond!.points[1].x) / 2;
-    const bondY = bond!.points[0].y;
-    expect(tree?.pathD).toContain(`M ${midX} ${bondY}`);
-    expect(tree?.pathD).not.toContain(`L ${bond!.points[1].x} ${bondY}`);
+    const bondMid = coupleBondMidpoint(bond!.points);
+    expect(bondMid).toBeTruthy();
+    const midSnap = snapEdgeCoord(bondMid!.x);
+    const stemTopY = snapEdgeCoord(bondMid!.y);
+    expect(tree?.pathD).toContain(`M ${midSnap} ${stemTopY}`);
+    const bondRow = bond!.points.filter((p) => Math.abs(p.y - bondMid!.y) < 0.5);
+    if (bondRow.length >= 2) {
+      const rightBondX = Math.max(...bondRow.map((p) => p.x));
+      expect(tree?.pathD).not.toContain(`L ${rightBondX} ${stemTopY}`);
+    }
     expect(formatMarriageDates(project.unions[unionId], 'years')).toBe('2005');
   });
 
