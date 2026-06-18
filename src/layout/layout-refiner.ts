@@ -101,12 +101,12 @@ export function refineLayoutSync(
     applyNetworkDeltas(nodes, deltas, pinned);
   }
 
-  minimizeEnergy(nodes, project, pinned, iterations);
+  minimizeEnergy(nodes, project, pinned, Math.min(8, iterations));
   resolveLayoutCollisions(nodes, graph, project, pinned);
   enforceCoupleSpacingPinned(nodes, graph, project, pinned);
   resolveLayoutCollisions(nodes, graph, project, pinned);
 
-  minimizeEnergy(nodes, project, pinned, Math.min(12, iterations));
+  minimizeEnergy(nodes, project, pinned, Math.min(6, iterations));
   resolveLayoutCollisions(nodes, graph, project, pinned);
 
   return nodes;

@@ -14,6 +14,10 @@ function loadFixture(center: Project['center']): Project {
   return p;
 }
 
+function nodeCenterX(n: { x: number; width: number }) {
+  return n.x + n.width / 2;
+}
+
 describe('family layout quality — novy-proekt fixture', () => {
   const personIds = Object.keys(projectJson.persons);
   const unionIds = Object.keys(projectJson.unions);
@@ -40,6 +44,38 @@ describe('family layout quality — novy-proekt fixture', () => {
     const gap = maria.x - (ivan.x + ivan.width);
     expect(gap).toBeGreaterThanOrEqual(COUPLE_GAP - 1);
     expect(gap).toBeLessThanOrEqual(COUPLE_GAP + 4);
+  });
+
+  it('centers children row under Ivan and Maria couple bond', () => {
+    const project = loadFixture({ type: 'person', id: '92312a00-8c2a-42ea-8078-1b5d6507302b' });
+    const unionId = '325a9de7-6a3a-4351-8131-fcb5c80545d4';
+    for (let i = 0; i < 4; i++) {
+      const id = `child-align-${i}`;
+      project.persons[id] = {
+        id,
+        gender: 'unknown',
+        surname: '',
+        givenName: '',
+        patronymic: '',
+        nicknamePriority: false,
+        biography: '',
+        parentUnionIds: [unionId],
+        unionIds: [],
+        mediaIds: [],
+        cardLocationSource: 'birth',
+      };
+      project.unions[unionId].childIds.push(id);
+    }
+    const layout = buildLayout(project);
+    const ivan = layout.nodes.find((n) => n.personId === '92312a00-8c2a-42ea-8078-1b5d6507302b')!;
+    const maria = layout.nodes.find((n) => n.personId === '2cf738cd-bf1e-4ccf-b0d6-96d978901502')!;
+    const bondCenter = (nodeCenterX(ivan) + nodeCenterX(maria)) / 2;
+    const children = layout.nodes.filter((n) => n.personId?.startsWith('child-align-'));
+    expect(children.length).toBe(4);
+    const minX = Math.min(...children.map((n) => n.x));
+    const maxX = Math.max(...children.map((n) => n.x + n.width));
+    const childCenter = (minX + maxX) / 2;
+    expect(Math.abs(bondCenter - childCenter)).toBeLessThan(4);
   });
 });
 

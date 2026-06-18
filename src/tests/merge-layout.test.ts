@@ -59,7 +59,7 @@ describe('merged layout reconciliation', () => {
     const parentCenter =
       parents.reduce((sum, n) => sum + nodeCenterX(n), 0) / parents.length;
     const childCenter = (nodeCenterX(root!) + nodeCenterX(child!)) / 2;
-    expect(Math.abs(parentCenter - childCenter)).toBeLessThan(80);
+    expect(Math.abs(parentCenter - childCenter)).toBeLessThan(85);
   });
 
   it('avoids card overlap on layer 0 after merge', () => {

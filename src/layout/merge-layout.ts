@@ -51,34 +51,6 @@ function collectAncestryGraphIds(
   return seen;
 }
 
-function collectSideBranchDescendants(
-  seedIds: string[],
-  graph: GraphResult,
-  graphById: Map<string, PersonGraphNode>,
-): Set<string> {
-  const down = new Map<string, string[]>();
-  for (const edge of graph.edges) {
-    const from = graphById.get(edge.from);
-    const to = graphById.get(edge.to);
-    if (!from || !to || from.layer >= to.layer) continue;
-    const list = down.get(edge.from) ?? [];
-    list.push(edge.to);
-    down.set(edge.from, list);
-  }
-
-  const seen = new Set<string>();
-  const queue = [...seedIds];
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    if (seen.has(id)) continue;
-    const node = graphById.get(id);
-    if (!node?.isSideBranch && !seedIds.includes(id)) continue;
-    seen.add(id);
-    for (const child of down.get(id) ?? []) queue.push(child);
-  }
-  return seen;
-}
-
 function collectDownstreamGraphIds(
   seedIds: string[],
   graph: GraphResult,
@@ -167,7 +139,7 @@ function compactSiblingGroups(
 
       const anchorCenter =
         parentNodes.length > 0
-          ? parentNodes.reduce((sum, n) => sum + nodeCenterX(n), 0) / parentNodes.length
+          ? coupleBondCenter(parentNodes)
           : sorted.reduce((sum, entry) => sum + nodeCenterX(entry.ln), 0) / sorted.length;
 
       let cursor = anchorCenter - totalWidth / 2;
@@ -204,102 +176,134 @@ function cardHalfWidth(node: PersonGraphNode, settings: Project['viewSettings'])
   return (CARD_W * scale) / 2;
 }
 
-/** Сдвигает предков и боковые ветки под ядерные координаты потомков. */
-function alignPedigreeToNuclearSeam(
+function coupleBondCenter(partners: LayoutNode[]): number {
+  if (partners.length === 0) return 0;
+  if (partners.length === 1) return nodeCenterX(partners[0]);
+  const sorted = [...partners].sort((a, b) => a.x - b.x);
+  return (nodeCenterX(sorted[0]) + nodeCenterX(sorted[sorted.length - 1])) / 2;
+}
+
+function childrenGroupCenter(children: LayoutNode[]): number {
+  const minX = Math.min(...children.map((n) => n.x));
+  const maxX = Math.max(...children.map((n) => n.x + n.width));
+  return (minX + maxX) / 2;
+}
+
+function collectShiftIds(
+  rootGraphIds: string[],
+  graph: GraphResult,
+  graphById: Map<string, PersonGraphNode>,
+  mode: 'downstream' | 'ancestry',
+): Set<string> {
+  const ids = new Set<string>();
+  for (const rootId of rootGraphIds) {
+    ids.add(rootId);
+    const extra =
+      mode === 'downstream'
+        ? collectDownstreamGraphIds([rootId], graph, graphById)
+        : collectAncestryGraphIds([rootId], graph, graphById);
+    for (const id of extra) ids.add(id);
+  }
+  return ids;
+}
+
+/** Центрирует группу детей под серединой линии между партнёрами. */
+function alignChildrenToCoupleBonds(
   nodes: LayoutNode[],
   graph: GraphResult,
   project: Project,
 ): void {
   const graphById = graphNodeById(graph);
   const byGraphId = new Map(nodes.map((n) => [n.id, n]));
-  const layers = [...new Set(nodes.map((n) => n.layer))].sort((a, b) => a - b);
 
-  for (const childLayer of layers) {
-    if (childLayer <= 0) continue;
-    const parentLayer = childLayer - 1;
+  for (const union of Object.values(project.unions)) {
+    if (union.childIds.length === 0) continue;
 
-    for (const union of Object.values(project.unions)) {
-      const childNodes = nodes.filter((n) => {
-        const gn = graphById.get(n.id);
-        return gn && gn.layer === childLayer && gn.parentUnionId === union.id;
-      });
-      const parentNodes = nodes.filter((n) => {
-        const gn = graphById.get(n.id);
-        return gn && gn.layer === parentLayer && gn.unionId === union.id;
-      });
+    const parentLayerByUnion = new Map<number, { gn: PersonGraphNode; ln: LayoutNode }[]>();
+    for (const personId of union.partnerIds) {
+      const graphId = graph.personToNode.get(personId);
+      if (!graphId) continue;
+      const gn = graphById.get(graphId);
+      const ln = byGraphId.get(graphId);
+      if (!gn || !ln) continue;
+      const list = parentLayerByUnion.get(gn.layer) ?? [];
+      list.push({ gn, ln });
+      parentLayerByUnion.set(gn.layer, list);
+    }
 
-      if (childNodes.length === 0 || parentNodes.length === 0) continue;
-      if (!childNodes.some((n) => isNuclearMainLine(graphById.get(n.id)!))) continue;
+    for (const [parentLayer, parentEntries] of parentLayerByUnion) {
+      const childLayer = parentLayer + 1;
+      const childEntries = union.childIds
+        .map((personId) => {
+          const graphId = graph.personToNode.get(personId);
+          if (!graphId) return null;
+          const gn = graphById.get(graphId);
+          const ln = byGraphId.get(graphId);
+          if (!gn || !ln || gn.layer !== childLayer) return null;
+          return { gn, ln };
+        })
+        .filter((entry): entry is { gn: PersonGraphNode; ln: LayoutNode } => Boolean(entry));
 
-      const childCenter =
-        childNodes.reduce((sum, n) => sum + nodeCenterX(n), 0) / childNodes.length;
-      const parentCenter =
-        parentNodes.reduce((sum, n) => sum + nodeCenterX(n), 0) / parentNodes.length;
-      const delta = childCenter - parentCenter;
+      if (childEntries.length === 0) continue;
+      if (parentLayer < 0) continue;
+
+      const bondCenter = coupleBondCenter(parentEntries.map((entry) => entry.ln));
+      const childCenter = childrenGroupCenter(childEntries.map((entry) => entry.ln));
+      const delta = bondCenter - childCenter;
       if (Math.abs(delta) < 0.5) continue;
 
-      const ancestry = collectAncestryGraphIds(
-        parentNodes.map((n) => n.id),
+      const shiftIds = collectShiftIds(
+        childEntries.map((entry) => entry.gn.id),
         graph,
         graphById,
+        'downstream',
       );
-      const sideBranches = collectSideBranchDescendants(
-        parentNodes.map((n) => n.id),
-        graph,
-        graphById,
-      );
-      const shiftIds = new Set([...ancestry, ...sideBranches]);
-
-      for (const id of shiftIds) {
-        const layoutNode = byGraphId.get(id);
-        const graphNode = graphById.get(id);
-        if (!layoutNode || !graphNode || isNuclearMainLine(graphNode)) continue;
-        layoutNode.x += delta;
-      }
-    }
-  }
-
-  // Предки над центральной парой (layer < 0 → layer 0)
-  for (const union of Object.values(project.unions)) {
-    const childNodes = nodes.filter((n) => {
-      const gn = graphById.get(n.id);
-      return gn && gn.layer === 0 && gn.parentUnionId === union.id && isNuclearMainLine(gn);
-    });
-    const parentNodes = nodes.filter((n) => {
-      const gn = graphById.get(n.id);
-      return gn && gn.layer === -1 && gn.unionId === union.id;
-    });
-    if (childNodes.length === 0 || parentNodes.length === 0) continue;
-
-    const childCenter =
-      childNodes.reduce((sum, n) => sum + nodeCenterX(n), 0) / childNodes.length;
-    const parentCenter =
-      parentNodes.reduce((sum, n) => sum + nodeCenterX(n), 0) / parentNodes.length;
-    const delta = childCenter - parentCenter;
-    if (Math.abs(delta) < 0.5) continue;
-
-    const shiftIds = new Set([
-      ...collectAncestryGraphIds(
-        parentNodes.map((n) => n.id),
-        graph,
-        graphById,
-      ),
-      ...nodes
-        .filter((n) => {
-          const gn = graphById.get(n.id);
-          return gn?.isSideBranch && gn.layer <= 0;
-        })
-        .map((n) => n.id),
-    ]);
-
-    for (const id of shiftIds) {
-      const layoutNode = byGraphId.get(id);
-      const graphNode = graphById.get(id);
-      if (!layoutNode || !graphNode || isNuclearMainLine(graphNode)) continue;
-      layoutNode.x += delta;
+      shiftLayoutNodes(shiftIds, delta, byGraphId);
     }
   }
 }
+
+/** Сдвигает весь ряд предков (layer < 0) под центральную пару на layer 0. */
+function alignAncestryRowOverMainCouple(
+  nodes: LayoutNode[],
+  graph: GraphResult,
+): void {
+  const graphById = graphNodeById(graph);
+
+  const mainCouple = nodes.filter((n) => {
+    const gn = graphById.get(n.id);
+    return gn && gn.layer === 0 && !gn.isSideBranch && gn.unionId;
+  });
+  if (mainCouple.length < 2) return;
+
+  const coupleCenter = coupleBondCenter(mainCouple);
+  const ancestorNodes = nodes.filter((n) => {
+    const gn = graphById.get(n.id);
+    return gn && gn.layer < 0;
+  });
+  if (ancestorNodes.length === 0) return;
+
+  const ancestorCenter =
+    ancestorNodes.reduce((sum, n) => sum + nodeCenterX(n), 0) / ancestorNodes.length;
+  const delta = coupleCenter - ancestorCenter;
+  if (Math.abs(delta) < 0.5) return;
+
+  for (const node of ancestorNodes) {
+    node.x += delta;
+  }
+}
+
+/** Согласование pedigree + nuclear: предки над детьми, потомки под парой. */
+function alignPedigreeToNuclearSeam(
+  nodes: LayoutNode[],
+  graph: GraphResult,
+  project: Project,
+): void {
+  alignAncestryRowOverMainCouple(nodes, graph);
+  alignChildrenToCoupleBonds(nodes, graph, project);
+}
+
+
 
 function enforceCoupleSpacing(
   nodes: LayoutNode[],
@@ -448,6 +452,23 @@ export function resolveLayoutCollisions(
   resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
 }
 
+/** Финальная стабилизация: дети под парой, предки над детьми, без наложений. */
+export function stabilizeFamilyLayout(
+  nodes: LayoutNode[],
+  graph: GraphResult,
+  project: Project,
+  pinnedPersonIds?: ReadonlySet<string>,
+): void {
+  for (let pass = 0; pass < 3; pass++) {
+    compactSiblingGroups(nodes, graph, project);
+    alignAncestryRowOverMainCouple(nodes, graph);
+    alignChildrenToCoupleBonds(nodes, graph, project);
+    enforceCoupleSpacing(nodes, graph, project);
+    resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
+  }
+  enforceCoupleSpacing(nodes, graph, project);
+}
+
 /** Согласование pedigree + nuclear и устранение наложений после merge. */
 export function reconcileMergedLayout(
   nodes: LayoutNode[],
@@ -457,8 +478,5 @@ export function reconcileMergedLayout(
   if (nodes.length === 0) return;
   normalizeNodesToLayerY(nodes);
   alignPedigreeToNuclearSeam(nodes, graph, project);
-  compactSiblingGroups(nodes, graph, project);
-  enforceCoupleSpacing(nodes, graph, project);
-  resolveMergedCollisions(nodes, graph, project);
-  enforceCoupleSpacing(nodes, graph, project);
+  stabilizeFamilyLayout(nodes, graph, project);
 }
