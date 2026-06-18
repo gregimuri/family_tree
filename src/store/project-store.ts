@@ -502,8 +502,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }),
         { history: 'skip' },
       );
-    } else {
-      get().syncLayoutPositions([newPersonId]);
     }
     get().setSelection({ type: 'person', id: newPersonId });
   },
@@ -679,6 +677,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   syncLayoutPositions: (personIds) => {
+    if (!personIds?.length) return;
     const project = get().project;
     if (!project) return;
     const layout = buildLayout(project);

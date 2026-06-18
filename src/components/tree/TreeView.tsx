@@ -26,6 +26,7 @@ import { MediaViewer } from '../media/MediaViewer';
 import { Icons } from '../ui/Icons';
 import './TreeView.css';
 import { snapCardCenterToGridCorners } from '../../layout/card-dimensions';
+import { preloadLayoutNet } from '../../layout/layout-net';
 import { normalizeRect, rectsIntersect, isMarqueePointerTarget, applyMarqueeSelection } from './layout-selection-utils';
 import type { LayoutNode } from '../../types';
 import type { ProjectSnapshot } from '../../store/project-history';
@@ -58,7 +59,6 @@ export function TreeView() {
   const setManualEdgeRoute = useProjectStore((s) => s.setManualEdgeRoute);
   const clearManualEdgeRoute = useProjectStore((s) => s.clearManualEdgeRoute);
   const captureProjectSnapshot = useProjectStore((s) => s.captureProjectSnapshot);
-  const syncLayoutPositions = useProjectStore((s) => s.syncLayoutPositions);
   const dossierPersonId = useProjectStore((s) => s.dossierPersonId);
   const mediaViewerId = useProjectStore((s) => s.mediaViewerId);
   const exportOpen = useUiStore((s) => s.exportOpen);
@@ -84,6 +84,10 @@ export function TreeView() {
   const marqueeAdditiveRef = useRef(false);
   const ignoreNextBackgroundClickRef = useRef(false);
 
+  useEffect(() => {
+    preloadLayoutNet();
+  }, []);
+
   const treeLayout = useMemo(() => {
     if (!project) return null;
     const built = buildLayout(project);
@@ -91,27 +95,6 @@ export function TreeView() {
     if (!treeFrame) return null;
     return { layout: built, frame: treeFrame };
   }, [project]);
-
-  const layoutSyncKey = useMemo(() => {
-    if (!project) return '';
-    return [
-      Object.keys(project.persons).length,
-      Object.keys(project.unions).length,
-      Object.keys(project.manualLayout ?? {}).length,
-      project.viewSettings.generationsUp,
-      project.viewSettings.generationsDown,
-      project.viewSettings.sideBranchesAt,
-      project.viewSettings.sideBranchDepth,
-      project.viewSettings.cardSizeMode,
-      project.viewSettings.showAllPersons ? 1 : 0,
-      project.viewSettings.showDiedBefore18 ? 1 : 0,
-    ].join('|');
-  }, [project]);
-
-  useEffect(() => {
-    if (!project) return;
-    syncLayoutPositions();
-  }, [layoutSyncKey, project, syncLayoutPositions]);
 
   const openMarriageEdit = useCallback(
     (unionId: string) => {
@@ -462,6 +445,7 @@ export function TreeView() {
             <button
               type="button"
               className="btn small"
+              title="Сбросить ручные позиции и пересчитать дерево"
               onClick={() => {
                 clearManualLayout();
                 setSelectedEdgeId(null);

@@ -353,6 +353,7 @@ function resolveLayerCollisions(
   layerNodes: LayoutNode[],
   graphById: Map<string, PersonGraphNode>,
   project: Project,
+  pinnedPersonIds?: ReadonlySet<string>,
 ): void {
   if (layerNodes.length <= 1) return;
 
@@ -385,7 +386,7 @@ function resolveLayerCollisions(
         const right = prev.x <= curr.x ? curr : prev;
         const needX = left.x + left.width + COUPLE_GAP;
         const shift = needX - right.x;
-        if (shift > 0.01) {
+        if (shift > 0.01 && !pinnedPersonIds?.has(right.personId ?? '')) {
           right.x = needX;
           moved = Math.max(moved, shift);
         }
@@ -393,15 +394,15 @@ function resolveLayerCollisions(
       }
 
       if (prevAnchored && !currAnchored) {
-        curr.x += delta;
+        if (!pinnedPersonIds?.has(curr.personId ?? '')) curr.x += delta;
       } else if (!prevAnchored && currAnchored) {
-        prev.x -= delta;
+        if (!pinnedPersonIds?.has(prev.personId ?? '')) prev.x -= delta;
       } else if (!prevAnchored && !currAnchored) {
-        curr.x += delta;
+        if (!pinnedPersonIds?.has(curr.personId ?? '')) curr.x += delta;
       } else {
         const half = delta / 2;
-        prev.x -= half;
-        curr.x += half;
+        if (!pinnedPersonIds?.has(prev.personId ?? '')) prev.x -= half;
+        if (!pinnedPersonIds?.has(curr.personId ?? '')) curr.x += half;
       }
       moved = Math.max(moved, delta);
     }
@@ -421,6 +422,7 @@ function resolveMergedCollisions(
   nodes: LayoutNode[],
   graph: GraphResult,
   project: Project,
+  pinnedPersonIds?: ReadonlySet<string>,
 ): void {
   const graphById = graphNodeById(graph);
   const byLayer = new Map<number, LayoutNode[]>();
@@ -432,8 +434,18 @@ function resolveMergedCollisions(
   }
 
   for (const layerNodes of byLayer.values()) {
-    resolveLayerCollisions(layerNodes, graphById, project);
+    resolveLayerCollisions(layerNodes, graphById, project, pinnedPersonIds);
   }
+}
+
+/** Устранение горизонтальных наложений карточек по слоям. */
+export function resolveLayoutCollisions(
+  nodes: LayoutNode[],
+  graph: GraphResult,
+  project: Project,
+  pinnedPersonIds?: ReadonlySet<string>,
+): void {
+  resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
 }
 
 /** Согласование pedigree + nuclear и устранение наложений после merge. */

@@ -13,6 +13,7 @@
     "install:hooks": "powershell -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
     "dexie": "^4.4.3",
     "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",

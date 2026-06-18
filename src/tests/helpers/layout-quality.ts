@@ -40,6 +40,35 @@ export function assertNoOverlaps(nodes: LayoutNode[]): void {
   }
 }
 
+export function findOverlap2D(
+  nodes: LayoutNode[],
+  minGap = 2,
+): { a: string; b: string } | null {
+  const sorted = [...nodes].sort((a, b) => a.x - b.x);
+  for (let i = 0; i < sorted.length; i++) {
+    for (let j = i + 1; j < sorted.length; j++) {
+      const a = sorted[i];
+      const b = sorted[j];
+      if (
+        a.x < b.x + b.width + minGap &&
+        a.x + a.width + minGap > b.x &&
+        a.y < b.y + b.height + minGap &&
+        a.y + a.height + minGap > b.y
+      ) {
+        return { a: a.personId ?? a.id, b: b.personId ?? b.id };
+      }
+    }
+  }
+  return null;
+}
+
+export function assertNoCardOverlaps2D(nodes: LayoutNode[]): void {
+  const overlap = findOverlap2D(nodes);
+  if (overlap) {
+    throw new Error(`2D overlap ${overlap.a} ↔ ${overlap.b}`);
+  }
+}
+
 export function assertCoupleSpacing(project: Project, layout: LayoutResult): void {
   const byPerson = new Map(layout.nodes.map((n) => [n.personId!, n]));
   for (const union of Object.values(project.unions)) {

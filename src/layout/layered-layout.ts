@@ -9,6 +9,7 @@ import {
   mergeNuclearAndPedigreeNodes,
 } from './nuclear-tree-adapter';
 import { reconcileMergedLayout } from './merge-layout';
+import { refineLayoutSync } from './layout-refiner';
 import { routeCoupleBond, bondEdgeId } from './edge-router';
 import { pickPartnersForUnion, buildPedigreeEdges } from './pedigree-edges';
 import { nodeSize, runPedigreeLayout } from './pedigree-layout';
@@ -178,6 +179,12 @@ export function computeLayout(
   const nuclearNodes = computeNuclearLayoutNodes(project, graph);
   const mergedNodes = mergeNuclearAndPedigreeNodes(nuclearNodes, pedigree.nodes, graph);
   reconcileMergedLayout(mergedNodes, graph, project);
+
+  if (project.viewSettings.smartLayoutEnabled !== false) {
+    refineLayoutSync(mergedNodes, graph, project, {
+      pinnedPersonIds: new Set(Object.keys(project.manualLayout ?? {})),
+    });
+  }
 
   const layout: LayoutResult = {
     nodes: mergedNodes,
