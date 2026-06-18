@@ -88,7 +88,7 @@ export function refineLayoutSync(
   options: RefineLayoutOptions = {},
 ): LayoutNode[] {
   const pinned = pinnedSet(project, options.pinnedPersonIds);
-  const useNetwork = options.useNetwork !== false && project.viewSettings.smartLayoutEnabled !== false;
+  const useNetwork = false;
   const iterations = options.energyIterations ?? 24;
 
   if (nodes.length === 0) return nodes;

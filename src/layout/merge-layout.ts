@@ -1,8 +1,13 @@
 import type { LayoutNode, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
-import { COUPLE_GAP, getCardScale, GROUP_GAP, LAYER_GAP } from './graph-builder';
-import { CARD_W } from './card-dimensions';
+import { COUPLE_GAP, GROUP_GAP, LAYER_GAP } from './graph-builder';
 import { shouldUseNuclearPosition } from './nuclear-tree-adapter';
+import {
+  enforceSideBranchCorridors,
+  findLayerHorizontalOverlap,
+  applyLayerRepulsion,
+  MAIN_SIDE_GAP,
+} from './layout-zones';
 
 type PersonGraphNode = Extract<GraphNode, { kind: 'person' }>;
 const SIBLING_GAP = 24;
@@ -121,10 +126,9 @@ function compactSiblingGroups(
     for (const [layer, group] of byLayer) {
       if (group.length < 2) continue;
 
-      const sorted = [...group].sort((a, b) => a.ln.x - b.ln.x);
-      const totalWidth =
-        sorted.reduce((sum, entry) => sum + entry.ln.width, 0) +
-        SIBLING_GAP * (sorted.length - 1);
+      type ChildEntry = { gn: PersonGraphNode; ln: LayoutNode };
+      const mainGroup = group.filter((e) => !e.gn.isSideBranch);
+      const sideGroup = group.filter((e) => e.gn.isSideBranch);
 
       const parentNodes = union.partnerIds
         .map((personId) => {
@@ -137,21 +141,31 @@ function compactSiblingGroups(
         })
         .filter((n): n is LayoutNode => Boolean(n));
 
-      const anchorCenter =
+      const parentCenter =
         parentNodes.length > 0
           ? coupleBondCenter(parentNodes)
-          : sorted.reduce((sum, entry) => sum + nodeCenterX(entry.ln), 0) / sorted.length;
+          : group.reduce((sum, entry) => sum + nodeCenterX(entry.ln), 0) / group.length;
 
-      let cursor = anchorCenter - totalWidth / 2;
-      for (const entry of sorted) {
-        const delta = cursor - entry.ln.x;
-        if (Math.abs(delta) > 0.5) {
-          const moveIds = collectDownstreamGraphIds([entry.gn.id], graph, graphById);
-          moveIds.add(entry.gn.id);
-          shiftLayoutNodes(moveIds, delta, byGraphId);
+      const compactRow = (entries: ChildEntry[], anchorCenter: number) => {
+        if (entries.length < 2) return;
+        const sorted = [...entries].sort((a, b) => a.ln.x - b.ln.x);
+        const totalWidth =
+          sorted.reduce((sum, entry) => sum + entry.ln.width, 0) +
+          SIBLING_GAP * (sorted.length - 1);
+        let cursor = anchorCenter - totalWidth / 2;
+        for (const entry of sorted) {
+          const delta = cursor - entry.ln.x;
+          if (Math.abs(delta) > 0.5) {
+            const moveIds = collectDownstreamGraphIds([entry.gn.id], graph, graphById);
+            moveIds.add(entry.gn.id);
+            shiftLayoutNodes(moveIds, delta, byGraphId);
+          }
+          cursor += entry.ln.width + SIBLING_GAP;
         }
-        cursor += entry.ln.width + SIBLING_GAP;
-      }
+      };
+
+      compactRow(mainGroup, parentCenter);
+      compactRow(sideGroup, parentCenter);
     }
   }
 }
@@ -167,13 +181,13 @@ function minGapBetween(left: PersonGraphNode, right: PersonGraphNode): number {
   ) {
     return SIBLING_GAP;
   }
+  if (left.isSideBranch !== right.isSideBranch) return MAIN_SIDE_GAP;
   if (left.isSideBranch || right.isSideBranch) return SIDE_BRANCH_GAP;
   return GROUP_GAP;
 }
 
-function cardHalfWidth(node: PersonGraphNode, settings: Project['viewSettings']): number {
-  const scale = getCardScale(node.layer, node.isSideBranch, node.branchDepth, settings.cardSizeMode);
-  return (CARD_W * scale) / 2;
+function layoutHalfWidth(node: LayoutNode): number {
+  return node.width / 2;
 }
 
 function coupleBondCenter(partners: LayoutNode[]): number {
@@ -356,12 +370,11 @@ function enforceCoupleSpacing(
 function resolveLayerCollisions(
   layerNodes: LayoutNode[],
   graphById: Map<string, PersonGraphNode>,
-  project: Project,
+  _project: Project,
   pinnedPersonIds?: ReadonlySet<string>,
 ): void {
   if (layerNodes.length <= 1) return;
 
-  const settings = project.viewSettings;
   const sorted = [...layerNodes].sort((a, b) => a.x - b.x);
 
   for (let round = 0; round < 48; round++) {
@@ -374,9 +387,9 @@ function resolveLayerCollisions(
 
       const required =
         nodeCenterX(prev) +
-        cardHalfWidth(prevG, settings) +
+        layoutHalfWidth(prev) +
         minGapBetween(prevG, currG) +
-        cardHalfWidth(currG, settings);
+        layoutHalfWidth(curr);
 
       const currCenter = nodeCenterX(curr);
       if (currCenter + 0.01 >= required) continue;
@@ -384,6 +397,8 @@ function resolveLayerCollisions(
       const delta = required - currCenter;
       const prevAnchored = isNuclearMainLine(prevG);
       const currAnchored = isNuclearMainLine(currG);
+      const prevSide = prevG.isSideBranch;
+      const currSide = currG.isSideBranch;
 
       if (prevG.unionId && prevG.unionId === currG.unionId && prevG.layer === currG.layer) {
         const left = prev.x <= curr.x ? prev : curr;
@@ -397,16 +412,22 @@ function resolveLayerCollisions(
         continue;
       }
 
-      if (prevAnchored && !currAnchored) {
-        if (!pinnedPersonIds?.has(curr.personId ?? '')) curr.x += delta;
-      } else if (!prevAnchored && currAnchored) {
-        if (!pinnedPersonIds?.has(prev.personId ?? '')) prev.x -= delta;
-      } else if (!prevAnchored && !currAnchored) {
-        if (!pinnedPersonIds?.has(curr.personId ?? '')) curr.x += delta;
-      } else {
-        const half = delta / 2;
-        if (!pinnedPersonIds?.has(prev.personId ?? '')) prev.x -= half;
-        if (!pinnedPersonIds?.has(curr.personId ?? '')) curr.x += half;
+      if (prevSide && !currSide && !pinnedPersonIds?.has(prev.personId ?? '')) {
+        prev.x -= delta;
+      } else if (!prevSide && currSide && !pinnedPersonIds?.has(curr.personId ?? '')) {
+        curr.x += delta;
+      } else if (prevAnchored && !currAnchored && !pinnedPersonIds?.has(curr.personId ?? '')) {
+        curr.x += delta;
+      } else if (!prevAnchored && currAnchored && !pinnedPersonIds?.has(prev.personId ?? '')) {
+        prev.x -= delta;
+      } else if (!prevAnchored && !currAnchored && !pinnedPersonIds?.has(curr.personId ?? '')) {
+        curr.x += delta;
+      } else if (prevSide && currSide && !pinnedPersonIds?.has(curr.personId ?? '')) {
+        curr.x += delta;
+      } else if (!pinnedPersonIds?.has(curr.personId ?? '')) {
+        curr.x += delta;
+      } else if (!pinnedPersonIds?.has(prev.personId ?? '')) {
+        prev.x -= delta;
       }
       moved = Math.max(moved, delta);
     }
@@ -459,14 +480,18 @@ export function stabilizeFamilyLayout(
   project: Project,
   pinnedPersonIds?: ReadonlySet<string>,
 ): void {
-  for (let pass = 0; pass < 3; pass++) {
+  for (let pass = 0; pass < 6; pass++) {
+    enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
     compactSiblingGroups(nodes, graph, project);
     alignAncestryRowOverMainCouple(nodes, graph);
     alignChildrenToCoupleBonds(nodes, graph, project);
     enforceCoupleSpacing(nodes, graph, project);
     resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
+    applyLayerRepulsion(nodes, graph, pinnedPersonIds);
+    if (!findLayerHorizontalOverlap(nodes, 2)) break;
   }
   enforceCoupleSpacing(nodes, graph, project);
+  enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
 }
 
 /** Согласование pedigree + nuclear и устранение наложений после merge. */

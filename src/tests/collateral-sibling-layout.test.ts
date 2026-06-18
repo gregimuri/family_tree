@@ -4,6 +4,7 @@ import { buildGraph } from '../layout/graph-builder';
 import { buildLayout } from '../layout';
 import { getTreeSheetBounds } from '../layout/content-bounds';
 import { repairProjectRelationships } from '../models/person-utils';
+import { findHorizontalOverlap, assertNoCardOverlaps2D } from './helpers/layout-quality';
 import projectJson from './fixtures/novy-proekt/project.json';
 
 const IVAN = '92312a00-8c2a-42ea-8078-1b5d6507302b';
@@ -57,5 +58,30 @@ describe('collateral sibling layout', () => {
 
     expect(sheet.maxX - sheet.minX).toBeLessThan(900);
     expect(maxLayerGap(layout)).toBeLessThan(600);
+  });
+
+  it('no horizontal overlap with Ivan center, 4 children and collateral', () => {
+    const project = load(IVAN);
+    const unionId = '325a9de7-6a3a-4351-8131-fcb5c80545d4';
+    for (let i = 0; i < 4; i++) {
+      const id = `collateral-child-${i}`;
+      project.persons[id] = {
+        id,
+        gender: 'unknown',
+        surname: '',
+        givenName: '',
+        patronymic: '',
+        nicknamePriority: false,
+        biography: '',
+        parentUnionIds: [unionId],
+        unionIds: [],
+        mediaIds: [],
+        cardLocationSource: 'birth',
+      };
+      project.unions[unionId].childIds.push(id);
+    }
+    const layout = buildLayout(project);
+    expect(findHorizontalOverlap(layout.nodes)).toBeNull();
+    expect(() => assertNoCardOverlaps2D(layout.nodes)).not.toThrow();
   });
 });
