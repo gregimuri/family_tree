@@ -73,7 +73,9 @@ describe('layout refiner', () => {
   it('pinned node keeps position when settings change', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
-    const personId = layout.nodes[0]?.personId!;
+    const personId = layout.nodes[0]?.personId;
+    expect(personId).toBeTruthy();
+    if (!personId) return;
     project.manualLayout = {
       [personId]: { x: 500, y: 500 },
     };
