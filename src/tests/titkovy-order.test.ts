@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import { loadProjectFromDamagedZipBytes } from '../services/project-io/zip-recovery';
-import { buildGraph } from '../layout/graph-builder';
-import { buildFamilyUnits, syncSpouseLayers } from '../layout/family-layout';
 import { buildLayout } from '../layout';
 
 const titkovyPath = 'c:/Users/Gregor/Downloads/Titkovy_6.drevo';
