@@ -108,7 +108,7 @@ export function assertParentChildLayers(project: Project, layout: LayoutResult):
 export function assertParentsCenteredOverChildren(
   project: Project,
   layout: LayoutResult,
-  tolerance = 260,
+  tolerance = 100,
 ): void {
   const byPerson = new Map(layout.nodes.map((n) => [n.personId!, n]));
   for (const union of Object.values(project.unions)) {
@@ -180,7 +180,7 @@ export function maxHorizontalEdgeSpan(edges: LayoutEdge[]): number {
   return max;
 }
 
-export function assertCompactTree(layout: LayoutResult, maxSpread = 1400): void {
+export function assertCompactTree(layout: LayoutResult, maxSpread = 1200): void {
   const sheet = getTreeSheetBounds(layout);
   if (sheet.maxX - sheet.minX > maxSpread) {
     throw new Error(`tree too wide: ${(sheet.maxX - sheet.minX).toFixed(0)}px`);

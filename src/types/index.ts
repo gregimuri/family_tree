@@ -149,6 +149,8 @@ export interface ViewSettings {
   allowExternalMedia?: boolean;
   /** Умная раскладка LayoutNet (refiner + модель). */
   smartLayoutEnabled?: boolean;
+  /** Движок автораскладки: family (новый) или legacy (nuclear+pedigree). */
+  layoutEngine?: 'family' | 'legacy';
 }
 
 export interface ProjectCenter {

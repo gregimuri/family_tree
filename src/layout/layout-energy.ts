@@ -8,14 +8,22 @@ export interface LayoutEnergyWeights {
   coupleGap: number;
   edgeCross: number;
   symmetry: number;
+  siblingOrder: number;
+  genderConvention: number;
+  collateralSide: number;
+  compactness: number;
 }
 
 export const DEFAULT_ENERGY_WEIGHTS: LayoutEnergyWeights = {
   overlap: 120,
-  parentAlign: 0.4,
+  parentAlign: 2.5,
   coupleGap: 80,
   edgeCross: 25,
   symmetry: 0.3,
+  siblingOrder: 0.15,
+  genderConvention: 0.08,
+  collateralSide: 0.05,
+  compactness: 0.02,
 };
 
 function nodeCenterX(n: LayoutNode): number {
@@ -56,6 +64,30 @@ function segmentsCross(
   return t > 0.05 && t < 0.95 && u > 0.05 && u < 0.95;
 }
 
+function genderConventionPenalty(partners: LayoutNode[], project: Project): number {
+  if (partners.length < 2) return 0;
+  const sorted = [...partners].sort((a, b) => a.x - b.x);
+  const left = project.persons[sorted[0].personId!];
+  const right = project.persons[sorted[1].personId!];
+  if (left?.gender === 'male' && right?.gender === 'female') return 0;
+  if (left?.gender === 'female' && right?.gender === 'male') return 100;
+  return 0;
+}
+
+function collateralSidePenalty(node: LayoutNode, project: Project): number {
+  if (!node.isSideBranch || !node.personId) return 0;
+  const person = project.persons[node.personId];
+  if (!person?.parentUnionIds.length) return 0;
+  const union = project.unions[person.parentUnionIds[0]];
+  if (!union) return 0;
+  for (const pid of union.partnerIds) {
+    const parent = project.persons[pid];
+    if (parent?.gender === 'female' && node.x > 0) return 50;
+    if (parent?.gender === 'male' && node.x < 0) return 50;
+  }
+  return 0;
+}
+
 export function computeLayoutEnergy(
   nodes: LayoutNode[],
   edges: LayoutEdge[],
@@ -78,6 +110,7 @@ export function computeLayoutEnergy(
       const gap = sorted[1].x - (sorted[0].x + sorted[0].width);
       const diff = Math.abs(gap - COUPLE_GAP);
       if (diff > 1) energy += diff * diff * weights.coupleGap;
+      energy += genderConventionPenalty(partners, project) * weights.genderConvention;
     }
 
     const parents = union.partnerIds.map((id) => byPerson.get(id)).filter(Boolean) as LayoutNode[];
@@ -98,6 +131,12 @@ export function computeLayoutEnergy(
       const children = union.childIds.map((id) => byPerson.get(id)).filter(Boolean) as LayoutNode[];
       const sameLayer = children.filter((c) => c.layer === children[0].layer);
       if (sameLayer.length >= 2) {
+        const sorted = [...sameLayer].sort((a, b) => (a.personId ?? '').localeCompare(b.personId ?? ''));
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i].x < sorted[i - 1].x + sorted[i - 1].width) {
+            energy += weights.siblingOrder * 10;
+          }
+        }
         const centers = sameLayer.map(nodeCenterX);
         const mean = centers.reduce((a, b) => a + b, 0) / centers.length;
         for (const c of centers) {
@@ -105,6 +144,18 @@ export function computeLayoutEnergy(
         }
       }
     }
+  }
+
+  for (const node of nodes) {
+    if (node.isSideBranch) {
+      energy += collateralSidePenalty(node, project) * weights.collateralSide;
+    }
+  }
+
+  if (nodes.length > 0) {
+    const xs = nodes.map((n) => n.x);
+    const span = Math.max(...xs.map((x, i) => x + nodes[i].width)) - Math.min(...xs);
+    energy += span * weights.compactness;
   }
 
   for (let i = 0; i < edges.length; i++) {

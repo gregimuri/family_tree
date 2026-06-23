@@ -9,6 +9,7 @@ export function validateViewSettings(settings: ViewSettings): ViewSettings {
   if (next.showAllPersons === undefined) next.showAllPersons = false;
   if (next.allowExternalMedia === undefined) next.allowExternalMedia = false;
   if (next.smartLayoutEnabled === undefined) next.smartLayoutEnabled = true;
+  if (next.layoutEngine === undefined) next.layoutEngine = 'family';
   next.cardFields = normalizeCardFields(next.cardFields);
   return next;
 }

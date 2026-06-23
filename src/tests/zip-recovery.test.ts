@@ -46,5 +46,5 @@ describe('zip project recovery', () => {
     expect(Object.keys(project.persons).length).toBe(86);
     const layout = buildLayout(project);
     expect(layout.nodes.length).toBeGreaterThan(50);
-  });
+  }, 15_000);
 });

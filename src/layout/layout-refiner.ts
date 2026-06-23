@@ -52,9 +52,10 @@ function minimizeEnergy(
 
   for (let round = 0; round < iterations; round++) {
     let improved = false;
+    const baseEnergy = computeLayoutEnergy(nodes, edges, project);
+
     for (const node of nodes) {
       if (isPinned(node, pinned)) continue;
-      const baseEnergy = computeLayoutEnergy(nodes, edges, project);
       let bestDx = 0;
       let bestEnergy = baseEnergy;
 
@@ -89,7 +90,9 @@ export function refineLayoutSync(
 ): LayoutNode[] {
   const pinned = pinnedSet(project, options.pinnedPersonIds);
   const useNetwork = false;
-  const iterations = options.energyIterations ?? 24;
+  const n = nodes.length;
+  const iterations =
+    n > 50 ? 4 : n > 30 ? 8 : (options.energyIterations ?? 24);
 
   if (nodes.length === 0) return nodes;
 

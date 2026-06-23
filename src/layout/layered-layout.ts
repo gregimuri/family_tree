@@ -13,6 +13,7 @@ import { refineLayoutSync } from './layout-refiner';
 import { routeCoupleBond, bondEdgeId } from './edge-router';
 import { pickPartnersForUnion, buildPedigreeEdges } from './pedigree-edges';
 import { nodeSize, runPedigreeLayout } from './pedigree-layout';
+import { runFamilyLayout } from './family-layout';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
 
@@ -176,6 +177,27 @@ export function computeLayout(
   graph: GraphResult,
   project: Project,
 ): LayoutResult {
+  const layoutEngine = project.viewSettings.layoutEngine ?? 'family';
+
+  if (layoutEngine === 'family') {
+    const mergedNodes = runFamilyLayout(project, graph);
+    const pinnedPersonIds = new Set(Object.keys(project.manualLayout ?? {}));
+
+    stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds);
+
+    if (project.viewSettings.smartLayoutEnabled !== false && mergedNodes.length <= 50) {
+      refineLayoutSync(mergedNodes, graph, project, { pinnedPersonIds });
+    }
+    stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds);
+
+    const layout: LayoutResult = {
+      nodes: mergedNodes,
+      edges: buildLayoutEdges(project, mergedNodes, graph),
+      bounds: computeBounds(mergedNodes),
+    };
+    return normalizeLayoutToFocus(project, layout, graph);
+  }
+
   const pedigree = computePedigreeLayout(graph, project);
   const nuclearNodes = computeNuclearLayoutNodes(project, graph);
   const mergedNodes = mergeNuclearAndPedigreeNodes(nuclearNodes, pedigree.nodes, graph);
