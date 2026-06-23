@@ -1,6 +1,7 @@
 import type { LayoutEdge, LayoutNode, LayoutResult, Project } from '../../types';
 import { COUPLE_GAP, LAYER_GAP } from '../../layout/graph-builder';
 import { getTreeSheetBounds } from '../../layout/content-bounds';
+import { unionHasCrossUnionMarriedChild } from '../../layout/family-layout/cross-union';
 
 export function nodeCenterX(n: { x: number; width: number }): number {
   return n.x + n.width / 2;
@@ -72,6 +73,9 @@ export function assertNoCardOverlaps2D(nodes: LayoutNode[]): void {
 export function assertCoupleSpacing(project: Project, layout: LayoutResult): void {
   const byPerson = new Map(layout.nodes.map((n) => [n.personId!, n]));
   for (const union of Object.values(project.unions)) {
+    if (union.childIds.length > 0 && unionHasCrossUnionMarriedChild(union.childIds, project)) {
+      continue;
+    }
     if (union.partnerIds.length < 2) continue;
     const partners = union.partnerIds.map((id) => byPerson.get(id)).filter(Boolean) as LayoutNode[];
     if (partners.length < 2) continue;
@@ -105,6 +109,50 @@ export function assertParentChildLayers(project: Project, layout: LayoutResult):
   }
 }
 
+function childRowNodesForAlignment(
+  directChildren: LayoutNode[],
+  byPerson: Map<string, LayoutNode>,
+  project: Project,
+  parentChildIds: string[],
+): LayoutNode[] {
+  const out: LayoutNode[] = [];
+  const seen = new Set<string>();
+  for (const child of directChildren) {
+    if (!child.personId || seen.has(child.id)) continue;
+    seen.add(child.id);
+    out.push(child);
+    for (const unionId of project.persons[child.personId]?.unionIds ?? []) {
+      const marriage = project.unions[unionId];
+      if (!marriage || marriage.partnerIds.length < 2) continue;
+      const partnerId = marriage.partnerIds.find((id) => id !== child.personId);
+      if (!partnerId || !parentChildIds.includes(partnerId)) continue;
+      const partner = byPerson.get(partnerId);
+      if (partner && partner.layer === child.layer && !seen.has(partner.id)) {
+        seen.add(partner.id);
+        out.push(partner);
+      }
+    }
+  }
+  return out;
+}
+
+function isCrossUnionMarriedChild(
+  childId: string,
+  parentUnion: { childIds: string[] },
+  project: Project,
+): boolean {
+  const person = project.persons[childId];
+  if (!person) return false;
+  for (const unionId of person.unionIds) {
+    const marriage = project.unions[unionId];
+    if (!marriage || marriage.partnerIds.length < 2) continue;
+    const partnerId = marriage.partnerIds.find((id) => id !== childId);
+    if (!partnerId) continue;
+    if (!parentUnion.childIds.includes(partnerId)) return true;
+  }
+  return false;
+}
+
 export function assertParentsCenteredOverChildren(
   project: Project,
   layout: LayoutResult,
@@ -118,13 +166,24 @@ export function assertParentsCenteredOverChildren(
 
     const parentLayer = Math.min(...parents.map((p) => p.layer));
     const sameLayerParents = parents.filter((p) => p.layer === parentLayer);
-    const directChildren = children.filter((c) => c.layer === parentLayer + 1);
+    let directChildren = children.filter((c) => c.layer === parentLayer + 1);
     if (sameLayerParents.length === 0 || directChildren.length === 0) continue;
+
+    if (unionHasCrossUnionMarriedChild(union.childIds, project)) continue;
+
+    if (
+      union.childIds.length === 1 &&
+      isCrossUnionMarriedChild(union.childIds[0], union, project)
+    ) {
+      continue;
+    }
 
     const parentCenter =
       sameLayerParents.reduce((s, p) => s + nodeCenterX(p), 0) / sameLayerParents.length;
-    const childCenter =
-      directChildren.reduce((s, c) => s + nodeCenterX(c), 0) / directChildren.length;
+    const rowNodes = childRowNodesForAlignment(directChildren, byPerson, project, union.childIds);
+    const childMin = Math.min(...rowNodes.map((c) => c.x));
+    const childMax = Math.max(...rowNodes.map((c) => c.x + c.width));
+    const childCenter = (childMin + childMax) / 2;
     if (Math.abs(parentCenter - childCenter) > tolerance) {
       throw new Error(
         `parents/children misaligned by ${Math.abs(parentCenter - childCenter).toFixed(0)}px`,

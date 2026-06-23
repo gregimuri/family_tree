@@ -2,6 +2,7 @@ import type { LayoutNode, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
 import { COUPLE_GAP, GROUP_GAP, LAYER_GAP } from './graph-builder';
 import { shouldUseNuclearPosition } from './nuclear-tree-adapter';
+import { unionHasCrossUnionMarriedChild } from './family-layout/cross-union';
 import {
   enforceSideBranchCorridors,
   findLayerHorizontalOverlap,
@@ -105,6 +106,7 @@ function compactSiblingGroups(
 
   for (const union of Object.values(project.unions)) {
     if (union.childIds.length < 2) continue;
+    if (unionHasCrossUnionMarriedChild(union.childIds, project)) continue;
 
     type ChildEntry = { gn: PersonGraphNode; ln: LayoutNode };
     const childEntries: ChildEntry[] = [];
@@ -232,6 +234,7 @@ function alignChildrenToCoupleBonds(
 
   for (const union of Object.values(project.unions)) {
     if (union.childIds.length === 0) continue;
+    if (unionHasCrossUnionMarriedChild(union.childIds, project)) continue;
 
     const parentLayerByUnion = new Map<number, { gn: PersonGraphNode; ln: LayoutNode }[]>();
     for (const personId of union.partnerIds) {
@@ -329,6 +332,9 @@ function enforceCoupleSpacing(
 
   for (const union of Object.values(project.unions)) {
     if (union.partnerIds.length < 2) continue;
+    if (union.childIds.length > 0 && unionHasCrossUnionMarriedChild(union.childIds, project)) {
+      continue;
+    }
 
     type PartnerEntry = { gn: PersonGraphNode; ln: LayoutNode; personId: string };
     const partners: PartnerEntry[] = [];
@@ -479,11 +485,14 @@ export function stabilizeFamilyLayout(
   graph: GraphResult,
   project: Project,
   pinnedPersonIds?: ReadonlySet<string>,
+  options?: { skipAncestryAlign?: boolean },
 ): void {
   for (let pass = 0; pass < 6; pass++) {
     enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
     compactSiblingGroups(nodes, graph, project);
-    alignAncestryRowOverMainCouple(nodes, graph);
+    if (!options?.skipAncestryAlign) {
+      alignAncestryRowOverMainCouple(nodes, graph);
+    }
     alignChildrenToCoupleBonds(nodes, graph, project);
     enforceCoupleSpacing(nodes, graph, project);
     resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
@@ -492,6 +501,77 @@ export function stabilizeFamilyLayout(
   }
   enforceCoupleSpacing(nodes, graph, project);
   enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
+  restoreCrossUnionParentAlignment(nodes, project, graph);
+  resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
+}
+
+/** После stabilize: родители с «чужими» браками детей — над рядом детей. */
+export function restoreCrossUnionParentAlignment(
+  nodes: LayoutNode[],
+  project: Project,
+  graph: GraphResult,
+): void {
+  const byPerson = new Map<string, LayoutNode>();
+  for (const node of nodes) {
+    if (node.personId) byPerson.set(node.personId, node);
+  }
+
+  for (const union of Object.values(project.unions)) {
+    if (union.childIds.length === 0 || !unionHasCrossUnionMarriedChild(union.childIds, project)) {
+      continue;
+    }
+
+    const parentLayer = Math.min(
+      ...union.partnerIds
+        .map((id) => graph.personToNode.get(id))
+        .map((gid) => (gid ? graph.nodes.find((n) => n.id === gid) : undefined))
+        .filter((n): n is PersonGraphNode => n?.kind === 'person')
+        .map((n) => n.layer),
+    );
+    const childLayer = parentLayer + 1;
+
+    const parents = union.partnerIds
+      .map((id) => byPerson.get(id))
+      .filter((n): n is LayoutNode => Boolean(n && n.layer === parentLayer));
+    const directChildren = union.childIds
+      .map((id) => byPerson.get(id))
+      .filter((n): n is LayoutNode => Boolean(n && n.layer === childLayer));
+    if (parents.length === 0 || directChildren.length === 0) continue;
+
+    const rowNodes: LayoutNode[] = [];
+    const seen = new Set<string>();
+    for (const child of directChildren) {
+      if (!child.personId || seen.has(child.id)) continue;
+      seen.add(child.id);
+      rowNodes.push(child);
+      for (const uid of project.persons[child.personId]?.unionIds ?? []) {
+        const marriage = project.unions[uid];
+        if (!marriage || marriage.partnerIds.length < 2) continue;
+        const partnerId = marriage.partnerIds.find((id) => id !== child.personId);
+        if (!partnerId || !union.childIds.includes(partnerId)) continue;
+        const partner = byPerson.get(partnerId);
+        if (partner && partner.layer === childLayer && !seen.has(partner.id)) {
+          seen.add(partner.id);
+          rowNodes.push(partner);
+        }
+      }
+    }
+
+    const childMin = Math.min(...rowNodes.map((n) => n.x));
+    const childMax = Math.max(...rowNodes.map((n) => n.x + n.width));
+    const childCenter = (childMin + childMax) / 2;
+
+    const sortedParents = [...parents].sort((a, b) => a.x - b.x);
+    if (sortedParents.length >= 2) {
+      const left = sortedParents[0];
+      const right = sortedParents[1];
+      const totalW = left.width + COUPLE_GAP + right.width;
+      left.x = childCenter - totalW / 2;
+      right.x = left.x + left.width + COUPLE_GAP;
+    } else if (sortedParents.length === 1) {
+      sortedParents[0].x = childCenter - sortedParents[0].width / 2;
+    }
+  }
 }
 
 /** Согласование pedigree + nuclear и устранение наложений после merge. */

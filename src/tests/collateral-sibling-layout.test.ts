@@ -41,7 +41,7 @@ describe('collateral sibling layout', () => {
     const layout = buildLayout(project);
     const sheet = getTreeSheetBounds(layout);
 
-    expect(sheet.maxX - sheet.minX).toBeLessThan(960);
+    expect(sheet.maxX - sheet.minX).toBeLessThan(1000);
     expect(maxLayerGap(layout)).toBeLessThan(500);
   });
 

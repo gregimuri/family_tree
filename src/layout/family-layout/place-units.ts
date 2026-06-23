@@ -1,8 +1,10 @@
 import type { Project } from '../../types';
+import type { GraphResult } from '../graph-builder';
 import { COUPLE_GAP, getCardScale } from '../graph-builder';
 import { getCardDimensions } from '../card-dimensions';
 import type { FamilyLayoutGraph, FamilyUnit } from './types';
 import { GROUP_GAP, SIBLING_GAP } from './types';
+import { childrenForParentAlignment, snapCrossUnionSpouses, realignCrossUnionParentUnits } from './cross-union';
 
 /** Ширина блока в px. */
 export function computeUnitWidth(
@@ -38,6 +40,9 @@ export function refineUnitPlacements(
   centers: Map<string, number>,
   widths: Map<string, number>,
   project: Project,
+  graph: GraphResult,
+  personOrder: Map<string, string[]>,
+  options?: { skipCrossUnionSnap?: boolean },
 ): void {
   for (const unit of layout.units) {
     widths.set(unit.id, computeUnitWidth(unit, project));
@@ -48,15 +53,19 @@ export function refineUnitPlacements(
   }
 
   for (let pass = 0; pass < 12; pass++) {
-    alignParentsOverChildren(layout, centers, widths);
+    alignParentsOverChildren(layout, centers, widths, project);
   }
 
   for (const layer of [...layout.sortedLayers].filter((l) => l < 0).reverse()) {
     packLayerWithWidths(layout.layers.get(layer) ?? [], centers, widths, 0);
-    alignParentsOverChildren(layout, centers, widths);
+    alignParentsOverChildren(layout, centers, widths, project);
   }
 
   anchorMainToZero(layout, centers);
+  if (!options?.skipCrossUnionSnap) {
+    snapCrossUnionSpouses(layout, centers, widths, project, graph, personOrder);
+    realignCrossUnionParentUnits(layout, centers, widths, project, graph);
+  }
 }
 
 function packLayerWithWidths(
@@ -111,15 +120,17 @@ function alignParentsOverChildren(
   layout: FamilyLayoutGraph,
   centers: Map<string, number>,
   widths: Map<string, number>,
+  project: Project,
 ): void {
   for (const layer of layout.sortedLayers) {
     const nextLayer = layer + 1;
     if (!layout.layers.has(nextLayer)) continue;
 
     for (const parent of layout.layers.get(layer) ?? []) {
-      const children = parent.childUnitIds
+      const allChildren = parent.childUnitIds
         .map((id) => layout.unitById.get(id))
         .filter((u): u is FamilyUnit => Boolean(u && u.layer === nextLayer));
+      const children = childrenForParentAlignment(parent, allChildren, project);
       if (children.length === 0) continue;
 
       const parentCx = centers.get(parent.id) ?? 0;

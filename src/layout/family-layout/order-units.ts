@@ -1,3 +1,4 @@
+import type { Project } from '../../types';
 import type { GraphResult } from '../graph-builder';
 import {
   CONVERGENCE_EPS,
@@ -6,6 +7,7 @@ import {
   type FamilyLayoutGraph,
   type FamilyUnit,
 } from './types';
+import { childrenForParentAlignment } from './cross-union';
 
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
@@ -174,6 +176,7 @@ function packOrderedUnits(
 function alignChildUnitsUnderParents(
   layout: FamilyLayoutGraph,
   centers: Map<string, number>,
+  project: Project,
 ): number {
   let maxShift = 0;
 
@@ -183,9 +186,10 @@ function alignChildUnitsUnderParents(
     if (!layout.layers.has(nextLayer)) continue;
 
     for (const parent of layout.layers.get(layer) ?? []) {
-      const childUnits = parent.childUnitIds
+      const allChildren = parent.childUnitIds
         .map((id) => layout.unitById.get(id))
         .filter((u): u is FamilyUnit => Boolean(u && u.layer === nextLayer));
+      const childUnits = childrenForParentAlignment(parent, allChildren, project);
       if (childUnits.length === 0) continue;
 
       const parentCenter = centers.get(parent.id) ?? 0;
@@ -225,6 +229,7 @@ export function orderFamilyUnits(
   layout: FamilyLayoutGraph,
   centers: Map<string, number>,
   graph: GraphResult,
+  project: Project,
 ): void {
   const largeTree = layout.units.length >= 14;
   const geneWeight = largeTree ? 0.35 : 1;
@@ -260,7 +265,7 @@ export function orderFamilyUnits(
       layout.layers.set(layer, units);
     }
 
-    maxMove = Math.max(maxMove, alignChildUnitsUnderParents(layout, centers));
+    maxMove = Math.max(maxMove, alignChildUnitsUnderParents(layout, centers, project));
     if (maxMove < CONVERGENCE_EPS) break;
   }
 

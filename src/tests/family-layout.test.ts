@@ -6,6 +6,7 @@ import { buildFamilyUnits, runFamilyLayout, syncSpouseLayers } from '../layout/f
 import { repairProjectRelationships } from '../models/person-utils';
 import { createEmptyProject, createEmptyPerson } from '../models/defaults';
 import { COUPLE_GAP } from '../layout/graph-builder';
+import { findHorizontalOverlap } from './helpers/layout-quality';
 import projectJson from './fixtures/novy-proekt/project.json';
 
 function nodeCenterX(n: { x: number; width: number }): number {
@@ -80,5 +81,37 @@ describe('family layout engine', () => {
     const graph = buildGraph(project, project.viewSettings);
     const nodes = runFamilyLayout(project, graph);
     expect(Array.isArray(nodes)).toBe(true);
+  });
+
+  it('cross-union spouses: Maria stays in sibling row, Ivan adjacent on the right', () => {
+    const project = repairProjectRelationships(JSON.parse(JSON.stringify(projectJson)) as Project);
+    project.center = { type: 'person', id: '92312a00-8c2a-42ea-8078-1b5d6507302b' };
+    project.viewSettings = { ...project.viewSettings, showAllPersons: true };
+    const layout = buildLayout(project);
+    const ivan = layout.nodes.find((n) => n.personId === '92312a00-8c2a-42ea-8078-1b5d6507302b')!;
+    const maria = layout.nodes.find((n) => n.personId === '2cf738cd-bf1e-4ccf-b0d6-96d978901502')!;
+    expect(ivan.x + ivan.width).toBeLessThanOrEqual(maria.x + 1);
+    expect(maria.x - (ivan.x + ivan.width)).toBeGreaterThanOrEqual(COUPLE_GAP - 2);
+    expect(maria.x - (ivan.x + ivan.width)).toBeLessThanOrEqual(COUPLE_GAP + 4);
+
+    const graph = buildGraph(project, project.viewSettings);
+    syncSpouseLayers(graph, project);
+    const fl = buildFamilyUnits(project, graph);
+    const ivanUnit = fl.units.find((u) => u.personIds.includes('92312a00-8c2a-42ea-8078-1b5d6507302b'));
+    const mariaUnit = fl.units.find((u) => u.personIds.includes('2cf738cd-bf1e-4ccf-b0d6-96d978901502'));
+    expect(ivanUnit?.kind).toBe('single');
+    expect(mariaUnit?.kind).not.toBe('couple');
+  });
+
+  it('no overlap when centered on Maria grandparent', () => {
+    const project = repairProjectRelationships(JSON.parse(JSON.stringify(projectJson)) as Project);
+    project.center = { type: 'person', id: 'a5a08cef-6502-42a8-9f09-3e54857eea11' };
+    const graph = buildGraph(project, project.viewSettings);
+    syncSpouseLayers(graph, project);
+    const familyNodes = runFamilyLayout(project, graph);
+    expect(findHorizontalOverlap(familyNodes)).toBeNull();
+
+    const layout = buildLayout(project);
+    expect(findHorizontalOverlap(layout.nodes)).toBeNull();
   });
 });

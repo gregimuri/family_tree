@@ -4,6 +4,7 @@ import { getCardDimensions } from '../card-dimensions';
 import type { GraphResult } from '../graph-builder';
 import type { FamilyLayoutGraph, FamilyUnit } from './types';
 import { SIBLING_GAP } from './types';
+import { crossUnionSiblingOrder } from './cross-union';
 
 const W_ALIGN = 1;
 const W_GENDER = 0.05;
@@ -41,13 +42,12 @@ function bestPartnerOrder(
     return [...unit.personIds];
   }
 
-  const orders =
-    unit.personIds.length === 2
-      ? [
-          [unit.personIds[0], unit.personIds[1]],
-          [unit.personIds[1], unit.personIds[0]],
-        ]
-      : [unit.personIds];
+  const orders: string[][] = [];
+  if (unit.personIds.length === 2) {
+    orders.push([unit.personIds[0], unit.personIds[1]], [unit.personIds[1], unit.personIds[0]]);
+  } else {
+    orders.push([...unit.personIds]);
+  }
 
   let best = orders[0];
   let bestScore = Infinity;
@@ -63,10 +63,6 @@ function bestPartnerOrder(
   }
 
   return best;
-}
-
-function siblingOrder(unit: FamilyUnit): string[] {
-  return [...unit.personIds];
 }
 
 function placePersonsInUnit(
@@ -133,7 +129,10 @@ export function expandUnitsToLayoutNodes(
     if (unit.kind === 'couple') {
       order = bestPartnerOrder(unit, project, cx, childCenters);
     } else if (unit.kind === 'siblings') {
-      order = siblingOrder(unit);
+      order =
+        personOrder.get(unit.id) ??
+        crossUnionSiblingOrder(unit, project, layout, unitCenters);
+      personOrder.set(unit.id, order);
     } else {
       order = unit.personIds;
     }

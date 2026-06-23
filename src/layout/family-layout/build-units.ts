@@ -1,6 +1,7 @@
 import type { Project } from '../../types';
 import type { GraphNode, GraphResult } from '../graph-builder';
 import type { FamilyLayoutGraph, FamilyUnit } from './types';
+import { partnersShareParentUnion } from './cross-union';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
 
@@ -24,6 +25,73 @@ function inferParentUnionId(members: GraphPersonNode[]): string | undefined {
     if (m.parentUnionId) return m.parentUnionId;
   }
   return undefined;
+}
+
+function unionIdForPartners(a: string, b: string, project: Project): string | undefined {
+  for (const uid of project.persons[a]?.unionIds ?? []) {
+    const union = project.unions[uid];
+    if (union?.partnerIds.includes(a) && union.partnerIds.includes(b)) return uid;
+  }
+  return undefined;
+}
+
+/** Супруг с другой ветки на том же слое — выносим в couple-unit рядом с сиблингом. */
+function externalSpouseOnLayer(
+  node: GraphPersonNode,
+  layerNodeByPersonId: Map<string, GraphPersonNode>,
+  project: Project,
+  usedOnLayer: Set<string>,
+): GraphPersonNode | undefined {
+  for (const unionId of project.persons[node.personId]?.unionIds ?? []) {
+    const union = project.unions[unionId];
+    if (!union || union.partnerIds.length < 2) continue;
+    const partnerId = union.partnerIds.find((id) => id !== node.personId);
+    if (!partnerId || usedOnLayer.has(partnerId)) continue;
+    const partnerNode = layerNodeByPersonId.get(partnerId);
+    if (!partnerNode) continue;
+    if (partnersShareParentUnion([node, partnerNode], project)) continue;
+    return partnerNode;
+  }
+  return undefined;
+}
+
+function addCoupleUnit(
+  members: GraphPersonNode[],
+  unionId: string | undefined,
+  layer: number,
+  personById: Map<string, GraphPersonNode>,
+  project: Project,
+  units: FamilyUnit[],
+  usedOnLayer: Set<string>,
+  usedPersonIds: Set<string>,
+): void {
+  const graphNodeIds = members.map((m) => m.id);
+  const personIds = members.map((m) => m.personId);
+  personIds.forEach((id) => {
+    usedOnLayer.add(id);
+    usedPersonIds.add(id);
+  });
+
+  const union = unionId ? project.unions[unionId] : undefined;
+  const childIds = (union?.childIds ?? []).filter((pid) => {
+    const child = personById.get(pid);
+    return child && child.layer === layer + 1;
+  });
+
+  units.push({
+    id: unionId ? `union:${unionId}` : `inline-couple:${personIds.join(':')}`,
+    kind: 'couple',
+    layer,
+    personIds,
+    graphNodeIds,
+    childIds,
+    childUnitIds: [],
+    branchSide: branchSideOf(members),
+    isSideBranch: members.some((m) => m.isSideBranch),
+    birthOrder: minBirthOrder(members),
+    unionId,
+    parentUnionId: inferParentUnionId(members),
+  });
 }
 
 /** Собрать FamilyUnit-ы по слоям из видимого графа. */
@@ -53,6 +121,7 @@ export function buildFamilyUnits(project: Project, graph: GraphResult): FamilyLa
 
     for (const [unionId, members] of byUnion) {
       if (members.length < 2) continue;
+      if (!partnersShareParentUnion(members, project)) continue;
       const graphNodeIds = members.map((m) => m.id);
       const personIds = members.map((m) => m.personId);
       personIds.forEach((id) => {
@@ -92,10 +161,36 @@ export function buildFamilyUnits(project: Project, graph: GraphResult): FamilyLa
 
     for (const [parentUnionId, members] of byParentUnion) {
       if (members.length < 2) continue;
-      const sorted = [...members].sort(
-        (a, b) => (a.birthOrder ?? 999) - (b.birthOrder ?? 999),
-      );
-      sorted.forEach((m) => {
+
+      const layerNodeByPersonId = new Map(layerNodes.map((n) => [n.personId, n]));
+      const sorted = [...members]
+        .filter((m) => !usedOnLayer.has(m.personId))
+        .sort((a, b) => (a.birthOrder ?? 999) - (b.birthOrder ?? 999));
+
+      const siblingOnly: GraphPersonNode[] = [];
+      for (const m of sorted) {
+        if (usedOnLayer.has(m.personId)) continue;
+        const spouse = externalSpouseOnLayer(m, layerNodeByPersonId, project, usedOnLayer);
+        if (spouse) {
+          const unionId = unionIdForPartners(m.personId, spouse.personId, project);
+          addCoupleUnit(
+            [m, spouse],
+            unionId,
+            layer,
+            personById,
+            project,
+            units,
+            usedOnLayer,
+            usedPersonIds,
+          );
+        } else {
+          siblingOnly.push(m);
+        }
+      }
+
+      if (siblingOnly.length < 2) continue;
+
+      siblingOnly.forEach((m) => {
         usedOnLayer.add(m.personId);
         usedPersonIds.add(m.personId);
       });
@@ -104,13 +199,13 @@ export function buildFamilyUnits(project: Project, graph: GraphResult): FamilyLa
         id: `siblings:${parentUnionId}:${layer}`,
         kind: 'siblings',
         layer,
-        personIds: sorted.map((m) => m.personId),
-        graphNodeIds: sorted.map((m) => m.id),
+        personIds: siblingOnly.map((m) => m.personId),
+        graphNodeIds: siblingOnly.map((m) => m.id),
         childIds: [],
         childUnitIds: [],
-        branchSide: branchSideOf(sorted),
-        isSideBranch: sorted.some((m) => m.isSideBranch),
-        birthOrder: minBirthOrder(sorted),
+        branchSide: branchSideOf(siblingOnly),
+        isSideBranch: siblingOnly.some((m) => m.isSideBranch),
+        birthOrder: minBirthOrder(siblingOnly),
         parentUnionId,
       });
     }

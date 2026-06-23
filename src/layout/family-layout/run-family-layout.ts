@@ -6,6 +6,7 @@ import { orderFamilyUnits } from './order-units';
 import { refineUnitPlacements } from './place-units';
 import { expandUnitsToLayoutNodes } from './expand-units';
 import { assignSoftCollateralSides } from './side-branches';
+import { snapCrossUnionSpouses, realignCrossUnionParentUnits } from './cross-union';
 import type { BranchSide } from '../graph-builder';
 import type { FamilyLayoutState } from './types';
 
@@ -19,10 +20,16 @@ export function runFamilyLayout(project: Project, graph: GraphResult): LayoutNod
   const personOrder = new Map<string, string[]>();
   const chosenSide = new Map<string, BranchSide>();
 
-  orderFamilyUnits(layout, unitCenters, graph);
-  refineUnitPlacements(layout, unitCenters, unitWidths, project);
+  orderFamilyUnits(layout, unitCenters, graph, project);
+  refineUnitPlacements(layout, unitCenters, unitWidths, project, graph, personOrder, {
+    skipCrossUnionSnap: true,
+  });
   assignSoftCollateralSides(layout, unitCenters, unitWidths, chosenSide, project);
-  refineUnitPlacements(layout, unitCenters, unitWidths, project);
+  refineUnitPlacements(layout, unitCenters, unitWidths, project, graph, personOrder, {
+    skipCrossUnionSnap: true,
+  });
+  snapCrossUnionSpouses(layout, unitCenters, unitWidths, project, graph, personOrder);
+  realignCrossUnionParentUnits(layout, unitCenters, unitWidths, project, graph);
 
   return expandUnitsToLayoutNodes(
     layout,
