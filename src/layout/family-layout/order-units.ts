@@ -7,7 +7,16 @@ import {
   type FamilyLayoutGraph,
   type FamilyUnit,
 } from './types';
-import { childrenForParentAlignment } from './cross-union';
+
+function partnersShareParentUnionIds(partnerIds: string[], project: Project): boolean {
+  const parentUnions = new Set<string>();
+  for (const pid of partnerIds) {
+    for (const uid of project.persons[pid]?.parentUnionIds ?? []) {
+      parentUnions.add(uid);
+    }
+  }
+  return parentUnions.size <= 1;
+}
 
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
@@ -70,40 +79,53 @@ function orderUnitsByBarycenter(
   return scored.map((s) => s.unit);
 }
 
-function countCrossings(
+/** Связи parent-unit → child-unit между соседними слоями. */
+function unitLinksBetweenLayers(
+  layerA: number,
+  layerB: number,
+  layout: FamilyLayoutGraph,
+): { parentId: string; childId: string }[] {
+  const links: { parentId: string; childId: string }[] = [];
+  for (const parent of layout.layers.get(layerA) ?? []) {
+    for (const childUnitId of parent.childUnitIds) {
+      const child = layout.unitById.get(childUnitId);
+      if (child && child.layer === layerB) {
+        links.push({ parentId: parent.id, childId: child.id });
+      }
+    }
+  }
+  return links;
+}
+
+function countUnitLinkCrossings(
   orderA: FamilyUnit[],
   orderB: FamilyUnit[],
-  graph: GraphResult,
+  links: { parentId: string; childId: string }[],
 ): number {
   const posA = new Map(orderA.map((u, i) => [u.id, i]));
   const posB = new Map(orderB.map((u, i) => [u.id, i]));
+  const mapped = links
+    .map((link) => ({
+      pi: posA.get(link.parentId),
+      ci: posB.get(link.childId),
+    }))
+    .filter((l): l is { pi: number; ci: number } => l.pi !== undefined && l.ci !== undefined);
+
   let crossings = 0;
-
-  for (const edge of graph.edges) {
-    const fromUnit = orderA.find((u) => u.graphNodeIds.includes(edge.from));
-    const toUnit = orderB.find((u) => u.graphNodeIds.includes(edge.to));
-    if (!fromUnit || !toUnit) continue;
-    const fromIdx = posA.get(fromUnit.id)!;
-    const toIdx = posB.get(toUnit.id)!;
-
-    for (const edge2 of graph.edges) {
-      const fromUnit2 = orderA.find((u) => u.graphNodeIds.includes(edge2.from));
-      const toUnit2 = orderB.find((u) => u.graphNodeIds.includes(edge2.to));
-      if (!fromUnit2 || !toUnit2) continue;
-      const fromIdx2 = posA.get(fromUnit2.id)!;
-      const toIdx2 = posB.get(toUnit2.id)!;
-      if (fromIdx < fromIdx2 && toIdx > toIdx2) crossings++;
-      if (fromIdx > fromIdx2 && toIdx < toIdx2) crossings++;
+  for (let i = 0; i < mapped.length; i++) {
+    for (let j = i + 1; j < mapped.length; j++) {
+      const a = mapped[i];
+      const b = mapped[j];
+      if ((a.pi < b.pi && a.ci > b.ci) || (a.pi > b.pi && a.ci < b.ci)) crossings++;
     }
   }
-
   return crossings;
 }
 
 function reduceCrossingsAdjacentSwap(
   units: FamilyUnit[],
   adjacentUnits: FamilyUnit[],
-  graph: GraphResult,
+  links: { parentId: string; childId: string }[],
 ): FamilyUnit[] {
   let order = [...units];
   for (let round = 0; round < CROSSING_SWAP_ROUNDS; round++) {
@@ -111,13 +133,48 @@ function reduceCrossingsAdjacentSwap(
     for (let i = 0; i < order.length - 1; i++) {
       const swapped = [...order];
       [swapped[i], swapped[i + 1]] = [swapped[i + 1], swapped[i]];
-      if (countCrossings(swapped, adjacentUnits, graph) < countCrossings(order, adjacentUnits, graph)) {
+      if (
+        countUnitLinkCrossings(swapped, adjacentUnits, links) <
+        countUnitLinkCrossings(order, adjacentUnits, links)
+      ) {
         order = swapped;
         improved = true;
       }
     }
     if (!improved) break;
   }
+  return order;
+}
+
+/** Супруги на одном слое — рядом (если разнесены по разным unit-ам). */
+function keepUnionPartnersAdjacent(
+  units: FamilyUnit[],
+  layer: number,
+  project: Project,
+  layout: FamilyLayoutGraph,
+): FamilyUnit[] {
+  const order = [...units];
+
+  for (const union of Object.values(project.unions)) {
+    if (union.partnerIds.length < 2) continue;
+    if (!partnersShareParentUnionIds(union.partnerIds, project)) continue;
+    const partnerUnits = new Set<number>();
+    for (const pid of union.partnerIds) {
+      const unit = layout.units.find((u) => u.layer === layer && u.personIds.includes(pid));
+      if (!unit) continue;
+      const idx = order.findIndex((u) => u.id === unit.id);
+      if (idx >= 0) partnerUnits.add(idx);
+    }
+    if (partnerUnits.size < 2) continue;
+
+    const indices = [...partnerUnits].sort((a, b) => a - b);
+    const block = indices.map((i) => order[i]);
+    const without = order.filter((_, i) => !partnerUnits.has(i));
+    const insertAt = Math.min(...indices);
+    without.splice(insertAt, 0, ...block);
+    order.splice(0, order.length, ...without);
+  }
+
   return order;
 }
 
@@ -173,43 +230,6 @@ function packOrderedUnits(
   }
 }
 
-function alignChildUnitsUnderParents(
-  layout: FamilyLayoutGraph,
-  centers: Map<string, number>,
-  project: Project,
-): number {
-  let maxShift = 0;
-
-  for (let li = layout.sortedLayers.length - 1; li >= 0; li--) {
-    const layer = layout.sortedLayers[li];
-    const nextLayer = layer + 1;
-    if (!layout.layers.has(nextLayer)) continue;
-
-    for (const parent of layout.layers.get(layer) ?? []) {
-      const allChildren = parent.childUnitIds
-        .map((id) => layout.unitById.get(id))
-        .filter((u): u is FamilyUnit => Boolean(u && u.layer === nextLayer));
-      const childUnits = childrenForParentAlignment(parent, allChildren, project);
-      if (childUnits.length === 0) continue;
-
-      const parentCenter = centers.get(parent.id) ?? 0;
-      const childCenters = childUnits.map((c) => centers.get(c.id) ?? 0);
-      const childCenter = (Math.min(...childCenters) + Math.max(...childCenters)) / 2;
-      const delta = parentCenter - childCenter;
-      if (Math.abs(delta) < CONVERGENCE_EPS) continue;
-
-      for (const unit of layout.units) {
-        if (unit.layer >= nextLayer) {
-          centers.set(unit.id, (centers.get(unit.id) ?? 0) + delta);
-        }
-      }
-      maxShift = Math.max(maxShift, Math.abs(delta));
-    }
-  }
-
-  return maxShift;
-}
-
 function anchorMainLineToCenter(layout: FamilyLayoutGraph, centers: Map<string, number>): void {
   const layer0 = layout.layers.get(0) ?? [];
   const main = layer0.filter((u) => u.branchSide === 'main');
@@ -231,6 +251,7 @@ export function orderFamilyUnits(
   graph: GraphResult,
   project: Project,
 ): void {
+  void graph;
   const largeTree = layout.units.length >= 14;
   const geneWeight = largeTree ? 0.35 : 1;
 
@@ -244,7 +265,6 @@ export function orderFamilyUnits(
   }
 
   for (let iter = 0; iter < MAX_ORDER_ITERATIONS; iter++) {
-    let maxMove = 0;
     const down = iter % 2 === 0;
     const layerOrder = down ? layout.sortedLayers : [...layout.sortedLayers].reverse();
 
@@ -257,16 +277,20 @@ export function orderFamilyUnits(
 
       if (layout.layers.has(adjacentLayer)) {
         const adjacent = layout.layers.get(adjacentLayer)!;
-        units = reduceCrossingsAdjacentSwap(units, adjacent, graph);
+        const links = unitLinksBetweenLayers(
+          down ? adjacentLayer : layer,
+          down ? layer : adjacentLayer,
+          layout,
+        );
+        units = reduceCrossingsAdjacentSwap(units, adjacent, links);
       }
+
+      units = keepUnionPartnersAdjacent(units, layer, project, layout);
 
       const targetX = layer === 0 ? 0 : layerTargetCenter(units, towardLayer, layout, centers);
       packOrderedUnits(units, centers, targetX);
       layout.layers.set(layer, units);
     }
-
-    maxMove = Math.max(maxMove, alignChildUnitsUnderParents(layout, centers, project));
-    if (maxMove < CONVERGENCE_EPS) break;
   }
 
   anchorMainLineToCenter(layout, centers);
