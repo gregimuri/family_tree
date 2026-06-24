@@ -312,31 +312,86 @@ function alignChildrenToCoupleBonds(
 }
 
 /** Сдвигает весь ряд предков (layer < 0) под центральную пару на layer 0. */
-function alignAncestryRowOverMainCouple(
+function collectLineageAncestorPersonIds(project: Project): Set<string> | null {
+  if (project.center.type !== 'person') return null;
+  const centerId = project.center.id;
+  const result = new Set<string>();
+  const queue = [centerId];
+  const seen = new Set<string>([centerId]);
+
+  while (queue.length > 0) {
+    const pid = queue.shift()!;
+    for (const puid of project.persons[pid]?.parentUnionIds ?? []) {
+      const union = project.unions[puid];
+      if (!union) continue;
+      for (const parentId of union.partnerIds) {
+        if (seen.has(parentId)) continue;
+        seen.add(parentId);
+        result.add(parentId);
+        queue.push(parentId);
+      }
+    }
+  }
+  return result;
+}
+
+function focusCoupleCenter(
   nodes: LayoutNode[],
-  graph: GraphResult,
-): void {
-  const graphById = graphNodeById(graph);
+  graphById: Map<string, PersonGraphNode>,
+  project: Project,
+): number | null {
+  if (project.center.type === 'person') {
+    const centerNode = nodes.find((n) => n.personId === project.center.id);
+    if (centerNode) {
+      if (centerNode.unionId) {
+        const couple = nodes.filter(
+          (n) => n.unionId === centerNode.unionId && n.layer === centerNode.layer,
+        );
+        if (couple.length >= 2) return coupleBondCenter(couple);
+      }
+      return nodeCenterX(centerNode);
+    }
+  }
 
   const mainCouple = nodes.filter((n) => {
     const gn = graphById.get(n.id);
     return gn && gn.layer === 0 && !gn.isSideBranch && gn.unionId;
   });
-  if (mainCouple.length < 2) return;
+  if (mainCouple.length >= 2) return coupleBondCenter(mainCouple);
+  return null;
+}
 
-  const coupleCenter = coupleBondCenter(mainCouple);
-  const ancestorNodes = nodes.filter((n) => {
+function alignAncestryRowOverMainCouple(
+  nodes: LayoutNode[],
+  graph: GraphResult,
+  project: Project,
+): void {
+  const graphById = graphNodeById(graph);
+  const coupleCenter = focusCoupleCenter(nodes, graphById, project);
+  if (coupleCenter === null) return;
+
+  const lineageIds = collectLineageAncestorPersonIds(project);
+
+  const mainAncestors = nodes.filter((n) => {
     const gn = graphById.get(n.id);
-    return gn && gn.layer < 0;
+    if (!gn || gn.layer >= 0 || gn.isSideBranch || !n.personId) return false;
+    if (lineageIds && !lineageIds.has(n.personId)) return false;
+    return true;
   });
-  if (ancestorNodes.length === 0) return;
+  if (mainAncestors.length === 0) return;
 
-  const ancestorCenter =
-    ancestorNodes.reduce((sum, n) => sum + nodeCenterX(n), 0) / ancestorNodes.length;
+  const minX = Math.min(...mainAncestors.map((n) => n.x));
+  const maxX = Math.max(...mainAncestors.map((n) => n.x + n.width));
+  const ancestorCenter = (minX + maxX) / 2;
   const delta = coupleCenter - ancestorCenter;
   if (Math.abs(delta) < 0.5) return;
 
-  for (const node of ancestorNodes) {
+  for (const node of nodes) {
+    const gn = graphById.get(node.id);
+    if (!gn || gn.layer >= 0) continue;
+    if (lineageIds) {
+      if (!node.personId || !lineageIds.has(node.personId)) continue;
+    }
     node.x += delta;
   }
 }
@@ -347,7 +402,7 @@ function alignPedigreeToNuclearSeam(
   graph: GraphResult,
   project: Project,
 ): void {
-  alignAncestryRowOverMainCouple(nodes, graph);
+  alignAncestryRowOverMainCouple(nodes, graph, project);
   alignChildrenToCoupleBonds(nodes, graph, project);
 }
 
@@ -522,7 +577,7 @@ export function stabilizeFamilyLayout(
     enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
     compactSiblingGroups(nodes, graph, project);
     if (!options?.skipAncestryAlign) {
-      alignAncestryRowOverMainCouple(nodes, graph);
+      alignAncestryRowOverMainCouple(nodes, graph, project);
     }
     alignChildrenToCoupleBonds(nodes, graph, project);
     enforceCoupleSpacing(nodes, graph, project);
@@ -533,6 +588,8 @@ export function stabilizeFamilyLayout(
   enforceCoupleSpacing(nodes, graph, project);
   enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
   restoreCrossUnionParentAlignment(nodes, project, graph);
+  resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
+  alignAncestryRowOverMainCouple(nodes, graph, project);
   resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
 }
 

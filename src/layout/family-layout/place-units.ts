@@ -34,6 +34,70 @@ export function computeUnitWidth(
   return widths[0] ?? 120;
 }
 
+/** Центр main-линии (слой 0). */
+function mainLineCenterX(layout: FamilyLayoutGraph, centers: Map<string, number>): number {
+  const main0 = (layout.layers.get(0) ?? []).filter((u) => u.branchSide === 'main');
+  if (main0.length === 0) return 0;
+  return main0.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / main0.length;
+}
+
+/** Предки центра (для выравнивания вверх от focus). */
+function lineageAncestorPersonIds(project: Project): Set<string> | null {
+  if (project.center.type !== 'person') return null;
+  const centerId = project.center.id;
+  const result = new Set<string>();
+  const queue = [centerId];
+  const seen = new Set<string>([centerId]);
+  while (queue.length > 0) {
+    const pid = queue.shift()!;
+    for (const puid of project.persons[pid]?.parentUnionIds ?? []) {
+      for (const parentId of project.unions[puid]?.partnerIds ?? []) {
+        if (seen.has(parentId)) continue;
+        seen.add(parentId);
+        result.add(parentId);
+        queue.push(parentId);
+      }
+    }
+  }
+  return result;
+}
+
+/** Сдвинуть ancestor-слои так, чтобы предки центра были над main-линией. */
+function centerAncestryBlockOverMainLine(
+  layout: FamilyLayoutGraph,
+  centers: Map<string, number>,
+  widths: Map<string, number>,
+  project: Project,
+): void {
+  const mainCenter = mainLineCenterX(layout, centers);
+  const lineageIds = lineageAncestorPersonIds(project);
+  const ancestorLayers = layout.sortedLayers.filter((l) => l < 0);
+  if (ancestorLayers.length === 0) return;
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (const layer of ancestorLayers) {
+    for (const u of layout.layers.get(layer) ?? []) {
+      if (u.branchSide !== 'main') continue;
+      if (lineageIds && !u.personIds.some((pid) => lineageIds.has(pid))) continue;
+      const cx = centers.get(u.id) ?? 0;
+      const w = widths.get(u.id) ?? 120;
+      minX = Math.min(minX, cx - w / 2);
+      maxX = Math.max(maxX, cx + w / 2);
+    }
+  }
+  if (!Number.isFinite(minX)) return;
+
+  const delta = mainCenter - (minX + maxX) / 2;
+  if (Math.abs(delta) < 1) return;
+
+  for (const u of layout.units) {
+    if (u.layer >= 0) continue;
+    if (lineageIds && !u.personIds.some((pid) => lineageIds.has(pid))) continue;
+    centers.set(u.id, (centers.get(u.id) ?? 0) + delta);
+  }
+}
+
 /** RT-style: уточнить центры блоков с учётом реальных ширин. */
 export function refineUnitPlacements(
   layout: FamilyLayoutGraph,
@@ -57,10 +121,12 @@ export function refineUnitPlacements(
   }
 
   for (const layer of [...layout.sortedLayers].filter((l) => l < 0).reverse()) {
-    packLayerWithWidths(layout.layers.get(layer) ?? [], centers, widths, 0);
+    const mainCenter = mainLineCenterX(layout, centers);
+    packLayerWithWidths(layout.layers.get(layer) ?? [], centers, widths, mainCenter);
     alignParentsOverChildren(layout, centers, widths, project);
   }
 
+  centerAncestryBlockOverMainLine(layout, centers, widths, project);
   anchorMainToZero(layout, centers);
   if (!options?.skipCrossUnionSnap) {
     snapCrossUnionSpouses(layout, centers, widths, project, graph, personOrder);
@@ -156,9 +222,11 @@ function alignParentsOverChildren(
     if (units.length === 0) continue;
     const main = units.filter((u) => u.branchSide === 'main');
     const anchor =
-      main.length > 0
-        ? main.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / main.length
-        : 0;
+      layer < 0
+        ? mainLineCenterX(layout, centers)
+        : main.length > 0
+          ? main.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / main.length
+          : 0;
     packLayerWithWidths(units, centers, widths, anchor);
   }
 }

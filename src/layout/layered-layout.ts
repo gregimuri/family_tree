@@ -17,6 +17,75 @@ import { runFamilyLayout } from './family-layout';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
 
+function collectLineageAncestorPersonIds(project: Project): Set<string> | null {
+  if (project.center.type !== 'person') return null;
+  const centerId = project.center.id;
+  const result = new Set<string>();
+  const queue = [centerId];
+  const seen = new Set<string>([centerId]);
+
+  while (queue.length > 0) {
+    const pid = queue.shift()!;
+    for (const puid of project.persons[pid]?.parentUnionIds ?? []) {
+      const union = project.unions[puid];
+      if (!union) continue;
+      for (const parentId of union.partnerIds) {
+        if (seen.has(parentId)) continue;
+        seen.add(parentId);
+        result.add(parentId);
+        queue.push(parentId);
+      }
+    }
+  }
+  return result;
+}
+
+/** После normalize: предки центра по центру над focus (x≈0). */
+function alignLineageAncestryToFocus(
+  project: Project,
+  layout: LayoutResult,
+  graph: GraphResult,
+): LayoutResult {
+  const focus = getCenterFocusPoint(project, layout);
+  const lineageIds = collectLineageAncestorPersonIds(project);
+  if (!focus || !lineageIds || lineageIds.size === 0) return layout;
+
+  const graphById = new Map<string, Extract<GraphResult['nodes'][number], { kind: 'person' }>>();
+  for (const node of graph.nodes) {
+    if (node.kind === 'person') graphById.set(node.id, node);
+  }
+
+  const centerNode = layout.nodes.find((n) => n.personId === project.center.id);
+  if (!centerNode) return layout;
+
+  const mainAncestors = layout.nodes.filter((n) => {
+    if (!n.personId || !lineageIds.has(n.personId)) return false;
+    const gn = graphById.get(n.id);
+    if (!gn || gn.layer >= centerNode.layer || gn.isSideBranch) return false;
+    return true;
+  });
+  if (mainAncestors.length === 0) return layout;
+
+  const minX = Math.min(...mainAncestors.map((n) => n.x));
+  const maxX = Math.max(...mainAncestors.map((n) => n.x + n.width));
+  const ancestorCenter = (minX + maxX) / 2;
+  const delta = focus.x - ancestorCenter;
+  if (Math.abs(delta) < 1) return layout;
+
+  const nodes = layout.nodes.map((n) => {
+    if (!n.personId || !lineageIds.has(n.personId)) return n;
+    const gn = graphById.get(n.id);
+    if (!gn || gn.layer >= centerNode.layer) return n;
+    return { ...n, x: n.x + delta };
+  });
+
+  return {
+    nodes,
+    edges: buildLayoutEdges(project, nodes, graph),
+    bounds: computeBounds(nodes),
+  };
+}
+
 function normalizeLayoutToFocus(
   project: Project,
   layout: LayoutResult,
@@ -31,11 +100,13 @@ function normalizeLayoutToFocus(
   const nodes = layout.nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }));
   const edges = buildLayoutEdges(project, nodes, graph);
 
-  return {
+  const normalized: LayoutResult = {
     nodes,
     edges,
     bounds: getTreeSheetBounds({ nodes, edges, bounds: layout.bounds }, project),
   };
+
+  return alignLineageAncestryToFocus(project, normalized, graph);
 }
 
 function computeBounds(nodes: LayoutNode[]): LayoutResult['bounds'] {
@@ -183,17 +254,13 @@ export function computeLayout(
     const mergedNodes = runFamilyLayout(project, graph);
     const pinnedPersonIds = new Set(Object.keys(project.manualLayout ?? {}));
 
-    stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds, {
-      skipAncestryAlign: true,
-    });
+    stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds);
 
     if (project.viewSettings.smartLayoutEnabled !== false && mergedNodes.length <= 50) {
       refineLayoutSync(mergedNodes, graph, project, { pinnedPersonIds });
       restoreCrossUnionParentAlignment(mergedNodes, project, graph);
     }
-    stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds, {
-      skipAncestryAlign: true,
-    });
+    stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds);
 
     const layout: LayoutResult = {
       nodes: mergedNodes,

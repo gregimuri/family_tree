@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import { loadProjectFromDamagedZipBytes } from '../services/project-io/zip-recovery';
 import { buildLayout } from '../layout';
+import { getCenterFocusPoint } from '../layout/center-focus';
 
 const titkovyPath = 'c:/Users/Gregor/Downloads/Titkovy_6.drevo';
 const hasTitkovy = fs.existsSync(titkovyPath);
@@ -138,6 +139,51 @@ describe.skipIf(!hasTitkovy)('Titkovy ancestor ordering', () => {
         { parentId: anatoliyId, childId: irinaId },
       ]);
       expect(crossings, `center ${personName(project, centerId)}`).toBe(0);
+    }
+  }, 30_000);
+
+  it('ancestor rows center over focus when centered on Grigory', async () => {
+    const project = await loadTitkovy();
+    const grigoryId = Object.keys(project.persons).find((id) =>
+      personName(project, id).includes('Григор'),
+    );
+    expect(grigoryId).toBeTruthy();
+    project.center = { type: 'person', id: grigoryId! };
+    project.viewSettings = { ...project.viewSettings, showAllPersons: true, smartLayoutEnabled: false };
+    project.manualLayout = {};
+
+    const layout = buildLayout(project);
+    const focus = getCenterFocusPoint(project, layout)!;
+
+    const lineageIds = new Set<string>();
+    {
+      const queue = [grigoryId!];
+      const seen = new Set<string>([grigoryId!]);
+      while (queue.length > 0) {
+        const pid = queue.shift()!;
+        for (const puid of project.persons[pid]?.parentUnionIds ?? []) {
+          for (const parentId of project.unions[puid]?.partnerIds ?? []) {
+            if (seen.has(parentId)) continue;
+            seen.add(parentId);
+            lineageIds.add(parentId);
+            queue.push(parentId);
+          }
+        }
+      }
+    }
+
+    const ancestorMain = layout.nodes.filter(
+      (n) =>
+        n.layer < 0 &&
+        !n.isSideBranch &&
+        n.personId &&
+        lineageIds.has(n.personId),
+    );
+    if (ancestorMain.length >= 2) {
+      const minX = Math.min(...ancestorMain.map((n) => n.x));
+      const maxX = Math.max(...ancestorMain.map((n) => n.x + n.width));
+      const ancestorCenter = (minX + maxX) / 2;
+      expect(Math.abs(ancestorCenter - focus.x)).toBeLessThan(80);
     }
   }, 30_000);
 
