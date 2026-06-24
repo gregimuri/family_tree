@@ -576,9 +576,6 @@ export function stabilizeFamilyLayout(
   for (let pass = 0; pass < 6; pass++) {
     enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
     compactSiblingGroups(nodes, graph, project);
-    if (!options?.skipAncestryAlign) {
-      alignAncestryRowOverMainCouple(nodes, graph, project);
-    }
     alignChildrenToCoupleBonds(nodes, graph, project);
     enforceCoupleSpacing(nodes, graph, project);
     resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
@@ -589,8 +586,10 @@ export function stabilizeFamilyLayout(
   enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
   restoreCrossUnionParentAlignment(nodes, project, graph);
   resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
-  alignAncestryRowOverMainCouple(nodes, graph, project);
-  resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
+  if (!options?.skipAncestryAlign) {
+    alignAncestryRowOverMainCouple(nodes, graph, project);
+    resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
+  }
 }
 
 /** После stabilize: родители с «чужими» браками детей — над рядом детей. */

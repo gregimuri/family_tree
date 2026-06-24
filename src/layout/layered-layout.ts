@@ -2,6 +2,7 @@ import type { LayoutEdge, LayoutNode, LayoutResult, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
 import { getCardDimensions } from './card-dimensions';
 import { getTreeSheetBounds } from './content-bounds';
+import { computeBounds } from './layout-bounds';
 import { LAYER_GAP, getCardScale } from './graph-builder';
 import { getCenterFocusPoint } from './center-focus';
 import {
@@ -17,75 +18,6 @@ import { runFamilyLayout } from './family-layout';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
 
-function collectLineageAncestorPersonIds(project: Project): Set<string> | null {
-  if (project.center.type !== 'person') return null;
-  const centerId = project.center.id;
-  const result = new Set<string>();
-  const queue = [centerId];
-  const seen = new Set<string>([centerId]);
-
-  while (queue.length > 0) {
-    const pid = queue.shift()!;
-    for (const puid of project.persons[pid]?.parentUnionIds ?? []) {
-      const union = project.unions[puid];
-      if (!union) continue;
-      for (const parentId of union.partnerIds) {
-        if (seen.has(parentId)) continue;
-        seen.add(parentId);
-        result.add(parentId);
-        queue.push(parentId);
-      }
-    }
-  }
-  return result;
-}
-
-/** После normalize: предки центра по центру над focus (x≈0). */
-function alignLineageAncestryToFocus(
-  project: Project,
-  layout: LayoutResult,
-  graph: GraphResult,
-): LayoutResult {
-  const focus = getCenterFocusPoint(project, layout);
-  const lineageIds = collectLineageAncestorPersonIds(project);
-  if (!focus || !lineageIds || lineageIds.size === 0) return layout;
-
-  const graphById = new Map<string, Extract<GraphResult['nodes'][number], { kind: 'person' }>>();
-  for (const node of graph.nodes) {
-    if (node.kind === 'person') graphById.set(node.id, node);
-  }
-
-  const centerNode = layout.nodes.find((n) => n.personId === project.center.id);
-  if (!centerNode) return layout;
-
-  const mainAncestors = layout.nodes.filter((n) => {
-    if (!n.personId || !lineageIds.has(n.personId)) return false;
-    const gn = graphById.get(n.id);
-    if (!gn || gn.layer >= centerNode.layer || gn.isSideBranch) return false;
-    return true;
-  });
-  if (mainAncestors.length === 0) return layout;
-
-  const minX = Math.min(...mainAncestors.map((n) => n.x));
-  const maxX = Math.max(...mainAncestors.map((n) => n.x + n.width));
-  const ancestorCenter = (minX + maxX) / 2;
-  const delta = focus.x - ancestorCenter;
-  if (Math.abs(delta) < 1) return layout;
-
-  const nodes = layout.nodes.map((n) => {
-    if (!n.personId || !lineageIds.has(n.personId)) return n;
-    const gn = graphById.get(n.id);
-    if (!gn || gn.layer >= centerNode.layer) return n;
-    return { ...n, x: n.x + delta };
-  });
-
-  return {
-    nodes,
-    edges: buildLayoutEdges(project, nodes, graph),
-    bounds: computeBounds(nodes),
-  };
-}
-
 function normalizeLayoutToFocus(
   project: Project,
   layout: LayoutResult,
@@ -94,49 +26,24 @@ function normalizeLayoutToFocus(
   const focus = getCenterFocusPoint(project, layout);
   if (!focus) return layout;
 
-  // По Y — центр выбранной персоны/пары; по X — геометрический центр всего видимого дерева.
-  let nodes = layout.nodes.map((n) => ({ ...n, y: n.y - focus.y }));
-  let edges = buildLayoutEdges(project, nodes, graph);
+  let nodes = layout.nodes.map((n) => ({
+    ...n,
+    x: n.x - focus.x,
+    y: n.y - focus.y,
+  }));
 
-  let normalized: LayoutResult = {
+  const cardBounds = computeBounds(nodes);
+  const contentCenterX = (cardBounds.minX + cardBounds.maxX) / 2;
+  if (Number.isFinite(contentCenterX) && Math.abs(contentCenterX) > 0.5) {
+    nodes = nodes.map((n) => ({ ...n, x: n.x - contentCenterX }));
+  }
+
+  const edges = buildLayoutEdges(project, nodes, graph);
+  return {
     nodes,
     edges,
     bounds: getTreeSheetBounds({ nodes, edges, bounds: layout.bounds }, project),
   };
-
-  normalized = alignLineageAncestryToFocus(project, normalized, graph);
-
-  const bounds = getTreeSheetBounds(normalized, project);
-  const contentCenterX = (bounds.minX + bounds.maxX) / 2;
-  if (Math.abs(contentCenterX) > 0.5) {
-    nodes = normalized.nodes.map((n) => ({ ...n, x: n.x - contentCenterX }));
-    edges = buildLayoutEdges(project, nodes, graph);
-    normalized = {
-      nodes,
-      edges,
-      bounds: getTreeSheetBounds({ nodes, edges, bounds: normalized.bounds }, project),
-    };
-  }
-
-  return normalized;
-}
-
-function computeBounds(nodes: LayoutNode[]): LayoutResult['bounds'] {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const n of nodes) {
-    minX = Math.min(minX, n.x);
-    minY = Math.min(minY, n.y);
-    maxX = Math.max(maxX, n.x + n.width);
-    maxY = Math.max(maxY, n.y + n.height);
-  }
-  if (!nodes.length) {
-    minX = minY = 0;
-    maxX = maxY = 400;
-  }
-  return { minX, minY, maxX, maxY };
 }
 
 export function buildLayoutEdges(
@@ -201,7 +108,7 @@ export function buildLayoutEdges(
   return [...coupleBonds, ...pedigreeEdges];
 }
 
-export { computeBounds };
+export { computeBounds } from './layout-bounds';
 
 function computePedigreeLayout(graph: GraphResult, project: Project): LayoutResult {
   const settings = project.viewSettings;

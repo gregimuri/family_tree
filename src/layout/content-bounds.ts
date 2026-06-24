@@ -1,5 +1,5 @@
 import type { LayoutEdge, LayoutResult, Project } from '../types';
-import { computeBounds } from './layered-layout';
+import { computeBounds } from './layout-bounds';
 import {
   MARRIAGE_BOND_LABEL_GAP,
   MARRIAGE_BOND_LABEL_HEIGHT,

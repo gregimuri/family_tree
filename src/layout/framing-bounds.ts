@@ -1,5 +1,5 @@
 import type { LayoutNode, LayoutResult, Project } from '../types';
-import { computeBounds } from './layered-layout';
+import { computeBounds } from './layout-bounds';
 
 export function getLinkedPersonIds(project: Project): Set<string> {
   const linked = new Set<string>();

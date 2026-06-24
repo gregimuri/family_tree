@@ -76,6 +76,10 @@ export function getSymmetricTreeFrame(
 
   const svgW = innerW + pad * 2 + inset * 2;
   const svgH = innerH + pad * 2 + inset * 2;
+  if (!Number.isFinite(svgW) || !Number.isFinite(svgH) || svgW < 1 || svgH < 1) {
+    return null;
+  }
+
   const focusSvgX = inset + pad + leftSpan;
   const focusSvgY = inset + pad + topSpan;
 
