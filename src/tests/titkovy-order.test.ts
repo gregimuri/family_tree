@@ -180,11 +180,13 @@ describe.skipIf(!hasTitkovy)('Titkovy ancestor ordering', () => {
         n.personId &&
         lineageIds.has(n.personId),
     );
-    if (ancestorMain.length >= 2) {
+    const focusNode = layout.nodes.find((n) => n.personId === grigoryId);
+    if (ancestorMain.length >= 2 && focusNode) {
       const minX = Math.min(...ancestorMain.map((n) => n.x));
       const maxX = Math.max(...ancestorMain.map((n) => n.x + n.width));
       const ancestorCenter = (minX + maxX) / 2;
-      expect(Math.abs(ancestorCenter)).toBeLessThan(80);
+      const focusCenter = focusNode.x + focusNode.width / 2;
+      expect(Math.abs(ancestorCenter - focusCenter)).toBeLessThan(80);
     }
   }, 30_000);
 

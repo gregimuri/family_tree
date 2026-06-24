@@ -116,8 +116,9 @@ export function refineUnitPlacements(
     packLayerWithWidths(layout.layers.get(layer) ?? [], centers, widths, 0);
   }
 
-  for (let pass = 0; pass < 12; pass++) {
+  for (let pass = 0; pass < 16; pass++) {
     alignParentsOverChildren(layout, centers, widths, project);
+    compactChildUnitsUnderParents(layout, centers, widths, project);
   }
 
   for (const layer of [...layout.sortedLayers].filter((l) => l < 0).reverse()) {
@@ -228,6 +229,66 @@ function alignParentsOverChildren(
           ? main.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / main.length
           : 0;
     packLayerWithWidths(units, centers, widths, anchor);
+  }
+}
+
+function shiftUnitSubtree(
+  layout: FamilyLayoutGraph,
+  rootUnitIds: string[],
+  delta: number,
+  centers: Map<string, number>,
+): void {
+  if (Math.abs(delta) < 0.01) return;
+  const toMove = new Set<string>();
+  const queue = [...rootUnitIds];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (toMove.has(id)) continue;
+    toMove.add(id);
+    const unit = layout.unitById.get(id);
+    if (unit) queue.push(...unit.childUnitIds);
+  }
+  for (const id of toMove) {
+    centers.set(id, (centers.get(id) ?? 0) + delta);
+  }
+}
+
+/** Сдвигает блок детей под центр родительского unit (без разъезда всего слоя). */
+function compactChildUnitsUnderParents(
+  layout: FamilyLayoutGraph,
+  centers: Map<string, number>,
+  widths: Map<string, number>,
+  project: Project,
+): void {
+  for (const layer of layout.sortedLayers) {
+    const nextLayer = layer + 1;
+    if (!layout.layers.has(nextLayer)) continue;
+
+    for (const parent of layout.layers.get(layer) ?? []) {
+      const allChildren = parent.childUnitIds
+        .map((id) => layout.unitById.get(id))
+        .filter((u): u is FamilyUnit => Boolean(u && u.layer === nextLayer));
+      const children = childrenForParentAlignment(parent, allChildren, project);
+      if (children.length === 0) continue;
+
+      const parentCx = centers.get(parent.id) ?? 0;
+      const childMin = Math.min(
+        ...children.map((c) => (centers.get(c.id) ?? 0) - (widths.get(c.id) ?? 120) / 2),
+      );
+      const childMax = Math.max(
+        ...children.map((c) => (centers.get(c.id) ?? 0) + (widths.get(c.id) ?? 120) / 2),
+      );
+      const childCenter = (childMin + childMax) / 2;
+      const delta = parentCx - childCenter;
+      if (Math.abs(delta) < 0.4) continue;
+
+      shiftUnitSubtree(
+        layout,
+        children.map((c) => c.id),
+        delta,
+        centers,
+      );
+    }
   }
 }
 

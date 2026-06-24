@@ -361,7 +361,7 @@ function focusCoupleCenter(
   return null;
 }
 
-function alignAncestryRowOverMainCouple(
+export function alignAncestryRowOverMainCouple(
   nodes: LayoutNode[],
   graph: GraphResult,
   project: Project,
@@ -571,22 +571,31 @@ export function stabilizeFamilyLayout(
   graph: GraphResult,
   project: Project,
   pinnedPersonIds?: ReadonlySet<string>,
-  options?: { skipAncestryAlign?: boolean },
+  options?: { skipAncestryAlign?: boolean; mode?: 'full' | 'compact' },
 ): void {
-  for (let pass = 0; pass < 6; pass++) {
-    enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
+  const compact = options?.mode === 'compact';
+  const maxPasses = compact ? 4 : 6;
+
+  for (let pass = 0; pass < maxPasses; pass++) {
+    if (!compact) {
+      enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
+    }
     compactSiblingGroups(nodes, graph, project);
     alignChildrenToCoupleBonds(nodes, graph, project);
     enforceCoupleSpacing(nodes, graph, project);
     resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
-    applyLayerRepulsion(nodes, graph, pinnedPersonIds);
+    if (!compact) {
+      applyLayerRepulsion(nodes, graph, pinnedPersonIds);
+    }
     if (!findLayerHorizontalOverlap(nodes, 2)) break;
   }
   enforceCoupleSpacing(nodes, graph, project);
-  enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
+  if (!compact) {
+    enforceSideBranchCorridors(nodes, graph, project, pinnedPersonIds);
+  }
   restoreCrossUnionParentAlignment(nodes, project, graph);
   resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
-  if (!options?.skipAncestryAlign) {
+  if (!options?.skipAncestryAlign && !compact) {
     alignAncestryRowOverMainCouple(nodes, graph, project);
     resolveMergedCollisions(nodes, graph, project, pinnedPersonIds);
   }

@@ -173,13 +173,13 @@ export function computeLayout(
     const mergedNodes = runFamilyLayout(project, graph);
     const pinnedPersonIds = new Set(Object.keys(project.manualLayout ?? {}));
 
-    stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds);
+    restoreCrossUnionParentAlignment(mergedNodes, project, graph);
 
     if (project.viewSettings.smartLayoutEnabled !== false && mergedNodes.length <= 50) {
       refineLayoutSync(mergedNodes, graph, project, { pinnedPersonIds });
       restoreCrossUnionParentAlignment(mergedNodes, project, graph);
+      stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds, { mode: 'compact' });
     }
-    stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds);
 
     const layout: LayoutResult = {
       nodes: mergedNodes,
