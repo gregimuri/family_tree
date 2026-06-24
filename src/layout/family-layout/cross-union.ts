@@ -378,7 +378,6 @@ export function realignCrossUnionParentUnits(
   centers: Map<string, number>,
   widths: Map<string, number>,
   project: Project,
-  _graph: GraphResult,
 ): void {
   for (const unit of layout.units) {
     if (!unit.unionId || unit.childUnitIds.length === 0) continue;

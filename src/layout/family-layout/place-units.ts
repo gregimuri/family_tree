@@ -130,7 +130,7 @@ export function refineUnitPlacements(
   anchorMainToZero(layout, centers);
   if (!options?.skipCrossUnionSnap) {
     snapCrossUnionSpouses(layout, centers, widths, project, graph, personOrder);
-    realignCrossUnionParentUnits(layout, centers, widths, project, graph);
+    realignCrossUnionParentUnits(layout, centers, widths, project);
   }
 }
 

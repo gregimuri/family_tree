@@ -166,7 +166,7 @@ export function assertParentsCenteredOverChildren(
 
     const parentLayer = Math.min(...parents.map((p) => p.layer));
     const sameLayerParents = parents.filter((p) => p.layer === parentLayer);
-    let directChildren = children.filter((c) => c.layer === parentLayer + 1);
+    const directChildren = children.filter((c) => c.layer === parentLayer + 1);
     if (sameLayerParents.length === 0 || directChildren.length === 0) continue;
 
     if (unionHasCrossUnionMarriedChild(union.childIds, project)) continue;

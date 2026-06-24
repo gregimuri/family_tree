@@ -15,6 +15,10 @@ dist-ssr
 # Cursor / IDE
 .cursor
 
+# Local layout debug scripts
+scripts/diag-*.mjs
+scripts/trace-*.mjs
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -29,7 +29,7 @@ export function runFamilyLayout(project: Project, graph: GraphResult): LayoutNod
     skipCrossUnionSnap: true,
   });
   snapCrossUnionSpouses(layout, unitCenters, unitWidths, project, graph, personOrder);
-  realignCrossUnionParentUnits(layout, unitCenters, unitWidths, project, graph);
+  realignCrossUnionParentUnits(layout, unitCenters, unitWidths, project);
 
   return expandUnitsToLayoutNodes(
     layout,
