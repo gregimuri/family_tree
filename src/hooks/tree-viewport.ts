@@ -121,8 +121,11 @@ export function fitTreeToViewport(
 
   const bounds = getTreeSheetBounds(layout);
   const contentRect = getTreeContentRect(frame, layout, TREE_VIEW_PAD, bounds);
+  const contentCenterSvgX = frame.offsetX + (bounds.minX + bounds.maxX) / 2;
   const pivot =
-    mode === 'focus' ? { x: frame.focusSvgX, y: frame.focusSvgY } : undefined;
+    mode === 'focus'
+      ? { x: contentCenterSvgX, y: frame.focusSvgY }
+      : undefined;
   const transform = computeFitTransform({
     wrapperWidth: wrapper.clientWidth,
     wrapperHeight: wrapper.clientHeight,

@@ -18,8 +18,9 @@ describe('tree sheet layout', () => {
     const focus = getCenterFocusPoint(project, layout)!;
     const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
 
-    expect(focus.x).toBeCloseTo(0, 0);
     expect(focus.y).toBeCloseTo(0, 0);
+    const sheet = getTreeSheetBounds(layout, project);
+    expect((sheet.minX + sheet.maxX) / 2).toBeCloseTo(0, 0);
     expect(frame.offsetX + focus.x).toBeCloseTo(frame.focusSvgX, 5);
     expect(frame.offsetY + focus.y).toBeCloseTo(frame.focusSvgY, 5);
   });
@@ -94,25 +95,26 @@ describe('tree sheet layout', () => {
     );
   });
 
-  it('centers viewport on focus person for asymmetric trees', () => {
+  it('centers viewport on visible tree for asymmetric trees', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
     const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
     const sheet = getTreeSheetBounds(layout);
     const contentRect = getTreeContentRect(frame, layout, TREE_VIEW_PAD, sheet);
+    const contentCenterX = contentRect.x + contentRect.width / 2;
 
     const transform = computeFitTransform({
       wrapperWidth: 1200,
       wrapperHeight: 900,
       contentRect,
-      pivot: { x: frame.focusSvgX, y: frame.focusSvgY },
+      pivot: { x: contentCenterX, y: frame.focusSvgY },
       padding: 1,
     })!;
 
-    const screenFocusX = transform.positionX + frame.focusSvgX * transform.scale;
+    const screenCenterX = transform.positionX + contentCenterX * transform.scale;
     const screenFocusY = transform.positionY + frame.focusSvgY * transform.scale;
 
-    expect(screenFocusX).toBeCloseTo(600, 0);
+    expect(screenCenterX).toBeCloseTo(600, 0);
     expect(screenFocusY).toBeCloseTo(450, 0);
   });
 

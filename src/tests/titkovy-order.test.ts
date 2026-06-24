@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import { loadProjectFromDamagedZipBytes } from '../services/project-io/zip-recovery';
 import { buildLayout } from '../layout';
-import { getCenterFocusPoint } from '../layout/center-focus';
+import { getTreeSheetBounds } from '../layout/content-bounds';
 
 const titkovyPath = 'c:/Users/Gregor/Downloads/Titkovy_6.drevo';
 const hasTitkovy = fs.existsSync(titkovyPath);
@@ -153,7 +153,8 @@ describe.skipIf(!hasTitkovy)('Titkovy ancestor ordering', () => {
     project.manualLayout = {};
 
     const layout = buildLayout(project);
-    const focus = getCenterFocusPoint(project, layout)!;
+    const sheet = getTreeSheetBounds(layout, project);
+    expect(Math.abs((sheet.minX + sheet.maxX) / 2)).toBeLessThan(5);
 
     const lineageIds = new Set<string>();
     {
@@ -183,7 +184,7 @@ describe.skipIf(!hasTitkovy)('Titkovy ancestor ordering', () => {
       const minX = Math.min(...ancestorMain.map((n) => n.x));
       const maxX = Math.max(...ancestorMain.map((n) => n.x + n.width));
       const ancestorCenter = (minX + maxX) / 2;
-      expect(Math.abs(ancestorCenter - focus.x)).toBeLessThan(80);
+      expect(Math.abs(ancestorCenter)).toBeLessThan(80);
     }
   }, 30_000);
 

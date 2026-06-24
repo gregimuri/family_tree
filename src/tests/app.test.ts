@@ -1457,8 +1457,9 @@ describe('delete person', () => {
     const project = createEmptyProject();
     const layout = buildLayout(project);
     const focus = getCenterFocusPoint(project, layout);
-    expect(focus?.x).toBeCloseTo(0, 0);
+    const sheet = getTreeSheetBounds(layout, project);
     expect(focus?.y).toBeCloseTo(0, 0);
+    expect((sheet.minX + sheet.maxX) / 2).toBeCloseTo(0, 0);
   });
 
   it('avoids horizontal overlap between cards on the same layer', () => {

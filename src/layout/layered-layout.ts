@@ -94,19 +94,31 @@ function normalizeLayoutToFocus(
   const focus = getCenterFocusPoint(project, layout);
   if (!focus) return layout;
 
-  const dx = -focus.x;
-  const dy = -focus.y;
+  // По Y — центр выбранной персоны/пары; по X — геометрический центр всего видимого дерева.
+  let nodes = layout.nodes.map((n) => ({ ...n, y: n.y - focus.y }));
+  let edges = buildLayoutEdges(project, nodes, graph);
 
-  const nodes = layout.nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }));
-  const edges = buildLayoutEdges(project, nodes, graph);
-
-  const normalized: LayoutResult = {
+  let normalized: LayoutResult = {
     nodes,
     edges,
     bounds: getTreeSheetBounds({ nodes, edges, bounds: layout.bounds }, project),
   };
 
-  return alignLineageAncestryToFocus(project, normalized, graph);
+  normalized = alignLineageAncestryToFocus(project, normalized, graph);
+
+  const bounds = getTreeSheetBounds(normalized, project);
+  const contentCenterX = (bounds.minX + bounds.maxX) / 2;
+  if (Math.abs(contentCenterX) > 0.5) {
+    nodes = normalized.nodes.map((n) => ({ ...n, x: n.x - contentCenterX }));
+    edges = buildLayoutEdges(project, nodes, graph);
+    normalized = {
+      nodes,
+      edges,
+      bounds: getTreeSheetBounds({ nodes, edges, bounds: normalized.bounds }, project),
+    };
+  }
+
+  return normalized;
 }
 
 function computeBounds(nodes: LayoutNode[]): LayoutResult['bounds'] {
