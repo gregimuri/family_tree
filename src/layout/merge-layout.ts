@@ -95,6 +95,33 @@ function shiftLayoutNodes(
   }
 }
 
+function collectMoveIdsWithSameLayerSpouse(
+  entry: { gn: PersonGraphNode },
+  graph: GraphResult,
+  graphById: Map<string, PersonGraphNode>,
+  project: Project,
+): Set<string> {
+  const moveIds = collectDownstreamGraphIds([entry.gn.id], graph, graphById);
+  moveIds.add(entry.gn.id);
+
+  const person = project.persons[entry.gn.personId];
+  for (const unionId of person?.unionIds ?? []) {
+    const union = project.unions[unionId];
+    if (!union || union.partnerIds.length < 2) continue;
+    const partnerId = union.partnerIds.find((id) => id !== entry.gn.personId);
+    if (!partnerId) continue;
+    const partnerGraphId = graph.personToNode.get(partnerId);
+    if (!partnerGraphId) continue;
+    const partnerGn = graphById.get(partnerGraphId);
+    if (!partnerGn || partnerGn.layer !== entry.gn.layer) continue;
+    moveIds.add(partnerGraphId);
+    for (const id of collectDownstreamGraphIds([partnerGraphId], graph, graphById)) {
+      moveIds.add(id);
+    }
+  }
+  return moveIds;
+}
+
 /** Дети одного union на одном слое — в плотный ряд под родителями (без «разъезда» nuclear-блоков). */
 function compactSiblingGroups(
   nodes: LayoutNode[],
@@ -158,8 +185,12 @@ function compactSiblingGroups(
         for (const entry of sorted) {
           const delta = cursor - entry.ln.x;
           if (Math.abs(delta) > 0.5) {
-            const moveIds = collectDownstreamGraphIds([entry.gn.id], graph, graphById);
-            moveIds.add(entry.gn.id);
+            const moveIds = collectMoveIdsWithSameLayerSpouse(
+              entry,
+              graph,
+              graphById,
+              project,
+            );
             shiftLayoutNodes(moveIds, delta, byGraphId);
           }
           cursor += entry.ln.width + SIBLING_GAP;

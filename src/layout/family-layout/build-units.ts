@@ -35,8 +35,8 @@ function unionIdForPartners(a: string, b: string, project: Project): string | un
   return undefined;
 }
 
-/** Супруг с другой ветки на том же слое — выносим в couple-unit рядом с сиблингом. */
-function externalSpouseOnLayer(
+/** Супруг на том же слое — выносим из sibling-группы в couple-unit. */
+function spouseOnSameLayer(
   node: GraphPersonNode,
   layerNodeByPersonId: Map<string, GraphPersonNode>,
   project: Project,
@@ -49,10 +49,43 @@ function externalSpouseOnLayer(
     if (!partnerId || usedOnLayer.has(partnerId)) continue;
     const partnerNode = layerNodeByPersonId.get(partnerId);
     if (!partnerNode) continue;
-    if (partnersShareParentUnion([node, partnerNode], project)) continue;
     return partnerNode;
   }
   return undefined;
+}
+
+/** Пары на слое из project.unions (не cross-union), даже если unionId на graph-узле не у обоих. */
+function buildMarriageCouplesOnLayer(
+  layer: number,
+  layerNodes: GraphPersonNode[],
+  personById: Map<string, GraphPersonNode>,
+  project: Project,
+  units: FamilyUnit[],
+  usedOnLayer: Set<string>,
+  usedPersonIds: Set<string>,
+): void {
+  const layerNodeByPersonId = new Map(layerNodes.map((n) => [n.personId, n]));
+
+  for (const union of Object.values(project.unions)) {
+    if (union.partnerIds.length < 2) continue;
+    const members = union.partnerIds
+      .map((pid) => layerNodeByPersonId.get(pid))
+      .filter((n): n is GraphPersonNode => Boolean(n));
+    if (members.length < 2) continue;
+    if (members.some((m) => usedOnLayer.has(m.personId))) continue;
+    if (!partnersShareParentUnion(members, project)) continue;
+
+    addCoupleUnit(
+      members,
+      union.id,
+      layer,
+      personById,
+      project,
+      units,
+      usedOnLayer,
+      usedPersonIds,
+    );
+  }
 }
 
 function addCoupleUnit(
@@ -111,45 +144,15 @@ export function buildFamilyUnits(project: Project, graph: GraphResult): FamilyLa
   for (const [layer, layerNodes] of layers) {
     const usedOnLayer = new Set<string>();
 
-    const byUnion = new Map<string, GraphPersonNode[]>();
-    for (const node of layerNodes) {
-      if (!node.unionId) continue;
-      const list = byUnion.get(node.unionId) ?? [];
-      list.push(node);
-      byUnion.set(node.unionId, list);
-    }
-
-    for (const [unionId, members] of byUnion) {
-      if (members.length < 2) continue;
-      if (!partnersShareParentUnion(members, project)) continue;
-      const graphNodeIds = members.map((m) => m.id);
-      const personIds = members.map((m) => m.personId);
-      personIds.forEach((id) => {
-        usedOnLayer.add(id);
-        usedPersonIds.add(id);
-      });
-
-      const union = project.unions[unionId];
-      const childIds = (union?.childIds ?? []).filter((pid) => {
-        const child = personById.get(pid);
-        return child && child.layer === layer + 1;
-      });
-
-      units.push({
-        id: `union:${unionId}`,
-        kind: 'couple',
-        layer,
-        personIds,
-        graphNodeIds,
-        childIds,
-        childUnitIds: [],
-        branchSide: branchSideOf(members),
-        isSideBranch: members.some((m) => m.isSideBranch),
-        birthOrder: minBirthOrder(members),
-        unionId,
-        parentUnionId: inferParentUnionId(members),
-      });
-    }
+    buildMarriageCouplesOnLayer(
+      layer,
+      layerNodes,
+      personById,
+      project,
+      units,
+      usedOnLayer,
+      usedPersonIds,
+    );
 
     const byParentUnion = new Map<string, GraphPersonNode[]>();
     for (const node of layerNodes) {
@@ -170,7 +173,7 @@ export function buildFamilyUnits(project: Project, graph: GraphResult): FamilyLa
       const siblingOnly: GraphPersonNode[] = [];
       for (const m of sorted) {
         if (usedOnLayer.has(m.personId)) continue;
-        const spouse = externalSpouseOnLayer(m, layerNodeByPersonId, project, usedOnLayer);
+        const spouse = spouseOnSameLayer(m, layerNodeByPersonId, project, usedOnLayer);
         if (spouse) {
           const unionId = unionIdForPartners(m.personId, spouse.personId, project);
           addCoupleUnit(

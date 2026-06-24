@@ -103,6 +103,42 @@ describe('family layout engine', () => {
     expect(mariaUnit?.kind).not.toBe('couple');
   });
 
+  it('forms couple unit from project union when graph unionId missing on one partner', () => {
+    const project = createEmptyProject();
+    const father = createEmptyPerson({ id: 'f', gender: 'male', givenName: 'Father' });
+    const mother = createEmptyPerson({ id: 'm', gender: 'female', givenName: 'Mother' });
+    const husband = createEmptyPerson({ id: 'h', gender: 'male', givenName: 'Husband' });
+    const wife = createEmptyPerson({ id: 'w', gender: 'female', givenName: 'Wife' });
+    project.persons = { f: father, m: mother, h: husband, w: wife };
+
+    const parentUnionId = 'pu';
+    const marriageId = 'mu';
+    project.unions = {
+      [parentUnionId]: { id: parentUnionId, partnerIds: ['f', 'm'], childIds: ['h', 'w'] },
+      [marriageId]: { id: marriageId, partnerIds: ['h', 'w'], childIds: [] },
+    };
+    father.unionIds = [parentUnionId];
+    mother.unionIds = [parentUnionId];
+    husband.unionIds = [marriageId];
+    wife.unionIds = [marriageId];
+    husband.parentUnionIds = [parentUnionId];
+    wife.parentUnionIds = [parentUnionId];
+    project.center = { type: 'person', id: 'h' };
+
+    const graph = buildGraph(project, project.viewSettings);
+    syncSpouseLayers(graph, project);
+    const fl = buildFamilyUnits(project, graph);
+    const coupleUnit = fl.units.find((u) => u.kind === 'couple' && u.unionId === marriageId);
+    expect(coupleUnit).toBeDefined();
+    expect(coupleUnit!.personIds).toContain('h');
+    expect(coupleUnit!.personIds).toContain('w');
+
+    const layout = buildLayout(project);
+    const h = layout.nodes.find((n) => n.personId === 'h')!;
+    const w = layout.nodes.find((n) => n.personId === 'w')!;
+    expect(Math.abs(w.x - (h.x + h.width + COUPLE_GAP))).toBeLessThan(5);
+  });
+
   it('no overlap when centered on Maria grandparent', () => {
     const project = repairProjectRelationships(JSON.parse(JSON.stringify(projectJson)) as Project);
     project.center = { type: 'person', id: 'a5a08cef-6502-42a8-9f09-3e54857eea11' };

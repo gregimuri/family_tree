@@ -122,6 +122,8 @@ function alignParentsOverChildren(
   widths: Map<string, number>,
   project: Project,
 ): void {
+  const layersToRepack = new Set<number>();
+
   for (const layer of layout.sortedLayers) {
     const nextLayer = layer + 1;
     if (!layout.layers.has(nextLayer)) continue;
@@ -141,15 +143,23 @@ function alignParentsOverChildren(
         ...children.map((c) => (centers.get(c.id) ?? 0) + (widths.get(c.id) ?? 120) / 2),
       );
       const childCenter = (childMin + childMax) / 2;
-      const delta = parentCx - childCenter;
+      const delta = childCenter - parentCx;
       if (Math.abs(delta) < 0.4) continue;
 
-      for (const unit of layout.units) {
-        if (unit.layer >= nextLayer) {
-          centers.set(unit.id, (centers.get(unit.id) ?? 0) + delta);
-        }
-      }
+      centers.set(parent.id, parentCx + delta);
+      layersToRepack.add(layer);
     }
+  }
+
+  for (const layer of layersToRepack) {
+    const units = layout.layers.get(layer) ?? [];
+    if (units.length === 0) continue;
+    const main = units.filter((u) => u.branchSide === 'main');
+    const anchor =
+      main.length > 0
+        ? main.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / main.length
+        : 0;
+    packLayerWithWidths(units, centers, widths, anchor);
   }
 }
 
