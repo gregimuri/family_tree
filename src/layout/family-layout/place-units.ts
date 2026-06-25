@@ -153,8 +153,8 @@ function packLayerWithWidths(
   const right = units.filter((u) => u.branchSide === 'right');
 
   const mainGap = GROUP_GAP;
-  const sideGap = 96;
-  const mainSideGap = 88;
+  const sideGap = SIDE_BRANCH_GAP;
+  const mainSideGap = MAIN_SIDE_GAP;
 
   const mainW =
     main.reduce((s, u) => s + (widths.get(u.id) ?? 120), 0) +
@@ -299,7 +299,7 @@ function compactChildUnitsUnderParents(
   }
 }
 
-function unitGap(left: FamilyUnit, right: FamilyUnit): number {
+function gapBetweenUnits(left: FamilyUnit, right: FamilyUnit): number {
   if (left.branchSide !== right.branchSide) return MAIN_SIDE_GAP;
   if (left.branchSide === 'main') return GROUP_GAP;
   return SIDE_BRANCH_GAP;
@@ -325,7 +325,7 @@ function resolveUnitLayerCollisions(
         const curr = sorted[i];
         const prevR = (centers.get(prev.id) ?? 0) + (widths.get(prev.id) ?? 120) / 2;
         const currL = (centers.get(curr.id) ?? 0) - (widths.get(curr.id) ?? 120) / 2;
-        const need = prevR + unitGap(prev, curr);
+        const need = prevR + gapBetweenUnits(prev, curr);
         const delta = need - currL;
         if (delta > 0.4) {
           for (let j = i; j < sorted.length; j++) {

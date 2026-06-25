@@ -3,7 +3,10 @@ import type { GraphResult } from '../graph-builder';
 import {
   CONVERGENCE_EPS,
   CROSSING_SWAP_ROUNDS,
+  GROUP_GAP,
+  MAIN_SIDE_GAP,
   MAX_ORDER_ITERATIONS,
+  SIDE_BRANCH_GAP,
   type FamilyLayoutGraph,
   type FamilyUnit,
 } from './types';
@@ -200,8 +203,8 @@ function packOrderedUnits(
   const right = units.filter((u) => u.branchSide === 'right');
 
   const unitWidth = 120;
-  const mainGap = 64;
-  const sideGap = 96;
+  const mainGap = GROUP_GAP;
+  const sideGap = SIDE_BRANCH_GAP;
 
   const mainW = main.length * unitWidth + Math.max(0, main.length - 1) * mainGap;
   let x = targetX - mainW / 2;
@@ -214,7 +217,7 @@ function packOrderedUnits(
 
   if (left.length > 0) {
     const leftW = left.length * unitWidth + Math.max(0, left.length - 1) * sideGap;
-    let lx = targetX - mainW / 2 - 88 - leftW;
+    let lx = targetX - mainW / 2 - MAIN_SIDE_GAP - leftW;
     for (let i = 0; i < left.length; i++) {
       centers.set(left[i].id, lx + unitWidth / 2);
       lx += unitWidth + (i < left.length - 1 ? sideGap : 0);
@@ -222,7 +225,7 @@ function packOrderedUnits(
   }
 
   if (right.length > 0) {
-    let rx = mainEnd + 88;
+    let rx = mainEnd + MAIN_SIDE_GAP;
     for (let i = 0; i < right.length; i++) {
       centers.set(right[i].id, rx + unitWidth / 2);
       rx += unitWidth + (i < right.length - 1 ? sideGap : 0);

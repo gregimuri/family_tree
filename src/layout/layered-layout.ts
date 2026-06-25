@@ -11,6 +11,7 @@ import {
 } from './nuclear-tree-adapter';
 import { reconcileMergedLayout, stabilizeFamilyLayout, restoreCrossUnionParentAlignment, resolveCompactLayoutOverlaps, alignAncestryRowOverMainCouple } from './merge-layout';
 import { findLayerHorizontalOverlap } from './layout-zones';
+import { enforcePedigreeLayerY } from './layout-grid';
 import { refineLayoutSync } from './layout-refiner';
 import { routeCoupleBond, bondEdgeId } from './edge-router';
 import { pickPartnersForUnion, buildPedigreeEdges } from './pedigree-edges';
@@ -180,6 +181,7 @@ export function computeLayout(
       resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
     }
     alignAncestryRowOverMainCouple(mergedNodes, graph, project);
+    enforcePedigreeLayerY(mergedNodes, LAYER_GAP);
 
     if (project.viewSettings.smartLayoutEnabled !== false && mergedNodes.length <= 50) {
       refineLayoutSync(mergedNodes, graph, project, { pinnedPersonIds });

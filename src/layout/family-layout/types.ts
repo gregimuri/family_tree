@@ -50,10 +50,12 @@ export interface FamilyLayoutState {
   chosenSide: Map<string, BranchSide>;
 }
 
-export const SIBLING_GAP = 24;
-export const GROUP_GAP = 64;
-export const SIDE_BRANCH_GAP = 96;
-export const MAIN_SIDE_GAP = 88;
+import { siblingGap, unitGap } from '../layout-grid';
+
+export const SIBLING_GAP = siblingGap(1);
+export const GROUP_GAP = unitGap(1);
+export const SIDE_BRANCH_GAP = unitGap(1);
+export const MAIN_SIDE_GAP = unitGap(1);
 
 export const MAX_ORDER_ITERATIONS = 48;
 export const CROSSING_SWAP_ROUNDS = 6;

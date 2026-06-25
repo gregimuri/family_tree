@@ -7,12 +7,10 @@ import {
   enforceSideBranchCorridors,
   findLayerHorizontalOverlap,
   applyLayerRepulsion,
-  MAIN_SIDE_GAP,
 } from './layout-zones';
+import { SIBLING_GAP, SIDE_BRANCH_GAP, MAIN_SIDE_GAP } from './family-layout/types';
 
 type PersonGraphNode = Extract<GraphNode, { kind: 'person' }>;
-const SIBLING_GAP = 24;
-const SIDE_BRANCH_GAP = 96;
 
 function nodeCenterX(node: LayoutNode): number {
   return node.x + node.width / 2;

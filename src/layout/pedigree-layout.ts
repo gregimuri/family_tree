@@ -7,14 +7,9 @@ import {
   getCardScale,
 } from './graph-builder';
 import { CARD_H_FULL } from './card-dimensions';
+import { GROUP_GAP, MAIN_SIDE_GAP, SIDE_BRANCH_GAP, SIBLING_GAP } from './family-layout/types';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
-
-/** Расстояния между группами на слое */
-const SIBLING_GAP = 24;
-const GROUP_GAP = 64;
-const SIDE_BRANCH_GAP = 96;
-const MAIN_SIDE_GAP = 88;
 
 const MAX_ITERATIONS = 48;
 const CONVERGENCE_EPS = 0.4;

@@ -1,12 +1,9 @@
 import type { LayoutNode, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
 import { COUPLE_GAP, GROUP_GAP } from './graph-builder';
+import { MAIN_SIDE_GAP, SIDE_BRANCH_GAP, SIBLING_GAP } from './family-layout/types';
 
 type PersonGraphNode = Extract<GraphNode, { kind: 'person' }>;
-
-const SIBLING_GAP = 24;
-const SIDE_BRANCH_GAP = 96;
-const MAIN_SIDE_GAP = 88;
 
 function nodeRight(node: LayoutNode): number {
   return node.x + node.width;

@@ -39,16 +39,17 @@ export interface GraphResult {
   personToNode: Map<string, string>;
 }
 
-import { CARD_H_FULL, CARD_W, CARD_GRID_CELL } from './card-dimensions';
+import { CARD_H_FULL, CARD_W } from './card-dimensions';
+import { coupleGap, layerStep } from './layout-grid';
 
 const CARD_H = CARD_H_FULL;
 const FAMILY_W = 200;
 const FAMILY_H = 110;
-/** Расстояние между центрами поколений: не меньше высоты карточки + зазор для линий */
-const LAYER_GAP = CARD_H + 48;
-const NODE_GAP = 48;
-const COUPLE_GAP = CARD_GRID_CELL * 2;
-/** Расстояние между группами карточек на одном слое */
+/** Расстояние между центрами поколений: высота карточки + 2 клетки сетки. */
+const LAYER_GAP = layerStep(1);
+const NODE_GAP = coupleGap(1);
+const COUPLE_GAP = coupleGap(1);
+/** Зазор в merge/collision (≥ 2 клетки; чуть больше для крупных деревьев). */
 const GROUP_GAP = 64;
 
 export { CARD_W, CARD_H, FAMILY_W, FAMILY_H, LAYER_GAP, NODE_GAP, COUPLE_GAP, GROUP_GAP };
