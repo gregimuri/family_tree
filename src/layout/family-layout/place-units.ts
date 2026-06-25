@@ -104,9 +104,17 @@ function centerAncestryBlockOverMainLine(
   const delta = mainCenter - (minX + maxX) / 2;
   if (Math.abs(delta) < 1) return;
 
+  const affectedLayers = new Set<number>();
+  for (const layer of ancestorLayers) {
+    for (const u of layout.layers.get(layer) ?? []) {
+      if (u.branchSide !== 'main') continue;
+      if (lineageIds && !u.personIds.some((pid) => lineageIds.has(pid))) continue;
+      affectedLayers.add(layer);
+    }
+  }
+
   for (const u of layout.units) {
-    if (u.layer >= 0) continue;
-    if (lineageIds && !u.personIds.some((pid) => lineageIds.has(pid))) continue;
+    if (u.layer >= 0 || !affectedLayers.has(u.layer)) continue;
     centers.set(u.id, (centers.get(u.id) ?? 0) + delta);
   }
 }
@@ -156,41 +164,50 @@ function repackAncestryLayersBottomUp(
     });
     layout.layers.set(layer, units);
 
-    const childCenters: number[] = [];
     for (const u of units) {
       const cc = childRowCenterForUnit(u, layout, centers, widths, project, childLayer);
-      if (cc !== null) childCenters.push(cc);
+      if (cc !== null) centers.set(u.id, cc);
     }
-    const targetX =
-      childCenters.length > 0
-        ? childCenters.reduce((a, b) => a + b, 0) / childCenters.length
-        : units.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / units.length;
-    packLayerWithWidths(units, centers, widths, targetX);
-    alignParentsOverChildrenOnLayer(layout, centers, widths, project, layer);
+    resolveCollisionsOnLayer(layout, centers, widths, layer);
   }
 }
 
-function alignParentsOverChildrenOnLayer(
+function resolveCollisionsOnLayer(
   layout: FamilyLayoutGraph,
   centers: Map<string, number>,
   widths: Map<string, number>,
-  project: Project,
   layer: number,
 ): void {
-  const nextLayer = layer + 1;
-  if (!layout.layers.has(nextLayer)) return;
-  for (const parent of layout.layers.get(layer) ?? []) {
-    const allChildren = parent.childUnitIds
-      .map((id) => layout.unitById.get(id))
-      .filter((u): u is FamilyUnit => Boolean(u && u.layer === nextLayer));
-    const children = childrenForParentAlignment(parent, allChildren, project);
-    if (children.length === 0) continue;
-    const parentCx = centers.get(parent.id) ?? 0;
-    const cc = childRowCenterForUnit(parent, layout, centers, widths, project, nextLayer);
-    if (cc === null) continue;
-    const delta = cc - parentCx;
-    if (Math.abs(delta) < 0.4) continue;
-    centers.set(parent.id, parentCx + delta);
+  const units = layout.layers.get(layer) ?? [];
+  if (units.length < 2) return;
+
+  for (let round = 0; round < 24; round++) {
+    const sorted = [...units].sort(
+      (a, b) =>
+        (centers.get(a.id) ?? 0) - (centers.get(b.id) ?? 0) || a.id.localeCompare(b.id),
+    );
+    let moved = 0;
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1];
+      const curr = sorted[i];
+      const prevR = (centers.get(prev.id) ?? 0) + (widths.get(prev.id) ?? 120) / 2;
+      const currL = (centers.get(curr.id) ?? 0) - (widths.get(curr.id) ?? 120) / 2;
+      const need = prevR + gapBetweenUnits(prev, curr);
+      const delta = need - currL;
+      if (delta > 0.4) {
+        const half = delta / 2;
+        for (let j = 0; j < i; j++) {
+          const id = sorted[j].id;
+          centers.set(id, (centers.get(id) ?? 0) - half);
+        }
+        for (let j = i; j < sorted.length; j++) {
+          const id = sorted[j].id;
+          centers.set(id, (centers.get(id) ?? 0) + half);
+        }
+        moved = Math.max(moved, delta);
+      }
+    }
+    if (moved < 0.4) break;
   }
 }
 
@@ -222,7 +239,6 @@ export function refineUnitPlacements(
   for (let pass = 0; pass < 4; pass++) {
     alignParentsOverChildren(layout, centers, widths, project);
   }
-  repackAncestryLayersBottomUp(layout, centers, widths, project);
   resolveUnitLayerCollisions(layout, centers, widths);
   anchorFocusToZero(layout, centers, project);
   if (!options?.skipCrossUnionSnap) {
@@ -351,6 +367,11 @@ export function resolveUnitLayerCollisions(
   widths: Map<string, number>,
 ): void {
   for (const layer of layout.sortedLayers) {
+    if (layer < 0) {
+      resolveCollisionsOnLayer(layout, centers, widths, layer);
+      continue;
+    }
+
     const units = layout.layers.get(layer) ?? [];
     if (units.length < 2) continue;
 
@@ -370,12 +391,7 @@ export function resolveUnitLayerCollisions(
         if (delta > 0.4) {
           const prevMain = prev.branchSide === 'main';
           const currMain = curr.branchSide === 'main';
-          if (layer < 0) {
-            for (let j = i; j < sorted.length; j++) {
-              const id = sorted[j].id;
-              centers.set(id, (centers.get(id) ?? 0) + delta);
-            }
-          } else if (!prevMain && currMain) {
+          if (!prevMain && currMain) {
             if (prev.branchSide === 'left') {
               shiftUnitSubtree(layout, [prev.id], -delta, centers);
             } else {
