@@ -44,7 +44,7 @@ export const defaultViewSettings = (): ViewSettings => ({
   cardFields: defaultCardFields(),
   allowExternalMedia: false,
   smartLayoutEnabled: true,
-  layoutEngine: 'family',
+  layoutEngine: 'center-out',
 });
 
 export const createEmptyPerson = (partial?: Partial<Person>): Person => ({

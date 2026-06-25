@@ -75,9 +75,9 @@ describe('family layout engine', () => {
     expect(withParent.length).toBeGreaterThan(0);
   });
 
-  it('uses family engine by default', () => {
+  it('uses center-out engine by default', () => {
     const project = createEmptyProject();
-    expect(project.viewSettings.layoutEngine ?? 'family').toBe('family');
+    expect(project.viewSettings.layoutEngine ?? 'center-out').toBe('center-out');
     const graph = buildGraph(project, project.viewSettings);
     const nodes = runFamilyLayout(project, graph);
     expect(Array.isArray(nodes)).toBe(true);

@@ -17,6 +17,7 @@ import { routeCoupleBond, bondEdgeId } from './edge-router';
 import { pickPartnersForUnion, buildPedigreeEdges } from './pedigree-edges';
 import { nodeSize, runPedigreeLayout } from './pedigree-layout';
 import { runFamilyLayout } from './family-layout';
+import { runCenterOutLayout } from './center-out-layout';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
 
@@ -169,7 +170,19 @@ export function computeLayout(
   graph: GraphResult,
   project: Project,
 ): LayoutResult {
-  const layoutEngine = project.viewSettings.layoutEngine ?? 'family';
+  const layoutEngine = project.viewSettings.layoutEngine ?? 'center-out';
+
+  if (layoutEngine === 'center-out') {
+    const mergedNodes = runCenterOutLayout(project, graph);
+    enforcePedigreeLayerY(mergedNodes, LAYER_GAP);
+
+    const layout: LayoutResult = {
+      nodes: mergedNodes,
+      edges: buildLayoutEdges(project, mergedNodes, graph),
+      bounds: computeBounds(mergedNodes),
+    };
+    return normalizeLayoutToFocus(project, layout, graph);
+  }
 
   if (layoutEngine === 'family') {
     const mergedNodes = runFamilyLayout(project, graph);
