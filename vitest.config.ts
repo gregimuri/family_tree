@@ -6,5 +6,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // forks avoids intermittent ERR_IPC_CHANNEL_CLOSED on Windows (tinypool threads)
+    pool: 'forks',
+    fileParallelism: false,
   },
 });

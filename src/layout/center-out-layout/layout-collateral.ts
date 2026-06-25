@@ -1,6 +1,16 @@
 import type { LayoutContext } from './layout-context';
 import { lineageAncestorIds } from './layout-context';
-import { CARD_WIDTH_CELLS } from './grid-math';
+import {
+  CARD_WIDTH_CELLS,
+  COUPLE_GAP_CELLS,
+  SIBLING_GAP_CELLS,
+  UNIT_GAP_CELLS,
+  cardLeftEdge,
+  cardRightEdge,
+} from './grid-math';
+import { placeCoupleAtCenter } from './layout-couple';
+import { resolveLayerOverlapAfterExpand } from './subtree-shift';
+import { sortPartnersMaleLeft } from './primary-parent-rule';
 
 /** Сдвинуть слои предков lineage над фокусной персоной. */
 export function centerAncestorLayersOverFocus(ctx: LayoutContext): void {
@@ -26,18 +36,6 @@ export function centerAncestorLayersOverFocus(ctx: LayoutContext): void {
     }
   }
 }
-
-import {
-  CARD_WIDTH_CELLS,
-  COUPLE_GAP_CELLS,
-  SIBLING_GAP_CELLS,
-  UNIT_GAP_CELLS,
-  cardLeftEdge,
-  cardRightEdge,
-} from './grid-math';
-import { placeCoupleAtCenter } from './layout-couple';
-import { resolveLayerOverlapAfterExpand } from './subtree-shift';
-import { sortPartnersMaleLeft } from './primary-parent-rule';
 
 function crossUnionPartner(personId: string, ctx: LayoutContext): string | undefined {
   const person = ctx.project.persons[personId];
