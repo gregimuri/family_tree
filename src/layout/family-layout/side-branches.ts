@@ -114,9 +114,15 @@ export function assignSoftCollateralSides(
   const collateral = layout.units.filter((u) => u.isSideBranch);
 
   for (const unit of collateral) {
-    const scoreLeft = scoreSidePlacement(unit, 'left', layout, centers, widths, project);
-    const scoreRight = scoreSidePlacement(unit, 'right', layout, centers, widths, project);
-    const side: BranchSide = scoreLeft <= scoreRight ? 'left' : 'right';
+    const graphSide = unit.branchSide;
+    let side: BranchSide;
+    if (graphSide === 'left' || graphSide === 'right') {
+      side = graphSide;
+    } else {
+      const scoreLeft = scoreSidePlacement(unit, 'left', layout, centers, widths, project);
+      const scoreRight = scoreSidePlacement(unit, 'right', layout, centers, widths, project);
+      side = scoreLeft <= scoreRight ? 'left' : 'right';
+    }
     chosenSide.set(unit.id, side);
     unit.branchSide = side;
 

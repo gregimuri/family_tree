@@ -384,13 +384,29 @@ export function alignAncestryRowOverMainCouple(
   const delta = coupleCenter - ancestorCenter;
   if (Math.abs(delta) < 0.5) return;
 
+  const shiftedLineageIds = new Set<string>();
   for (const node of nodes) {
     const gn = graphById.get(node.id);
     if (!gn || gn.layer >= 0) continue;
     if (lineageIds) {
       if (!node.personId || !lineageIds.has(node.personId)) continue;
     }
+    if (gn.isSideBranch) continue;
+    shiftedLineageIds.add(node.personId!);
     node.x += delta;
+  }
+
+  // Collateral siblings of shifted lineage on the same layer move together (e.g. uncle with father).
+  for (const node of nodes) {
+    const gn = graphById.get(node.id);
+    if (!gn || gn.layer >= 0 || !node.personId || !gn.isSideBranch) continue;
+    const person = project.persons[node.personId];
+    if (!person) continue;
+    const sharesParentUnion = person.parentUnionIds.some((uid) => {
+      const union = project.unions[uid];
+      return union?.childIds.some((cid) => shiftedLineageIds.has(cid));
+    });
+    if (sharesParentUnion) node.x += delta;
   }
 }
 

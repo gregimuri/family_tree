@@ -121,14 +121,9 @@ export function refineUnitPlacements(
     compactChildUnitsUnderParents(layout, centers, widths, project);
   }
 
-  for (const layer of [...layout.sortedLayers].filter((l) => l < 0).reverse()) {
-    const mainCenter = mainLineCenterX(layout, centers);
-    packLayerWithWidths(layout.layers.get(layer) ?? [], centers, widths, mainCenter);
-    alignParentsOverChildren(layout, centers, widths, project);
-  }
-
   centerAncestryBlockOverMainLine(layout, centers, widths, project);
-  for (let pass = 0; pass < 4; pass++) {
+  for (let pass = 0; pass < 8; pass++) {
+    alignParentsOverChildren(layout, centers, widths, project);
     compactChildUnitsUnderParents(layout, centers, widths, project);
   }
   resolveUnitLayerCollisions(layout, centers, widths);
@@ -313,9 +308,22 @@ function resolveUnitLayerCollisions(
         const need = prevR + gapBetweenUnits(prev, curr);
         const delta = need - currL;
         if (delta > 0.4) {
-          for (let j = i; j < sorted.length; j++) {
-            const id = sorted[j].id;
-            centers.set(id, (centers.get(id) ?? 0) + delta);
+          const prevMain = prev.branchSide === 'main';
+          const currMain = curr.branchSide === 'main';
+          if (!prevMain && currMain) {
+            if (prev.branchSide === 'left') {
+              shiftUnitSubtree(layout, [prev.id], -delta, centers);
+            } else {
+              shiftUnitSubtree(layout, [prev.id], delta, centers);
+            }
+          } else if (prevMain && !currMain) {
+            if (curr.branchSide === 'right') {
+              shiftUnitSubtree(layout, [curr.id], delta, centers);
+            } else {
+              shiftUnitSubtree(layout, [curr.id], -delta, centers);
+            }
+          } else {
+            shiftUnitSubtree(layout, [curr.id], delta, centers);
           }
           moved = Math.max(moved, delta);
         }
