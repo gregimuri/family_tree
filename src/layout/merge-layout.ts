@@ -384,22 +384,21 @@ export function alignAncestryRowOverMainCouple(
   const delta = coupleCenter - ancestorCenter;
   if (Math.abs(delta) < 0.5) return;
 
+  const affectedLayers = new Set(mainAncestors.map((n) => graphById.get(n.id)?.layer).filter((l): l is number => l !== undefined));
   const shiftedLineageIds = new Set<string>();
   for (const node of nodes) {
     const gn = graphById.get(node.id);
-    if (!gn || gn.layer >= 0) continue;
-    if (lineageIds) {
-      if (!node.personId || !lineageIds.has(node.personId)) continue;
-    }
-    if (gn.isSideBranch) continue;
-    shiftedLineageIds.add(node.personId!);
+    if (!gn || gn.layer >= 0 || !node.personId) continue;
+    if (!affectedLayers.has(gn.layer)) continue;
+    if (lineageIds?.has(node.personId)) shiftedLineageIds.add(node.personId);
     node.x += delta;
   }
 
-  // Collateral siblings of shifted lineage on the same layer move together (e.g. uncle with father).
+  // Collateral siblings on other layers move together (e.g. uncle with father).
   for (const node of nodes) {
     const gn = graphById.get(node.id);
     if (!gn || gn.layer >= 0 || !node.personId || !gn.isSideBranch) continue;
+    if (affectedLayers.has(gn.layer)) continue;
     const person = project.persons[node.personId];
     if (!person) continue;
     const sharesParentUnion = person.parentUnionIds.some((uid) => {

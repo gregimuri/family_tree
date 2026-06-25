@@ -54,6 +54,27 @@ function spouseOnSameLayer(
   return undefined;
 }
 
+/** Cross-union: супруг в sibling-ряду, партнёр с другой ветки — оставляем singles для snap. */
+function shouldKeepCrossUnionSingles(
+  members: GraphPersonNode[],
+  layerNodes: GraphPersonNode[],
+  project: Project,
+): boolean {
+  if (members.length < 2 || partnersShareParentUnion(members, project)) return false;
+  for (const m of members) {
+    const parentUid = m.parentUnionId ?? project.persons[m.personId]?.parentUnionIds[0];
+    if (!parentUid) continue;
+    const siblingsOnLayer = layerNodes.filter(
+      (n) =>
+        n.personId !== m.personId &&
+        (n.parentUnionId === parentUid ||
+          project.persons[n.personId]?.parentUnionIds.includes(parentUid)),
+    );
+    if (siblingsOnLayer.length >= 1) return true;
+  }
+  return false;
+}
+
 /** Пары на слое из project.unions (не cross-union), даже если unionId на graph-узле не у обоих. */
 function buildMarriageCouplesOnLayer(
   layer: number,
@@ -73,7 +94,7 @@ function buildMarriageCouplesOnLayer(
       .filter((n): n is GraphPersonNode => Boolean(n));
     if (members.length < 2) continue;
     if (members.some((m) => usedOnLayer.has(m.personId))) continue;
-    if (!partnersShareParentUnion(members, project)) continue;
+    if (shouldKeepCrossUnionSingles(members, layerNodes, project)) continue;
 
     addCoupleUnit(
       members,

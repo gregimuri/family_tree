@@ -62,6 +62,19 @@ function lineageAncestorPersonIds(project: Project): Set<string> | null {
   return result;
 }
 
+/** Центр фокуса на слое 0 (персона-центр или среднее main-линии). */
+function focusCenterX(
+  layout: FamilyLayoutGraph,
+  centers: Map<string, number>,
+  project: Project,
+): number {
+  if (project.center.type === 'person') {
+    const unitId = layout.personToUnit.get(project.center.id);
+    if (unitId) return centers.get(unitId) ?? 0;
+  }
+  return mainLineCenterX(layout, centers);
+}
+
 /** Сдвинуть ancestor-слои так, чтобы предки центра были над main-линией. */
 function centerAncestryBlockOverMainLine(
   layout: FamilyLayoutGraph,
@@ -69,7 +82,7 @@ function centerAncestryBlockOverMainLine(
   widths: Map<string, number>,
   project: Project,
 ): void {
-  const mainCenter = mainLineCenterX(layout, centers);
+  const mainCenter = focusCenterX(layout, centers, project);
   const lineageIds = lineageAncestorPersonIds(project);
   const ancestorLayers = layout.sortedLayers.filter((l) => l < 0);
   if (ancestorLayers.length === 0) return;
@@ -129,9 +142,20 @@ function repackAncestryLayersBottomUp(
 ): void {
   const ancestorLayers = layout.sortedLayers.filter((l) => l < 0).sort((a, b) => b - a);
   for (const layer of ancestorLayers) {
-    const units = layout.layers.get(layer) ?? [];
+    let units = [...(layout.layers.get(layer) ?? [])];
     if (units.length === 0) continue;
     const childLayer = layer + 1;
+    units.sort((a, b) => {
+      const ca =
+        childRowCenterForUnit(a, layout, centers, widths, project, childLayer) ??
+        (centers.get(a.id) ?? 0);
+      const cb =
+        childRowCenterForUnit(b, layout, centers, widths, project, childLayer) ??
+        (centers.get(b.id) ?? 0);
+      return ca - cb || a.id.localeCompare(b.id);
+    });
+    layout.layers.set(layer, units);
+
     const childCenters: number[] = [];
     for (const u of units) {
       const cc = childRowCenterForUnit(u, layout, centers, widths, project, childLayer);
@@ -200,7 +224,7 @@ export function refineUnitPlacements(
   }
   repackAncestryLayersBottomUp(layout, centers, widths, project);
   resolveUnitLayerCollisions(layout, centers, widths);
-  anchorMainToZero(layout, centers);
+  anchorFocusToZero(layout, centers, project);
   if (!options?.skipCrossUnionSnap) {
     snapCrossUnionSpouses(layout, centers, widths, project, graph, personOrder);
     realignCrossUnionParentUnits(layout, centers, widths, project);
@@ -374,12 +398,14 @@ export function resolveUnitLayerCollisions(
   }
 }
 
-function anchorMainToZero(layout: FamilyLayoutGraph, centers: Map<string, number>): void {
-  const main = (layout.layers.get(0) ?? []).filter((u) => u.branchSide === 'main');
-  if (main.length === 0) return;
-  const avg = main.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / main.length;
-  if (Math.abs(avg) < 0.4) return;
+function anchorFocusToZero(
+  layout: FamilyLayoutGraph,
+  centers: Map<string, number>,
+  project: Project,
+): void {
+  const cx = focusCenterX(layout, centers, project);
+  if (Math.abs(cx) < 0.4) return;
   for (const unit of layout.units) {
-    centers.set(unit.id, (centers.get(unit.id) ?? 0) - avg);
+    centers.set(unit.id, (centers.get(unit.id) ?? 0) - cx);
   }
 }

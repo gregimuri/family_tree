@@ -11,16 +11,6 @@ import {
   type FamilyUnit,
 } from './types';
 
-function partnersShareParentUnionIds(partnerIds: string[], project: Project): boolean {
-  const parentUnions = new Set<string>();
-  for (const pid of partnerIds) {
-    for (const uid of project.persons[pid]?.parentUnionIds ?? []) {
-      parentUnions.add(uid);
-    }
-  }
-  return parentUnions.size <= 1;
-}
-
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -160,7 +150,6 @@ function keepUnionPartnersAdjacent(
 
   for (const union of Object.values(project.unions)) {
     if (union.partnerIds.length < 2) continue;
-    if (!partnersShareParentUnionIds(union.partnerIds, project)) continue;
     const partnerUnits = new Set<number>();
     for (const pid of union.partnerIds) {
       const unit = layout.units.find((u) => u.layer === layer && u.personIds.includes(pid));
@@ -233,17 +222,25 @@ function packOrderedUnits(
   }
 }
 
-function anchorMainLineToCenter(layout: FamilyLayoutGraph, centers: Map<string, number>): void {
-  const layer0 = layout.layers.get(0) ?? [];
-  const main = layer0.filter((u) => u.branchSide === 'main');
-  if (main.length === 0) return;
-
-  const avg =
-    main.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / main.length;
-  if (Math.abs(avg) < CONVERGENCE_EPS) return;
-
+function anchorMainLineToCenter(
+  layout: FamilyLayoutGraph,
+  centers: Map<string, number>,
+  project: Project,
+): void {
+  let cx = 0;
+  if (project.center.type === 'person') {
+    const unitId = layout.personToUnit.get(project.center.id);
+    if (unitId) cx = centers.get(unitId) ?? 0;
+  }
+  if (Math.abs(cx) < CONVERGENCE_EPS) {
+    const layer0 = layout.layers.get(0) ?? [];
+    const main = layer0.filter((u) => u.branchSide === 'main');
+    if (main.length === 0) return;
+    cx = main.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / main.length;
+  }
+  if (Math.abs(cx) < CONVERGENCE_EPS) return;
   for (const unit of layout.units) {
-    centers.set(unit.id, (centers.get(unit.id) ?? 0) - avg);
+    centers.set(unit.id, (centers.get(unit.id) ?? 0) - cx);
   }
 }
 
@@ -296,5 +293,5 @@ export function orderFamilyUnits(
     }
   }
 
-  anchorMainLineToCenter(layout, centers);
+  anchorMainLineToCenter(layout, centers, project);
 }
