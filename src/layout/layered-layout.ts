@@ -181,6 +181,10 @@ export function computeLayout(
       resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
     }
     alignAncestryRowOverMainCouple(mergedNodes, graph, project);
+    for (let pass = 0; pass < 6; pass++) {
+      if (!findLayerHorizontalOverlap(mergedNodes, 1)) break;
+      resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
+    }
     enforcePedigreeLayerY(mergedNodes, LAYER_GAP);
 
     if (project.viewSettings.smartLayoutEnabled !== false && mergedNodes.length <= 50) {

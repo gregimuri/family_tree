@@ -735,9 +735,9 @@ export function restoreCrossUnionParentAlignment(
         const marriage = project.unions[uid];
         if (!marriage || marriage.partnerIds.length < 2) continue;
         const partnerId = marriage.partnerIds.find((id) => id !== child.personId);
-        if (!partnerId || !union.childIds.includes(partnerId)) continue;
+        if (!partnerId) continue;
         const partner = byPerson.get(partnerId);
-        if (partner && partner.layer === childLayer && !seen.has(partner.id)) {
+        if (partner && partner.layer === child.layer && !seen.has(partner.id)) {
           seen.add(partner.id);
           rowNodes.push(partner);
         }

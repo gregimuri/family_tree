@@ -131,6 +131,7 @@ export function refineUnitPlacements(
   for (let pass = 0; pass < 4; pass++) {
     compactChildUnitsUnderParents(layout, centers, widths, project);
   }
+  resolveUnitLayerCollisions(layout, centers, widths);
   anchorMainToZero(layout, centers);
   if (!options?.skipCrossUnionSnap) {
     snapCrossUnionSpouses(layout, centers, widths, project, graph, personOrder);
@@ -196,8 +197,6 @@ function alignParentsOverChildren(
   widths: Map<string, number>,
   project: Project,
 ): void {
-  const layersToRepack = new Set<number>();
-
   for (const layer of layout.sortedLayers) {
     const nextLayer = layer + 1;
     if (!layout.layers.has(nextLayer)) continue;
@@ -221,21 +220,7 @@ function alignParentsOverChildren(
       if (Math.abs(delta) < 0.4) continue;
 
       centers.set(parent.id, parentCx + delta);
-      layersToRepack.add(layer);
     }
-  }
-
-  for (const layer of layersToRepack) {
-    const units = layout.layers.get(layer) ?? [];
-    if (units.length === 0) continue;
-    const main = units.filter((u) => u.branchSide === 'main');
-    const anchor =
-      layer < 0
-        ? mainLineCenterX(layout, centers)
-        : main.length > 0
-          ? main.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / main.length
-          : 0;
-    packLayerWithWidths(units, centers, widths, anchor);
   }
 }
 

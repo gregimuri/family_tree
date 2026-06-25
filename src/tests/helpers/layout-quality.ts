@@ -113,7 +113,6 @@ function childRowNodesForAlignment(
   directChildren: LayoutNode[],
   byPerson: Map<string, LayoutNode>,
   project: Project,
-  parentChildIds: string[],
 ): LayoutNode[] {
   const out: LayoutNode[] = [];
   const seen = new Set<string>();
@@ -125,7 +124,7 @@ function childRowNodesForAlignment(
       const marriage = project.unions[unionId];
       if (!marriage || marriage.partnerIds.length < 2) continue;
       const partnerId = marriage.partnerIds.find((id) => id !== child.personId);
-      if (!partnerId || !parentChildIds.includes(partnerId)) continue;
+      if (!partnerId) continue;
       const partner = byPerson.get(partnerId);
       if (partner && partner.layer === child.layer && !seen.has(partner.id)) {
         seen.add(partner.id);
@@ -180,7 +179,7 @@ export function assertParentsCenteredOverChildren(
 
     const parentCenter =
       sameLayerParents.reduce((s, p) => s + nodeCenterX(p), 0) / sameLayerParents.length;
-    const rowNodes = childRowNodesForAlignment(directChildren, byPerson, project, union.childIds);
+    const rowNodes = childRowNodesForAlignment(directChildren, byPerson, project);
     const childMin = Math.min(...rowNodes.map((c) => c.x));
     const childMax = Math.max(...rowNodes.map((c) => c.x + c.width));
     const childCenter = (childMin + childMax) / 2;
