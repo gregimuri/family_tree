@@ -3,7 +3,7 @@ import type { GraphResult } from '../graph-builder';
 import { buildFamilyUnits } from './build-units';
 import { syncSpouseLayers } from './generations';
 import { orderFamilyUnits } from './order-units';
-import { refineUnitPlacements } from './place-units';
+import { refineUnitPlacements, resolveUnitLayerCollisions } from './place-units';
 import { expandUnitsToLayoutNodes } from './expand-units';
 import { assignSoftCollateralSides } from './side-branches';
 import { snapCrossUnionSpouses, realignCrossUnionParentUnits } from './cross-union';
@@ -30,6 +30,8 @@ export function runFamilyLayout(project: Project, graph: GraphResult): LayoutNod
   });
   snapCrossUnionSpouses(layout, unitCenters, unitWidths, project, graph, personOrder);
   realignCrossUnionParentUnits(layout, unitCenters, unitWidths, project);
+  snapCrossUnionSpouses(layout, unitCenters, unitWidths, project, graph, personOrder);
+  resolveUnitLayerCollisions(layout, unitCenters, unitWidths);
 
   return expandUnitsToLayoutNodes(
     layout,

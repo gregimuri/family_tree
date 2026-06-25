@@ -174,16 +174,22 @@ export function computeLayout(
   if (layoutEngine === 'family') {
     const mergedNodes = runFamilyLayout(project, graph);
     const pinnedPersonIds = new Set(Object.keys(project.manualLayout ?? {}));
+    const compactFamilyPost =
+      !project.viewSettings.showAllPersons || mergedNodes.length <= 30;
 
-    restoreCrossUnionParentAlignment(mergedNodes, project, graph);
-    for (let pass = 0; pass < 6; pass++) {
-      if (!findLayerHorizontalOverlap(mergedNodes, 2)) break;
-      resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
-    }
-    alignAncestryRowOverMainCouple(mergedNodes, graph, project);
-    for (let pass = 0; pass < 6; pass++) {
-      if (!findLayerHorizontalOverlap(mergedNodes, 1)) break;
-      resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
+    if (compactFamilyPost) {
+      restoreCrossUnionParentAlignment(mergedNodes, project, graph);
+      for (let pass = 0; pass < 6; pass++) {
+        if (!findLayerHorizontalOverlap(mergedNodes, 2)) break;
+        resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
+      }
+      alignAncestryRowOverMainCouple(mergedNodes, graph, project);
+      for (let pass = 0; pass < 6; pass++) {
+        if (!findLayerHorizontalOverlap(mergedNodes, 1)) break;
+        resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
+      }
+    } else {
+      alignAncestryRowOverMainCouple(mergedNodes, graph, project);
     }
     enforcePedigreeLayerY(mergedNodes, LAYER_GAP);
 

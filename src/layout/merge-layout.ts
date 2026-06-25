@@ -592,20 +592,6 @@ function shiftSameLayerCardGroup(
       if (g && g.layer === layer && g.unionId === gn.unionId) ids.add(node.id);
     }
   }
-  if (gn['parentUnionId']) {
-    const parentUnionId = gn['parentUnionId'];
-    for (const node of layerNodes) {
-      const g = graphById.get(node.id);
-      if (
-        g &&
-        g.layer === layer &&
-        g['parentUnionId'] === parentUnionId &&
-        g.isSideBranch === gn.isSideBranch
-      ) {
-        ids.add(node.id);
-      }
-    }
-  }
 
   for (const node of layerNodes) {
     if (!ids.has(node.id)) continue;

@@ -396,6 +396,27 @@ export function realignCrossUnionParentUnits(
     const childMax = Math.max(
       ...aligned.map((c) => (centers.get(c.id) ?? 0) + (widths.get(c.id) ?? 120) / 2),
     );
-    centers.set(unit.id, (childMin + childMax) / 2);
+    const newCenter = (childMin + childMax) / 2;
+
+    if (unit.kind === 'single' && union.partnerIds.length >= 2) {
+      const partnerId = union.partnerIds.find((id) => !unit.personIds.includes(id));
+      const partnerUnit = partnerId
+        ? layout.units.find(
+            (u) => u.personIds.includes(partnerId) && u.layer === unit.layer && u.kind === 'single',
+          )
+        : undefined;
+      if (partnerUnit && union.partnerIds.some((id) => crossUnionPartner(id, project))) {
+        const cxA = centers.get(unit.id) ?? 0;
+        const cxB = centers.get(partnerUnit.id) ?? 0;
+        const delta = newCenter - (cxA + cxB) / 2;
+        if (Math.abs(delta) >= 0.4) {
+          centers.set(unit.id, cxA + delta);
+          centers.set(partnerUnit.id, cxB + delta);
+        }
+        continue;
+      }
+    }
+
+    centers.set(unit.id, newCenter);
   }
 }

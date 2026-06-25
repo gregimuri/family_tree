@@ -98,6 +98,78 @@ function centerAncestryBlockOverMainLine(
   }
 }
 
+function childRowCenterForUnit(
+  parent: FamilyUnit,
+  layout: FamilyLayoutGraph,
+  centers: Map<string, number>,
+  widths: Map<string, number>,
+  project: Project,
+  childLayer: number,
+): number | null {
+  const allChildren = parent.childUnitIds
+    .map((id) => layout.unitById.get(id))
+    .filter((u): u is FamilyUnit => Boolean(u && u.layer === childLayer));
+  const children = childrenForParentAlignment(parent, allChildren, project);
+  if (children.length === 0) return null;
+  const childMin = Math.min(
+    ...children.map((c) => (centers.get(c.id) ?? 0) - (widths.get(c.id) ?? 120) / 2),
+  );
+  const childMax = Math.max(
+    ...children.map((c) => (centers.get(c.id) ?? 0) + (widths.get(c.id) ?? 120) / 2),
+  );
+  return (childMin + childMax) / 2;
+}
+
+/** Упаковать слои предков над центром их детей (bottom-up), без стягивания всего в одну точку. */
+function repackAncestryLayersBottomUp(
+  layout: FamilyLayoutGraph,
+  centers: Map<string, number>,
+  widths: Map<string, number>,
+  project: Project,
+): void {
+  const ancestorLayers = layout.sortedLayers.filter((l) => l < 0).sort((a, b) => b - a);
+  for (const layer of ancestorLayers) {
+    const units = layout.layers.get(layer) ?? [];
+    if (units.length === 0) continue;
+    const childLayer = layer + 1;
+    const childCenters: number[] = [];
+    for (const u of units) {
+      const cc = childRowCenterForUnit(u, layout, centers, widths, project, childLayer);
+      if (cc !== null) childCenters.push(cc);
+    }
+    const targetX =
+      childCenters.length > 0
+        ? childCenters.reduce((a, b) => a + b, 0) / childCenters.length
+        : units.reduce((s, u) => s + (centers.get(u.id) ?? 0), 0) / units.length;
+    packLayerWithWidths(units, centers, widths, targetX);
+    alignParentsOverChildrenOnLayer(layout, centers, widths, project, layer);
+  }
+}
+
+function alignParentsOverChildrenOnLayer(
+  layout: FamilyLayoutGraph,
+  centers: Map<string, number>,
+  widths: Map<string, number>,
+  project: Project,
+  layer: number,
+): void {
+  const nextLayer = layer + 1;
+  if (!layout.layers.has(nextLayer)) return;
+  for (const parent of layout.layers.get(layer) ?? []) {
+    const allChildren = parent.childUnitIds
+      .map((id) => layout.unitById.get(id))
+      .filter((u): u is FamilyUnit => Boolean(u && u.layer === nextLayer));
+    const children = childrenForParentAlignment(parent, allChildren, project);
+    if (children.length === 0) continue;
+    const parentCx = centers.get(parent.id) ?? 0;
+    const cc = childRowCenterForUnit(parent, layout, centers, widths, project, nextLayer);
+    if (cc === null) continue;
+    const delta = cc - parentCx;
+    if (Math.abs(delta) < 0.4) continue;
+    centers.set(parent.id, parentCx + delta);
+  }
+}
+
 /** RT-style: уточнить центры блоков с учётом реальных ширин. */
 export function refineUnitPlacements(
   layout: FamilyLayoutGraph,
@@ -116,24 +188,26 @@ export function refineUnitPlacements(
     packLayerWithWidths(layout.layers.get(layer) ?? [], centers, widths, 0);
   }
 
-  for (let pass = 0; pass < 16; pass++) {
+  for (let pass = 0; pass < 6; pass++) {
     alignParentsOverChildren(layout, centers, widths, project);
-    compactChildUnitsUnderParents(layout, centers, widths, project);
   }
 
+  repackAncestryLayersBottomUp(layout, centers, widths, project);
+
   centerAncestryBlockOverMainLine(layout, centers, widths, project);
-  for (let pass = 0; pass < 8; pass++) {
+  for (let pass = 0; pass < 4; pass++) {
     alignParentsOverChildren(layout, centers, widths, project);
-    compactChildUnitsUnderParents(layout, centers, widths, project);
   }
+  repackAncestryLayersBottomUp(layout, centers, widths, project);
   resolveUnitLayerCollisions(layout, centers, widths);
   anchorMainToZero(layout, centers);
   if (!options?.skipCrossUnionSnap) {
     snapCrossUnionSpouses(layout, centers, widths, project, graph, personOrder);
     realignCrossUnionParentUnits(layout, centers, widths, project);
+    snapCrossUnionSpouses(layout, centers, widths, project, graph, personOrder);
     resolveUnitLayerCollisions(layout, centers, widths);
     for (let pass = 0; pass < 2; pass++) {
-      compactChildUnitsUnderParents(layout, centers, widths, project);
+      alignParentsOverChildren(layout, centers, widths, project);
     }
   }
 }
@@ -240,45 +314,6 @@ function shiftUnitSubtree(
   }
 }
 
-/** Сдвигает блок детей под центр родительского unit (без разъезда всего слоя). */
-function compactChildUnitsUnderParents(
-  layout: FamilyLayoutGraph,
-  centers: Map<string, number>,
-  widths: Map<string, number>,
-  project: Project,
-): void {
-  for (const layer of layout.sortedLayers) {
-    const nextLayer = layer + 1;
-    if (!layout.layers.has(nextLayer)) continue;
-
-    for (const parent of layout.layers.get(layer) ?? []) {
-      const allChildren = parent.childUnitIds
-        .map((id) => layout.unitById.get(id))
-        .filter((u): u is FamilyUnit => Boolean(u && u.layer === nextLayer));
-      const children = childrenForParentAlignment(parent, allChildren, project);
-      if (children.length === 0) continue;
-
-      const parentCx = centers.get(parent.id) ?? 0;
-      const childMin = Math.min(
-        ...children.map((c) => (centers.get(c.id) ?? 0) - (widths.get(c.id) ?? 120) / 2),
-      );
-      const childMax = Math.max(
-        ...children.map((c) => (centers.get(c.id) ?? 0) + (widths.get(c.id) ?? 120) / 2),
-      );
-      const childCenter = (childMin + childMax) / 2;
-      const delta = parentCx - childCenter;
-      if (Math.abs(delta) < 0.4) continue;
-
-      shiftUnitSubtree(
-        layout,
-        children.map((c) => c.id),
-        delta,
-        centers,
-      );
-    }
-  }
-}
-
 function gapBetweenUnits(left: FamilyUnit, right: FamilyUnit): number {
   if (left.branchSide !== right.branchSide) return MAIN_SIDE_GAP;
   if (left.branchSide === 'main') return GROUP_GAP;
@@ -286,7 +321,7 @@ function gapBetweenUnits(left: FamilyUnit, right: FamilyUnit): number {
 }
 
 /** Устраняет горизонтальные наложения unit-ов на одном слое (без сдвига поддеревьев). */
-function resolveUnitLayerCollisions(
+export function resolveUnitLayerCollisions(
   layout: FamilyLayoutGraph,
   centers: Map<string, number>,
   widths: Map<string, number>,
@@ -297,7 +332,8 @@ function resolveUnitLayerCollisions(
 
     for (let round = 0; round < 24; round++) {
       const sorted = [...units].sort(
-        (a, b) => (centers.get(a.id) ?? 0) - (centers.get(b.id) ?? 0),
+        (a, b) =>
+          (centers.get(a.id) ?? 0) - (centers.get(b.id) ?? 0) || a.id.localeCompare(b.id),
       );
       let moved = 0;
       for (let i = 1; i < sorted.length; i++) {
@@ -310,7 +346,12 @@ function resolveUnitLayerCollisions(
         if (delta > 0.4) {
           const prevMain = prev.branchSide === 'main';
           const currMain = curr.branchSide === 'main';
-          if (!prevMain && currMain) {
+          if (layer < 0) {
+            for (let j = i; j < sorted.length; j++) {
+              const id = sorted[j].id;
+              centers.set(id, (centers.get(id) ?? 0) + delta);
+            }
+          } else if (!prevMain && currMain) {
             if (prev.branchSide === 'left') {
               shiftUnitSubtree(layout, [prev.id], -delta, centers);
             } else {
