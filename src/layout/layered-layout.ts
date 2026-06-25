@@ -9,7 +9,8 @@ import {
   computeNuclearLayoutNodes,
   mergeNuclearAndPedigreeNodes,
 } from './nuclear-tree-adapter';
-import { reconcileMergedLayout, stabilizeFamilyLayout, restoreCrossUnionParentAlignment } from './merge-layout';
+import { reconcileMergedLayout, stabilizeFamilyLayout, restoreCrossUnionParentAlignment, resolveCompactLayoutOverlaps, alignAncestryRowOverMainCouple } from './merge-layout';
+import { findLayerHorizontalOverlap } from './layout-zones';
 import { refineLayoutSync } from './layout-refiner';
 import { routeCoupleBond, bondEdgeId } from './edge-router';
 import { pickPartnersForUnion, buildPedigreeEdges } from './pedigree-edges';
@@ -174,6 +175,11 @@ export function computeLayout(
     const pinnedPersonIds = new Set(Object.keys(project.manualLayout ?? {}));
 
     restoreCrossUnionParentAlignment(mergedNodes, project, graph);
+    for (let pass = 0; pass < 6; pass++) {
+      if (!findLayerHorizontalOverlap(mergedNodes, 2)) break;
+      resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
+    }
+    alignAncestryRowOverMainCouple(mergedNodes, graph, project);
 
     if (project.viewSettings.smartLayoutEnabled !== false && mergedNodes.length <= 50) {
       refineLayoutSync(mergedNodes, graph, project, { pinnedPersonIds });

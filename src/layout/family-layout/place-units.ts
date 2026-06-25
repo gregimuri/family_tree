@@ -3,7 +3,7 @@ import type { GraphResult } from '../graph-builder';
 import { COUPLE_GAP, getCardScale } from '../graph-builder';
 import { getCardDimensions } from '../card-dimensions';
 import type { FamilyLayoutGraph, FamilyUnit } from './types';
-import { GROUP_GAP, SIBLING_GAP } from './types';
+import { GROUP_GAP, SIBLING_GAP, MAIN_SIDE_GAP, SIDE_BRANCH_GAP } from './types';
 import { childrenForParentAlignment, snapCrossUnionSpouses, realignCrossUnionParentUnits } from './cross-union';
 
 /** Ширина блока в px. */
@@ -128,10 +128,17 @@ export function refineUnitPlacements(
   }
 
   centerAncestryBlockOverMainLine(layout, centers, widths, project);
+  for (let pass = 0; pass < 4; pass++) {
+    compactChildUnitsUnderParents(layout, centers, widths, project);
+  }
   anchorMainToZero(layout, centers);
   if (!options?.skipCrossUnionSnap) {
     snapCrossUnionSpouses(layout, centers, widths, project, graph, personOrder);
     realignCrossUnionParentUnits(layout, centers, widths, project);
+    resolveUnitLayerCollisions(layout, centers, widths);
+    for (let pass = 0; pass < 2; pass++) {
+      compactChildUnitsUnderParents(layout, centers, widths, project);
+    }
   }
 }
 
@@ -288,6 +295,47 @@ function compactChildUnitsUnderParents(
         delta,
         centers,
       );
+    }
+  }
+}
+
+function unitGap(left: FamilyUnit, right: FamilyUnit): number {
+  if (left.branchSide !== right.branchSide) return MAIN_SIDE_GAP;
+  if (left.branchSide === 'main') return GROUP_GAP;
+  return SIDE_BRANCH_GAP;
+}
+
+/** Устраняет горизонтальные наложения unit-ов на одном слое (без сдвига поддеревьев). */
+function resolveUnitLayerCollisions(
+  layout: FamilyLayoutGraph,
+  centers: Map<string, number>,
+  widths: Map<string, number>,
+): void {
+  for (const layer of layout.sortedLayers) {
+    const units = layout.layers.get(layer) ?? [];
+    if (units.length < 2) continue;
+
+    for (let round = 0; round < 24; round++) {
+      const sorted = [...units].sort(
+        (a, b) => (centers.get(a.id) ?? 0) - (centers.get(b.id) ?? 0),
+      );
+      let moved = 0;
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const curr = sorted[i];
+        const prevR = (centers.get(prev.id) ?? 0) + (widths.get(prev.id) ?? 120) / 2;
+        const currL = (centers.get(curr.id) ?? 0) - (widths.get(curr.id) ?? 120) / 2;
+        const need = prevR + unitGap(prev, curr);
+        const delta = need - currL;
+        if (delta > 0.4) {
+          for (let j = i; j < sorted.length; j++) {
+            const id = sorted[j].id;
+            centers.set(id, (centers.get(id) ?? 0) + delta);
+          }
+          moved = Math.max(moved, delta);
+        }
+      }
+      if (moved < 0.4) break;
     }
   }
 }

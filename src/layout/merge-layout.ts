@@ -555,6 +555,99 @@ function resolveMergedCollisions(
   }
 }
 
+function nodeRightEdge(node: LayoutNode): number {
+  return node.x + node.width;
+}
+
+function shiftSameLayerCardGroup(
+  seed: LayoutNode,
+  delta: number,
+  layer: number,
+  layerNodes: LayoutNode[],
+  graphById: Map<string, PersonGraphNode>,
+  pinnedPersonIds?: ReadonlySet<string>,
+): void {
+  if (Math.abs(delta) < 0.01) return;
+  const gn = graphById.get(seed.id);
+  if (!gn) return;
+
+  const ids = new Set<string>([seed.id]);
+  if (gn.unionId) {
+    for (const node of layerNodes) {
+      const g = graphById.get(node.id);
+      if (g && g.layer === layer && g.unionId === gn.unionId) ids.add(node.id);
+    }
+  }
+  if (gn['parentUnionId']) {
+    const parentUnionId = gn['parentUnionId'];
+    for (const node of layerNodes) {
+      const g = graphById.get(node.id);
+      if (
+        g &&
+        g.layer === layer &&
+        g['parentUnionId'] === parentUnionId &&
+        g.isSideBranch === gn.isSideBranch
+      ) {
+        ids.add(node.id);
+      }
+    }
+  }
+
+  for (const node of layerNodes) {
+    if (!ids.has(node.id)) continue;
+    if (node.personId && pinnedPersonIds?.has(node.personId)) continue;
+    node.x += delta;
+  }
+}
+
+/** Компактно убирает наложения карточек на слое (без разноса боковых веток). */
+export function resolveCompactLayoutOverlaps(
+  nodes: LayoutNode[],
+  graph: GraphResult,
+  pinnedPersonIds?: ReadonlySet<string>,
+): void {
+  const graphById = graphNodeById(graph);
+  const byLayer = new Map<number, LayoutNode[]>();
+  for (const node of nodes) {
+    const list = byLayer.get(node.layer) ?? [];
+    list.push(node);
+    byLayer.set(node.layer, list);
+  }
+
+  for (const layerNodes of byLayer.values()) {
+    for (let round = 0; round < 24; round++) {
+      const sorted = [...layerNodes].sort((a, b) => a.x - b.x);
+      let moved = 0;
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const curr = sorted[i];
+        const prevG = graphById.get(prev.id);
+        const currG = graphById.get(curr.id);
+        if (!prevG || !currG) continue;
+
+        let minGap = GROUP_GAP;
+        if (prevG.unionId && prevG.unionId === currG.unionId && prevG.layer === currG.layer) {
+          minGap = COUPLE_GAP;
+        } else if (
+          prevG['parentUnionId'] &&
+          prevG['parentUnionId'] === currG['parentUnionId'] &&
+          prevG.layer === currG.layer
+        ) {
+          minGap = SIBLING_GAP;
+        }
+
+        const needX = nodeRightEdge(prev) + minGap;
+        if (curr.x + 0.5 >= needX) continue;
+
+        const delta = needX - curr.x;
+        shiftSameLayerCardGroup(curr, delta, currG.layer, layerNodes, graphById, pinnedPersonIds);
+        moved = Math.max(moved, delta);
+      }
+      if (moved < 0.4) break;
+    }
+  }
+}
+
 /** Устранение горизонтальных наложений карточек по слоям. */
 export function resolveLayoutCollisions(
   nodes: LayoutNode[],

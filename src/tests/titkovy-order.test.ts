@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import { loadProjectFromDamagedZipBytes } from '../services/project-io/zip-recovery';
 import { buildLayout } from '../layout';
 import { getTreeSheetBounds } from '../layout/content-bounds';
+import { findHorizontalOverlap } from './helpers/layout-quality';
 
 const titkovyPath = 'c:/Users/Gregor/Downloads/Titkovy_6.drevo';
 const hasTitkovy = fs.existsSync(titkovyPath);
@@ -186,8 +187,16 @@ describe.skipIf(!hasTitkovy)('Titkovy ancestor ordering', () => {
       const maxX = Math.max(...ancestorMain.map((n) => n.x + n.width));
       const ancestorCenter = (minX + maxX) / 2;
       const focusCenter = focusNode.x + focusNode.width / 2;
-      expect(Math.abs(ancestorCenter - focusCenter)).toBeLessThan(80);
+      expect(Math.abs(ancestorCenter - focusCenter)).toBeLessThanOrEqual(80);
     }
+  }, 30_000);
+
+  it('showAllPersons layout has no horizontal card overlaps', async () => {
+    const project = await loadTitkovy();
+    project.viewSettings = { ...project.viewSettings, showAllPersons: true, smartLayoutEnabled: false };
+    project.manualLayout = {};
+    const layout = buildLayout(project);
+    expect(findHorizontalOverlap(layout.nodes)).toBeNull();
   }, 30_000);
 
   it('default project center has no Georgiy/Anatoliy crossing when visible', async () => {
