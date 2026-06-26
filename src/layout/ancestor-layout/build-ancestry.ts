@@ -135,10 +135,7 @@ interface BranchAnchor {
 }
 
 function findCollisionAnchors(ctx: LayoutContext, layer: number): BranchAnchor[] {
-  const onLayer = ctx
-    .personsOnLayer(layer)
-    .filter((p) => !p.isSideBranch)
-    .sort((a, b) => a.centerXCells - b.centerXCells);
+  const onLayer = ctx.personsOnLayer(layer).sort((a, b) => a.centerXCells - b.centerXCells);
   const anchors: BranchAnchor[] = [];
   for (let i = 1; i < onLayer.length; i++) {
     const prev = onLayer[i - 1];
@@ -195,6 +192,13 @@ export function buildAncestry(ctx: LayoutContext): void {
 
   let fatherFirst = true;
   for (let layer = -1; layer >= minLayer; layer--) {
+    const childLayer = layer + 1;
+    for (const placement of ctx.personsOnLayer(childLayer)) {
+      for (const puid of ctx.project.persons[placement.personId]?.parentUnionIds ?? []) {
+        placeParentCoupleOverChild(ctx, placement.personId, puid);
+      }
+    }
+
     const targets = fatherFirst
       ? [fatherLineTarget(ctx), motherLineTarget(ctx)].filter(Boolean) as string[]
       : [motherLineTarget(ctx), fatherLineTarget(ctx)].filter(Boolean) as string[];

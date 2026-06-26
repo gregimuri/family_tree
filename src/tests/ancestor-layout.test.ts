@@ -163,4 +163,55 @@ describe('ancestor layout engine', () => {
     expect(rightSpread).toBeGreaterThan(0);
     expect(Math.abs(leftSpread - rightSpread)).toBeLessThan(5);
   });
+
+  it('shifts ancestor branch together (grandparents and great-grandparents)', () => {
+    const project = createEmptyProject();
+    const ids = ['c', 'f', 'm', 'pgf', 'pgm', 'mgf', 'mgm', 'pggf', 'pggm'] as const;
+    const genders: Record<string, 'male' | 'female'> = {
+      c: 'male',
+      f: 'male',
+      m: 'female',
+      pgf: 'male',
+      pgm: 'female',
+      mgf: 'male',
+      mgm: 'female',
+      pggf: 'male',
+      pggm: 'female',
+    };
+    for (const id of ids) {
+      project.persons[id] = createEmptyPerson({ id, gender: genders[id], givenName: id });
+    }
+    project.unions = {
+      fc: { id: 'fc', partnerIds: ['f', 'm'], childIds: ['c'] },
+      ff: { id: 'ff', partnerIds: ['pgf', 'pgm'], childIds: ['f'] },
+      fm: { id: 'fm', partnerIds: ['mgf', 'mgm'], childIds: ['m'] },
+      fff: { id: 'fff', partnerIds: ['pggf', 'pggm'], childIds: ['pgf'] },
+    };
+    project.persons.c.parentUnionIds = ['fc'];
+    project.persons.f.parentUnionIds = ['ff'];
+    project.persons.m.parentUnionIds = ['fm'];
+    project.persons.pgf.parentUnionIds = ['fff'];
+    project.persons.f.unionIds = ['fc'];
+    project.persons.m.unionIds = ['fc'];
+    project.persons.pgf.unionIds = ['ff', 'fff'];
+    project.persons.pgm.unionIds = ['ff'];
+    project.persons.mgf.unionIds = ['fm'];
+    project.persons.mgm.unionIds = ['fm'];
+    project.persons.pggf.unionIds = ['fff'];
+    project.persons.pggm.unionIds = ['fff'];
+    project.center = { type: 'person', id: 'c' };
+    project.viewSettings = { ...project.viewSettings, generationsUp: 3, generationsDown: 0 };
+
+    const layout = buildLayout(project);
+    expect(findHorizontalOverlaps(layout.nodes)).toEqual([]);
+
+    const byId = (id: string) => layout.nodes.find((n) => n.personId === id)!;
+    expect(byId('pggf')).toBeDefined();
+    expect(byId('pgf')).toBeDefined();
+    const pgfCenter = nodeCenterX(byId('pgf'));
+    const pggfCenter = nodeCenterX(byId('pggf'));
+    const mgfCenter = nodeCenterX(byId('mgf'));
+    expect(pggfCenter).toBeLessThan(pgfCenter);
+    expect(mgfCenter).toBeGreaterThan(pgfCenter);
+  });
 });
