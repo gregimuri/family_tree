@@ -23,12 +23,6 @@ function normalizeLayoutToFocus(
     y: n.y - focus.y,
   }));
 
-  const cardBounds = computeBounds(nodes);
-  const contentCenterX = (cardBounds.minX + cardBounds.maxX) / 2;
-  if (Number.isFinite(contentCenterX) && Math.abs(contentCenterX) > 0.5) {
-    nodes = nodes.map((n) => ({ ...n, x: n.x - contentCenterX }));
-  }
-
   const edges = buildLayoutEdges(project, nodes, graph);
   return {
     nodes,

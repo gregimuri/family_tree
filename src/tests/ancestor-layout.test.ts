@@ -153,15 +153,12 @@ describe('ancestor layout engine', () => {
     expect(findHorizontalOverlaps(layout.nodes)).toEqual([]);
 
     const byId = (id: string) => layout.nodes.find((n) => n.personId === id)!;
-    const leftCoupleCenter = (nodeCenterX(byId('pgf')) + nodeCenterX(byId('pgm'))) / 2;
-    const rightCoupleCenter = (nodeCenterX(byId('mgf')) + nodeCenterX(byId('mgm'))) / 2;
     const fCenter = nodeCenterX(byId('f'));
+    const pgfCoupleCenter = (nodeCenterX(byId('pgf')) + nodeCenterX(byId('pgm'))) / 2;
     const mCenter = nodeCenterX(byId('m'));
-    const leftSpread = fCenter - leftCoupleCenter;
-    const rightSpread = rightCoupleCenter - mCenter;
-    expect(leftSpread).toBeGreaterThan(0);
-    expect(rightSpread).toBeGreaterThan(0);
-    expect(Math.abs(leftSpread - rightSpread)).toBeLessThan(5);
+    const mgfCoupleCenter = (nodeCenterX(byId('mgf')) + nodeCenterX(byId('mgm'))) / 2;
+    expect(Math.abs(fCenter - pgfCoupleCenter)).toBeLessThan(25);
+    expect(Math.abs(mCenter - mgfCoupleCenter)).toBeLessThan(25);
   });
 
   it('shifts ancestor branch together (grandparents and great-grandparents)', () => {
@@ -213,5 +210,43 @@ describe('ancestor layout engine', () => {
     const mgfCenter = nodeCenterX(byId('mgf'));
     expect(pggfCenter).toBeLessThan(pgfCenter);
     expect(mgfCenter).toBeGreaterThan(pgfCenter);
+  });
+
+  it('centers children under parent marriage bond after collision shift', () => {
+    const project = createEmptyProject();
+    const ids = ['c', 'f', 'm', 'pgf', 'pgm', 'mgf', 'mgm'] as const;
+    const genders: Record<string, 'male' | 'female'> = {
+      c: 'male',
+      f: 'male',
+      m: 'female',
+      pgf: 'male',
+      pgm: 'female',
+      mgf: 'male',
+      mgm: 'female',
+    };
+    for (const id of ids) {
+      project.persons[id] = createEmptyPerson({ id, gender: genders[id], givenName: id });
+    }
+    project.unions = {
+      fc: { id: 'fc', partnerIds: ['f', 'm'], childIds: ['c'] },
+      ff: { id: 'ff', partnerIds: ['pgf', 'pgm'], childIds: ['f'] },
+      fm: { id: 'fm', partnerIds: ['mgf', 'mgm'], childIds: ['m'] },
+    };
+    project.persons.c.parentUnionIds = ['fc'];
+    project.persons.f.parentUnionIds = ['ff'];
+    project.persons.m.parentUnionIds = ['fm'];
+    project.persons.f.unionIds = ['fc'];
+    project.persons.m.unionIds = ['fc'];
+    project.persons.pgf.unionIds = ['ff'];
+    project.persons.pgm.unionIds = ['ff'];
+    project.persons.mgf.unionIds = ['fm'];
+    project.persons.mgm.unionIds = ['fm'];
+    project.center = { type: 'person', id: 'c' };
+    project.viewSettings = { ...project.viewSettings, generationsUp: 2, generationsDown: 0 };
+
+    const layout = buildLayout(project);
+    const byId = (id: string) => layout.nodes.find((n) => n.personId === id)!;
+    const bondCenter = (nodeCenterX(byId('f')) + nodeCenterX(byId('m'))) / 2;
+    expect(Math.abs(nodeCenterX(byId('c')) - bondCenter)).toBeLessThan(25);
   });
 });

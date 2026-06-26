@@ -7,7 +7,9 @@ import { layoutRemainingPersons } from './layout-collateral';
 import {
   centerLineageAncestorsOverFocus,
   resolveAllLayerCollisions,
+  resolveMicroOverlaps,
 } from './subtree-shift';
+import { alignChildrenUnderParentBonds } from './layout-polish';
 import { expandToLayoutNodes } from './expand-to-nodes';
 
 /** Авторасположение по алгоритму построения предков (шаги 1–7). */
@@ -24,7 +26,8 @@ export function runAncestorLayout(project: Project, graph: GraphResult): LayoutN
   // Шаг 5: после выравнивания — сдвиг наложившихся пар; повторное центрирование
   // родителей отменило бы эти сдвиги, поэтому выравнивание выше — финальное.
   resolveAllLayerCollisions(ctx);
-
+  alignChildrenUnderParentBonds(ctx);
+  resolveMicroOverlaps(ctx);
   centerLineageAncestorsOverFocus(ctx);
 
   const focus = ctx.getPlacement(ctx.focusPersonId);

@@ -304,9 +304,31 @@ export function centerLineageAncestorsOverFocus(ctx: LayoutContext): void {
   const delta = focus.centerXCells - (min + max) / 2;
   if (Math.abs(delta) < 0.01) return;
 
-  const layers = new Set(ancestors.map((p) => p.layer));
   for (const p of ctx.placements.values()) {
-    if (p.layer < 0 && layers.has(p.layer)) p.centerXCells += delta;
+    p.centerXCells += delta;
+  }
+}
+
+/** Точное разведение без минимального шага алгоритма (устраняет мелкие наложения). */
+export function resolveMicroOverlaps(ctx: LayoutContext, maxRounds = 32): void {
+  const layers = [...new Set([...ctx.placements.values()].map((p) => p.layer))].sort(
+    (a, b) => a - b,
+  );
+
+  for (let round = 0; round < maxRounds; round++) {
+    let any = false;
+    for (const layer of layers) {
+      const units = buildLayerUnits(ctx, layer);
+      for (let i = 1; i < units.length; i++) {
+        Object.assign(units[i - 1], measureUnit(ctx, units[i - 1].personIds));
+        Object.assign(units[i], measureUnit(ctx, units[i].personIds));
+        const overlap = units[i - 1].rightEdge + COUPLE_GAP_CELLS - units[i].leftEdge;
+        if (overlap <= 0.01) continue;
+        any = true;
+        splitUnitsSymmetrically(ctx, units[i - 1], units[i], layer, overlap);
+      }
+    }
+    if (!any) break;
   }
 }
 

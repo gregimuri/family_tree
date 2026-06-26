@@ -19,8 +19,8 @@ describe('tree sheet layout', () => {
     const frame = getSymmetricTreeFrame(project, layout, TREE_SHEET_PAD)!;
 
     expect(focus.y).toBeCloseTo(0, 0);
+    expect(focus.x).toBeCloseTo(0, 0);
     const sheet = getTreeSheetBounds(layout, project);
-    expect((sheet.minX + sheet.maxX) / 2).toBeCloseTo(0, 0);
     expect(frame.offsetX + focus.x).toBeCloseTo(frame.focusSvgX, 5);
     expect(frame.offsetY + focus.y).toBeCloseTo(frame.focusSvgY, 5);
   });
