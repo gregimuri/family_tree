@@ -130,9 +130,7 @@ export function alignChildrenUnderParentBonds(ctx: LayoutContext): void {
     const toShift = new Set<string>();
     for (const cid of children) {
       const couple = findCoupleOnLayer(ctx, cid, row.childLayer);
-      for (const id of couple) {
-        collectDownFromCouple(ctx, couple, row.childLayer).forEach((pid) => toShift.add(pid));
-      }
+      collectDownFromCouple(ctx, couple, row.childLayer).forEach((pid) => toShift.add(pid));
     }
     shiftPersons(ctx, toShift, delta);
   }

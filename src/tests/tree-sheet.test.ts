@@ -20,7 +20,6 @@ describe('tree sheet layout', () => {
 
     expect(focus.y).toBeCloseTo(0, 0);
     expect(focus.x).toBeCloseTo(0, 0);
-    const sheet = getTreeSheetBounds(layout, project);
     expect(frame.offsetX + focus.x).toBeCloseTo(frame.focusSvgX, 5);
     expect(frame.offsetY + focus.y).toBeCloseTo(frame.focusSvgY, 5);
   });

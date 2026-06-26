@@ -17,7 +17,7 @@ function normalizeLayoutToFocus(
   const focus = getCenterFocusPoint(project, layout);
   if (!focus) return layout;
 
-  let nodes = layout.nodes.map((n) => ({
+  const nodes = layout.nodes.map((n) => ({
     ...n,
     x: n.x - focus.x,
     y: n.y - focus.y,
