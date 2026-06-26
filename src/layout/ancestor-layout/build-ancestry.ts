@@ -8,7 +8,6 @@ import {
 import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS } from './grid-math';
 import { placeCoupleAtCenter, placeParentCoupleOverChild } from './layout-couple';
 import {
-  centerLineageAncestorsOverFocus,
   resolveLayerCollisionStep5,
   buildLayerUnits,
   measureUnit,
@@ -210,16 +209,23 @@ export function buildAncestry(ctx: LayoutContext): void {
     }
 
     let hadCollision = false;
+    let collisionAnchors: BranchAnchor[] = [];
     for (let round = 0; round < 6; round++) {
+      const before = findCollisionAnchors(ctx, layer);
+      if (before.length > 0 && collisionAnchors.length === 0) collisionAnchors = before;
       if (resolveLayerCollisionStep5(ctx, layer)) hadCollision = true;
       else break;
     }
 
-    if (hadCollision) {
-      expandFromAnchors(ctx, findCollisionAnchors(ctx, layer));
+    if (hadCollision && collisionAnchors.length > 0) {
+      expandFromAnchors(ctx, collisionAnchors);
+      for (let upLayer = layer - 1; upLayer >= minLayer; upLayer--) {
+        for (let round = 0; round < 6; round++) {
+          if (!resolveLayerCollisionStep5(ctx, upLayer)) break;
+        }
+      }
     }
 
-    centerLineageAncestorsOverFocus(ctx);
     fatherFirst = !fatherFirst;
   }
 }

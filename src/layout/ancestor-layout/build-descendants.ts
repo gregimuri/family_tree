@@ -1,5 +1,5 @@
 import type { LayoutContext } from './layout-context';
-import { childCenterXCells, sortPartnersMaleLeft } from './layout-context';
+import { sortPartnersMaleLeft } from './layout-context';
 import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS } from './grid-math';
 import { placeCoupleAtCenter } from './layout-couple';
 import { resolveLayerCollisionStep5 } from './subtree-shift';
@@ -75,20 +75,6 @@ export function buildDescendants(ctx: LayoutContext): void {
 
     for (let round = 0; round < 6; round++) {
       if (!resolveLayerCollisionStep5(ctx, layer + 1)) break;
-    }
-  }
-
-  for (const union of Object.values(ctx.project.unions)) {
-    if (union.partnerIds.length < 2 || union.childIds.length === 0) continue;
-    const visibleChildren = union.childIds.filter((id) => ctx.isPlaced(id));
-    if (visibleChildren.length === 0) continue;
-    const childCenter = childCenterXCells(ctx, visibleChildren);
-    const parentLayer = Math.min(
-      ...union.partnerIds.map((id) => ctx.getPlacement(id)?.layer ?? 999).filter((l) => l !== 999),
-    );
-    const visibleParents = union.partnerIds.filter((id) => ctx.isPlaced(id));
-    if (visibleParents.length >= 2) {
-      placeCoupleAtCenter(ctx, visibleParents, childCenter, parentLayer);
     }
   }
 }

@@ -1,7 +1,7 @@
 import type { LayoutContext } from './layout-context';
-import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS, cardLeftEdge, cardRightEdge } from './grid-math';
+import { COUPLE_GAP_CELLS } from './grid-math';
 import { placeCoupleAtCenter } from './layout-couple';
-import { resolveLayerCollisionStep5 } from './subtree-shift';
+import { resolveLayerCollisionStep5, personHalfWidthCells } from './subtree-shift';
 
 /** Разместить оставшихся персон из графа (collateral). */
 export function layoutRemainingPersons(ctx: LayoutContext): void {
@@ -42,14 +42,28 @@ export function layoutRemainingPersons(ctx: LayoutContext): void {
       if (onLayer.length === 0) {
         ctx.placePerson(personId, 0, { layer });
       } else if (gn.branchSide === 'left') {
-        const minLeft = Math.min(...onLayer.map((p) => cardLeftEdge(p.centerXCells)));
-        ctx.placePerson(personId, minLeft - COUPLE_GAP_CELLS - CARD_WIDTH_CELLS / 2, { layer });
+        const minLeft = Math.min(
+          ...onLayer.map((p) => p.centerXCells - personHalfWidthCells(ctx, p.personId)),
+        );
+        ctx.placePerson(
+          personId,
+          minLeft - COUPLE_GAP_CELLS - personHalfWidthCells(ctx, personId),
+          { layer },
+        );
       } else {
-        const maxRight = Math.max(...onLayer.map((p) => cardRightEdge(p.centerXCells)));
-        ctx.placePerson(personId, maxRight + COUPLE_GAP_CELLS + CARD_WIDTH_CELLS / 2, { layer });
+        const maxRight = Math.max(
+          ...onLayer.map((p) => p.centerXCells + personHalfWidthCells(ctx, p.personId)),
+        );
+        ctx.placePerson(
+          personId,
+          maxRight + COUPLE_GAP_CELLS + personHalfWidthCells(ctx, personId),
+          { layer },
+        );
       }
     }
 
-    resolveLayerCollisionStep5(ctx, layer);
+    for (let round = 0; round < 6; round++) {
+      if (!resolveLayerCollisionStep5(ctx, layer)) break;
+    }
   }
 }

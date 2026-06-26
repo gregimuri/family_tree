@@ -38,6 +38,32 @@ describe('zip project recovery', () => {
     expect(layout.edges.length).toBeGreaterThan(0);
   });
 
+  it('Titkovy project layout has no horizontal card overlaps', async () => {
+    if (!fs.existsSync(titkovyPath)) return;
+    const bytes = new Uint8Array(fs.readFileSync(titkovyPath));
+    const { project } = await loadProjectFromDamagedZipBytes(bytes);
+    const layout = buildLayout(project);
+    const overlaps: string[] = [];
+    const byLayer = new Map<number, typeof layout.nodes>();
+    for (const n of layout.nodes) {
+      if (!n.personId) continue;
+      const list = byLayer.get(n.layer) ?? [];
+      list.push(n);
+      byLayer.set(n.layer, list);
+    }
+    for (const [, list] of byLayer) {
+      const sorted = [...list].sort((a, b) => a.x - b.x);
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const curr = sorted[i];
+        if (curr.x < prev.x + prev.width - 1) {
+          overlaps.push(`${prev.personId}/${curr.personId}`);
+        }
+      }
+    }
+    expect(overlaps).toEqual([]);
+  }, 30_000);
+
   it('recovers damaged Titkovy project from local zip headers', async () => {
     if (!fs.existsSync(titkovyPath)) return;
     const bytes = new Uint8Array(fs.readFileSync(titkovyPath));

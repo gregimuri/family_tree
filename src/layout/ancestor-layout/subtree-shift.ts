@@ -203,21 +203,26 @@ function resolveOverlapBetweenUnits(
 
 /** Шаг 5: устранение наложений на слое. */
 export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): boolean {
-  const units = buildLayerUnits(ctx, layer);
-  if (units.length < 2) return false;
-
   const { pairShift, descendantShift } = shiftAmountsForLayer(ctx, layer);
   let collided = false;
 
-  for (let i = 1; i < units.length; i++) {
-    Object.assign(units[i - 1], measureUnit(ctx, units[i - 1].personIds));
-    Object.assign(units[i], measureUnit(ctx, units[i].personIds));
-    const overlap = units[i - 1].rightEdge + COUPLE_GAP_CELLS - units[i].leftEdge;
-    if (overlap <= 0.01) continue;
+  for (let pass = 0; pass < 32; pass++) {
+    const units = buildLayerUnits(ctx, layer);
+    if (units.length < 2) break;
 
-    collided = true;
-    const totalShift = Math.max(overlap, pairShift);
-    resolveOverlapBetweenUnits(ctx, units[i - 1], units[i], layer, totalShift, descendantShift);
+    let movedThisPass = false;
+    for (let i = 1; i < units.length; i++) {
+      Object.assign(units[i - 1], measureUnit(ctx, units[i - 1].personIds));
+      Object.assign(units[i], measureUnit(ctx, units[i].personIds));
+      const overlap = units[i - 1].rightEdge + COUPLE_GAP_CELLS - units[i].leftEdge;
+      if (overlap <= 0.01) continue;
+
+      movedThisPass = true;
+      collided = true;
+      const totalShift = Math.max(overlap, pairShift);
+      resolveOverlapBetweenUnits(ctx, units[i - 1], units[i], layer, totalShift, descendantShift);
+    }
+    if (!movedThisPass) break;
   }
 
   return collided;

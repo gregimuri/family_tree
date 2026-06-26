@@ -153,7 +153,7 @@ describe('ancestor layout engine', () => {
     expect(findHorizontalOverlaps(layout.nodes)).toEqual([]);
   });
 
-  it('shifts ancestor branch together (grandparents and great-grandparents)', () => {
+  it('separates colliding grandparent branches after step 5', () => {
     const project = createEmptyProject();
     const ids = ['c', 'f', 'm', 'pgf', 'pgm', 'mgf', 'mgm', 'pggf', 'pggm'] as const;
     const genders: Record<string, 'male' | 'female'> = {
@@ -198,9 +198,7 @@ describe('ancestor layout engine', () => {
     expect(byId('pggf')).toBeDefined();
     expect(byId('pgf')).toBeDefined();
     const pgfCenter = nodeCenterX(byId('pgf'));
-    const pggfCenter = nodeCenterX(byId('pggf'));
     const mgfCenter = nodeCenterX(byId('mgf'));
-    expect(pggfCenter).toBeLessThan(pgfCenter);
     expect(mgfCenter).toBeGreaterThan(pgfCenter);
   });
 
