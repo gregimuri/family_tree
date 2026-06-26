@@ -90,12 +90,9 @@ export function buildLayerUnits(ctx: LayoutContext, layer: number): LayerUnit[] 
   return units.sort((a, b) => a.leftEdge - b.leftEdge);
 }
 
-function countOnLayer(ctx: LayoutContext, layer: number): number {
-  return ctx.personsOnLayer(layer).length;
-}
-
 function shiftAmountsForLayer(ctx: LayoutContext, layer: number): { pairShift: number; descendantShift: number } {
-  const count = countOnLayer(ctx, layer);
+  const units = buildLayerUnits(ctx, layer);
+  const count = units.reduce((sum, u) => sum + u.personIds.length, 0);
   return {
     pairShift: count >= 4 ? CARD_WIDTH_CELLS : CARD_WIDTH_CELLS / 2,
     descendantShift: count >= 4 ? CARD_WIDTH_CELLS / 2 : CARD_WIDTH_CELLS / 4,

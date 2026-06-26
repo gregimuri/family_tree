@@ -1,7 +1,7 @@
 import type { LayoutNode, Project } from '../../types';
 import type { GraphResult } from '../graph-builder';
 import { LayoutContext } from './layout-context';
-import { alignCenterLayer, buildAncestry } from './build-ancestry';
+import { alignCenterLayer, alignAllParentsOverChildren, buildAncestry } from './build-ancestry';
 import { buildDescendants } from './build-descendants';
 import { layoutRemainingPersons } from './layout-collateral';
 import { resolveAllLayerCollisions } from './subtree-shift';
@@ -16,6 +16,8 @@ export function runAncestorLayout(project: Project, graph: GraphResult): LayoutN
   buildDescendants(ctx);
   layoutRemainingPersons(ctx);
 
+  // Шаги 3–4 перед финальным шагом 5 (локально, без сдвига предков).
+  alignAllParentsOverChildren(ctx);
   resolveAllLayerCollisions(ctx);
 
   const focus = ctx.getPlacement(ctx.focusPersonId);

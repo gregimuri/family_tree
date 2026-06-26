@@ -1,6 +1,6 @@
 import type { LayoutContext } from './layout-context';
 import { sortPartnersMaleLeft } from './layout-context';
-import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS } from './grid-math';
+import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS, coupleSpanCells } from './grid-math';
 import { placeCoupleAtCenter } from './layout-couple';
 import { resolveLayerCollisionStep5 } from './subtree-shift';
 
@@ -14,6 +14,17 @@ function coupleBondCenterCells(ctx: LayoutContext, partnerIds: string[]): number
   if (placed.length === 1) return placed[0].centerXCells;
   const xs = placed.map((p) => p.centerXCells);
   return (Math.min(...xs) + Math.max(...xs)) / 2;
+}
+
+function childSlotWidthCells(ctx: LayoutContext, childId: string, layer: number): number {
+  const spouses = (ctx.project.persons[childId]?.unionIds ?? [])
+    .flatMap((u) => ctx.project.unions[u]?.partnerIds ?? [])
+    .filter(
+      (id) =>
+        id !== childId && ctx.personToNode.has(id) && ctx.graphNode(id)!.layer === layer,
+    );
+  if (spouses.length > 0) return coupleSpanCells();
+  return CARD_WIDTH_CELLS;
 }
 
 /** Размещение потомков: дети под серединой брака родителей. */
@@ -35,20 +46,24 @@ export function buildDescendants(ctx: LayoutContext): void {
       );
       if (childIds.length === 0) continue;
 
-      const bondCenter = coupleBondCenterCells(ctx, visibleParents);
-      const n = childIds.length;
-      const totalSpan = n * CARD_WIDTH_CELLS + (n - 1) * SIBLING_GAP_CELLS;
-      const startCenter = bondCenter - totalSpan / 2 + CARD_WIDTH_CELLS / 2;
-
       childIds.sort((a, b) => {
         const ba = ctx.graphNode(a)?.birthOrder ?? 0;
         const bb = ctx.graphNode(b)?.birthOrder ?? 0;
         return ba - bb || a.localeCompare(b);
       });
 
+      const bondCenter = coupleBondCenterCells(ctx, visibleParents);
+      const slotWidths = childIds.map((cid) => childSlotWidthCells(ctx, cid, layer + 1));
+      const totalSpan =
+        slotWidths.reduce((sum, w) => sum + w, 0) + (childIds.length - 1) * SIBLING_GAP_CELLS;
+      let cursor = bondCenter - totalSpan / 2;
+
       for (let i = 0; i < childIds.length; i++) {
         const childId = childIds[i];
-        const cx = startCenter + i * (CARD_WIDTH_CELLS + SIBLING_GAP_CELLS);
+        const slotW = slotWidths[i];
+        const cx = cursor + slotW / 2;
+        cursor += slotW + SIBLING_GAP_CELLS;
+
         if (ctx.isPlaced(childId)) continue;
 
         const spouses = (ctx.project.persons[childId]?.unionIds ?? [])

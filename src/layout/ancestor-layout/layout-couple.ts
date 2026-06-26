@@ -1,6 +1,37 @@
 import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS, coupleSpanCells } from './grid-math';
 import { sortPartnersMaleLeft } from './layout-context';
 import type { LayoutContext } from './layout-context';
+import { findCoupleOnLayer, personHalfWidthCells } from './subtree-shift';
+
+/** Центр группы детей союза (для нескольких siblings). */
+function unionChildrenCenterCells(ctx: LayoutContext, childIds: string[]): number {
+  const xs = childIds
+    .map((id) => ctx.getPlacement(id)?.centerXCells)
+    .filter((x): x is number => x !== undefined);
+  if (xs.length === 0) return 0;
+  if (xs.length === 1) return xs[0];
+  return (Math.min(...xs) + Math.max(...xs)) / 2;
+}
+
+/** Центр группы на слое с учётом пар (для выравнивания над несколькими парами). */
+export function childGroupCenterCells(ctx: LayoutContext, childIds: string[], childLayer: number): number {
+  const assigned = new Set<string>();
+  let minLeft = Infinity;
+  let maxRight = -Infinity;
+
+  for (const cid of childIds) {
+    for (const id of findCoupleOnLayer(ctx, cid, childLayer)) {
+      if (assigned.has(id)) continue;
+      assigned.add(id);
+      const p = ctx.getPlacement(id)!;
+      minLeft = Math.min(minLeft, p.centerXCells - personHalfWidthCells(ctx, id));
+      maxRight = Math.max(maxRight, p.centerXCells + personHalfWidthCells(ctx, id));
+    }
+  }
+
+  if (!Number.isFinite(minLeft)) return 0;
+  return (minLeft + maxRight) / 2;
+}
 
 export function placeCoupleAtCenter(
   ctx: LayoutContext,
@@ -21,17 +52,28 @@ export function placeCoupleAtCenter(
 
 export function placeParentCoupleOverChild(
   ctx: LayoutContext,
-  childId: string,
+  _childId: string,
   parentUnionId: string,
 ): void {
-  const child = ctx.getPlacement(childId);
-  if (!child) return;
-  const partners = ctx.project.unions[parentUnionId]?.partnerIds.filter((id) =>
-    ctx.personToNode.has(id),
+  placeParentCoupleOverUnion(ctx, parentUnionId);
+}
+
+/** Шаги 3–4: пара родителей над центром группы детей союза. */
+export function placeParentCoupleOverUnion(ctx: LayoutContext, parentUnionId: string): void {
+  const union = ctx.project.unions[parentUnionId];
+  if (!union) return;
+
+  const visibleChildren = union.childIds.filter(
+    (id) => ctx.personToNode.has(id) && ctx.isPlaced(id),
   );
-  if (!partners || partners.length === 0) return;
-  const parentLayer = child.layer - 1;
-  const centerX = child.centerXCells;
+  if (visibleChildren.length === 0) return;
+
+  const childLayer = Math.max(...visibleChildren.map((id) => ctx.getPlacement(id)!.layer));
+  const parentLayer = childLayer - 1;
+  const partners = union.partnerIds.filter((id) => ctx.personToNode.has(id));
+  if (partners.length === 0) return;
+
+  const centerX = unionChildrenCenterCells(ctx, visibleChildren);
   if (partners.length >= 2) {
     placeCoupleAtCenter(ctx, partners, centerX, parentLayer);
   } else {

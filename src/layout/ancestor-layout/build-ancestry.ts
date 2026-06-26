@@ -3,10 +3,9 @@ import {
   mainPartnerId,
   sortPartnersMaleLeft,
   visiblePartners,
-  childCenterXCells,
 } from './layout-context';
 import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS } from './grid-math';
-import { placeCoupleAtCenter, placeParentCoupleOverChild } from './layout-couple';
+import { placeCoupleAtCenter, placeParentCoupleOverUnion, childGroupCenterCells } from './layout-couple';
 import {
   resolveLayerCollisionStep5,
   buildLayerUnits,
@@ -48,7 +47,7 @@ export function alignCenterLayer(ctx: LayoutContext): void {
 
   if (allPartners.length === 0) {
     for (const puid of ctx.project.persons[focusId]?.parentUnionIds ?? []) {
-      placeParentCoupleOverChild(ctx, focusId, puid);
+      placeParentCoupleOverUnion(ctx, puid);
     }
     return;
   }
@@ -156,7 +155,7 @@ function expandFromAnchors(ctx: LayoutContext, anchors: BranchAnchor[]): void {
       let placed = false;
       for (const puid of ctx.project.persons[personId]?.parentUnionIds ?? []) {
         if (visiblePartners(ctx, puid).length === 0) continue;
-        placeParentCoupleOverChild(ctx, personId, puid);
+        placeParentCoupleOverUnion(ctx, puid);
         placed = true;
       }
       if (!placed) break;
@@ -184,17 +183,22 @@ export function buildAncestry(ctx: LayoutContext): void {
 
   if (!mainPartnerId(ctx)) {
     for (const puid of ctx.project.persons[ctx.focusPersonId]?.parentUnionIds ?? []) {
-      placeParentCoupleOverChild(ctx, ctx.focusPersonId, puid);
+      placeParentCoupleOverUnion(ctx, puid);
     }
   }
 
   let fatherFirst = true;
   for (let layer = -1; layer >= minLayer; layer--) {
     const childLayer = layer + 1;
+    const parentUnions = new Set<string>();
     for (const placement of ctx.personsOnLayer(childLayer)) {
       for (const puid of ctx.project.persons[placement.personId]?.parentUnionIds ?? []) {
-        placeParentCoupleOverChild(ctx, placement.personId, puid);
+        parentUnions.add(puid);
       }
+    }
+
+    for (const puid of parentUnions) {
+      placeParentCoupleOverUnion(ctx, puid);
     }
 
     const targets = fatherFirst
@@ -204,7 +208,7 @@ export function buildAncestry(ctx: LayoutContext): void {
     for (const personId of targets) {
       if (!ctx.isPlaced(personId)) continue;
       for (const puid of ctx.project.persons[personId]?.parentUnionIds ?? []) {
-        placeParentCoupleOverChild(ctx, personId, puid);
+        placeParentCoupleOverUnion(ctx, puid);
       }
     }
 
@@ -233,19 +237,25 @@ export function buildAncestry(ctx: LayoutContext): void {
 export function alignAllParentsOverChildren(ctx: LayoutContext): void {
   for (const union of Object.values(ctx.project.unions)) {
     if (union.partnerIds.length === 0 || union.childIds.length === 0) continue;
-    const visibleParents = union.partnerIds.filter((id) => ctx.isPlaced(id));
     const visibleChildren = union.childIds.filter((id) => ctx.isPlaced(id));
-    if (visibleParents.length === 0 || visibleChildren.length === 0) continue;
+    if (visibleChildren.length === 0) continue;
+
+    const childLayer = Math.max(...visibleChildren.map((id) => ctx.getPlacement(id)!.layer));
+    const visibleParents = union.partnerIds.filter((id) => ctx.isPlaced(id));
+    if (visibleParents.length === 0) continue;
 
     const parentLayer = Math.min(...visibleParents.map((id) => ctx.getPlacement(id)!.layer));
-    const childLayer = Math.max(...visibleChildren.map((id) => ctx.getPlacement(id)!.layer));
     if (childLayer !== parentLayer + 1) continue;
 
-    const childCenter = childCenterXCells(ctx, visibleChildren);
+    const target =
+      visibleChildren.length === 1
+        ? ctx.getPlacement(visibleChildren[0])!.centerXCells
+        : childGroupCenterCells(ctx, visibleChildren, childLayer);
+
     if (visibleParents.length >= 2) {
-      placeCoupleAtCenter(ctx, visibleParents, childCenter, parentLayer);
+      placeCoupleAtCenter(ctx, visibleParents, target, parentLayer);
     } else {
-      ctx.placePerson(visibleParents[0], childCenter, { layer: parentLayer });
+      ctx.placePerson(visibleParents[0], target, { layer: parentLayer });
     }
   }
 }
