@@ -94,48 +94,101 @@ function childrenBelowCouple(ctx: LayoutContext, partnerIds: string[], parentLay
   return [...new Set(result)];
 }
 
-function countOnLayer(ctx: LayoutContext, layer: number): number {
-  return ctx.personsOnLayer(layer).filter((p) => !p.isSideBranch).length;
+interface LayerUnit {
+  personIds: string[];
+  leftEdge: number;
+  rightEdge: number;
 }
 
-/** Шаг 5: сдвиг правой пары и потомка на половину. */
-export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): boolean {
+function buildLayerUnits(ctx: LayoutContext, layer: number): LayerUnit[] {
   const onLayer = ctx
     .personsOnLayer(layer)
     .filter((p) => !p.isSideBranch)
     .sort((a, b) => a.centerXCells - b.centerXCells);
-  if (onLayer.length < 2) return false;
+  const assigned = new Set<string>();
+  const units: LayerUnit[] = [];
 
-  let collided = false;
+  for (const placement of onLayer) {
+    if (assigned.has(placement.personId)) continue;
+    const coupleIds = findCoupleOnLayer(ctx, placement.personId, layer);
+    coupleIds.forEach((id) => assigned.add(id));
+    const centers = coupleIds
+      .map((id) => ctx.getPlacement(id)?.centerXCells)
+      .filter((x): x is number => x !== undefined);
+    if (centers.length === 0) continue;
+    units.push({
+      personIds: coupleIds,
+      leftEdge: Math.min(...centers.map((c) => cardLeftEdge(c))),
+      rightEdge: Math.max(...centers.map((c) => cardRightEdge(c))),
+    });
+  }
+
+  return units.sort((a, b) => a.leftEdge - b.leftEdge);
+}
+
+function countOnLayer(ctx: LayoutContext, layer: number): number {
+  return ctx.personsOnLayer(layer).filter((p) => !p.isSideBranch).length;
+}
+
+function shiftUnitAndDescendants(
+  ctx: LayoutContext,
+  unit: LayerUnit,
+  layer: number,
+  shift: number,
+  descendantShift: number,
+): void {
+  shiftPersons(ctx, unit.personIds, shift);
+
+  const descendantIds = new Set<string>();
+  for (const cid of childrenBelowCouple(ctx, unit.personIds, layer)) {
+    collectDescendantSubtree(ctx, cid).forEach((id) => descendantIds.add(id));
+    collectTowardCenterSubtree(ctx, cid).forEach((id) => descendantIds.add(id));
+  }
+  for (const pid of unit.personIds) {
+    collectTowardCenterSubtree(ctx, pid).forEach((id) => descendantIds.add(id));
+  }
+  unit.personIds.forEach((id) => descendantIds.delete(id));
+  shiftPersons(ctx, descendantIds, descendantShift);
+}
+
+/** Шаг 5: сдвиг правой пары и потомка на половину. */
+export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): boolean {
+  const units = buildLayerUnits(ctx, layer);
+  if (units.length < 2) return false;
+
   const count = countOnLayer(ctx, layer);
   const pairShift = count >= 4 ? CARD_WIDTH_CELLS : CARD_WIDTH_CELLS / 2;
   const descendantShift = count >= 4 ? CARD_WIDTH_CELLS / 2 : CARD_WIDTH_CELLS / 4;
 
-  for (let i = 1; i < onLayer.length; i++) {
-    const prev = onLayer[i - 1];
-    const curr = onLayer[i];
-    const overlap =
-      cardRightEdge(prev.centerXCells) + COUPLE_GAP_CELLS - cardLeftEdge(curr.centerXCells);
+  let collided = false;
+  for (let i = 1; i < units.length; i++) {
+    const prev = units[i - 1];
+    const curr = units[i];
+    const overlap = prev.rightEdge + COUPLE_GAP_CELLS - curr.leftEdge;
     if (overlap <= 0.01) continue;
 
     collided = true;
     const shift = Math.max(overlap, pairShift);
-    const rightIds = findCoupleOnLayer(ctx, curr.personId, layer);
-    shiftPersons(ctx, rightIds, shift);
-
-    const descendantIds = new Set<string>();
-    for (const cid of childrenBelowCouple(ctx, rightIds, layer)) {
-      collectDescendantSubtree(ctx, cid).forEach((id) => descendantIds.add(id));
-      collectTowardCenterSubtree(ctx, cid).forEach((id) => descendantIds.add(id));
-    }
-    for (const pid of rightIds) {
-      collectTowardCenterSubtree(ctx, pid).forEach((id) => descendantIds.add(id));
-    }
-    rightIds.forEach((id) => descendantIds.delete(id));
-    shiftPersons(ctx, descendantIds, descendantShift);
+    shiftUnitAndDescendants(ctx, curr, layer, shift, descendantShift);
+    curr.leftEdge += shift;
+    curr.rightEdge += shift;
   }
 
   return collided;
+}
+
+/** Итеративно устраняет наложения на всех слоях (шаг 5). */
+export function resolveAllLayerCollisions(ctx: LayoutContext, maxRounds = 32): void {
+  const layers = [...new Set([...ctx.placements.values()].map((p) => p.layer))].sort(
+    (a, b) => a - b,
+  );
+  for (let round = 0; round < maxRounds; round++) {
+    let any = false;
+    for (const layer of layers) {
+      if (resolveLayerCollisionStep5(ctx, layer)) any = true;
+    }
+    if (!any) break;
+  }
 }
 
 export function centerLineageAncestorsOverFocus(ctx: LayoutContext): void {

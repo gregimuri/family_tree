@@ -6,7 +6,7 @@ import { buildDescendants } from './build-descendants';
 import { layoutRemainingPersons } from './layout-collateral';
 import {
   centerLineageAncestorsOverFocus,
-  resolveLayerCollisionStep5,
+  resolveAllLayerCollisions,
 } from './subtree-shift';
 import { expandToLayoutNodes } from './expand-to-nodes';
 
@@ -21,17 +21,9 @@ export function runAncestorLayout(project: Project, graph: GraphResult): LayoutN
   alignAllParentsOverChildren(ctx);
   centerLineageAncestorsOverFocus(ctx);
 
-  const layers = [...new Set([...ctx.placements.values()].map((p) => p.layer))].sort(
-    (a, b) => a - b,
-  );
-  for (const layer of layers) {
-    for (let round = 0; round < 4; round++) {
-      if (!resolveLayerCollisionStep5(ctx, layer)) break;
-    }
-  }
-
-  alignAllParentsOverChildren(ctx);
-  centerLineageAncestorsOverFocus(ctx);
+  // Шаг 5: после выравнивания — сдвиг наложившихся пар; повторное центрирование
+  // родителей отменило бы эти сдвиги, поэтому выравнивание выше — финальное.
+  resolveAllLayerCollisions(ctx);
 
   const focus = ctx.getPlacement(ctx.focusPersonId);
   if (focus && Math.abs(focus.centerXCells) > 0.01) {
