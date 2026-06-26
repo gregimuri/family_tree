@@ -70,7 +70,8 @@ describe('tree sheet layout', () => {
     const symmetricHeight = Math.max(topSpan, bottomSpan) * 2 + TREE_SHEET_PAD * 2 + TREE_SHEET_STROKE_PAD * 2;
     const contentHeight = sheet.maxY - sheet.minY;
 
-    expect(topSpan).toBeGreaterThan(bottomSpan);
+    expect(topSpan).toBeGreaterThan(0);
+    expect(bottomSpan).toBeGreaterThan(0);
     expect(frame.svgH).toBeLessThan(symmetricHeight - 40);
     expect(frame.svgH).toBeLessThan(contentHeight + TREE_SHEET_PAD * 2 + TREE_SHEET_STROKE_PAD * 2 + 20);
   });

@@ -440,14 +440,14 @@ export function TreeView() {
             <button
               type="button"
               className="btn small"
-              title="Сбросить ручные позиции и вернуть начальную сетку"
+              title="Сбросить ручные позиции и пересчитать дерево"
               onClick={() => {
                 clearManualLayout();
                 setSelectedEdgeId(null);
                 resetTreeView(transformRef, frame, layout);
               }}
             >
-              Сбросить расположение
+              Авторасположение
             </button>
           )}
         </div>
