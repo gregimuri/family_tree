@@ -6,6 +6,7 @@ import { layoutAncestorsUp } from './layout-ancestors-up';
 import { layoutAncestorsComplete } from './layout-ancestors-complete';
 import { layoutDescendants } from './layout-descendants';
 import { layoutCollateral, finalizeLayout, alignAllParentsOverChildren, centerAncestorLayersOverFocus, repositionCollateralSiblings } from './layout-collateral';
+import { alignAllPersonsAfterLayout } from './align-persons-after-layout';
 import { resolveLayerOverlapAfterExpand } from './subtree-shift';
 import { expandToLayoutNodes } from './expand-to-nodes';
 
@@ -57,6 +58,7 @@ export function runCenterOutLayout(project: Project, graph: GraphResult): Layout
   layoutDescendants(ctx);
   layoutCollateral(ctx);
   finalizeLayout(ctx);
+  alignAllPersonsAfterLayout(ctx);
   centerAncestorLayersOverFocus(ctx);
   repositionCollateralSiblings(ctx);
 
@@ -70,6 +72,8 @@ export function runCenterOutLayout(project: Project, graph: GraphResult): Layout
       ctx.personsOnLayer(layer).map((p) => p.personId),
     );
   }
+
+  centerAncestorLayersOverFocus(ctx);
 
   anchorFocusToZero(ctx);
 

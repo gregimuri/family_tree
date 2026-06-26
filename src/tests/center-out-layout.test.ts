@@ -93,6 +93,42 @@ describe('center-out layout engine', () => {
     expect(byPerson.has('mgm')).toBe(true);
   });
 
+  it('post-pass aligns grandparents over father line', () => {
+    const project = createEmptyProject();
+    const ids = ['c', 'f', 'm', 'pgf', 'pgm'] as const;
+    const genders: Record<string, 'male' | 'female'> = {
+      c: 'male',
+      f: 'male',
+      m: 'female',
+      pgf: 'male',
+      pgm: 'female',
+    };
+    for (const id of ids) {
+      project.persons[id] = createEmptyPerson({ id, gender: genders[id], givenName: id });
+    }
+    project.unions = {
+      fc: { id: 'fc', partnerIds: ['f', 'm'], childIds: ['c'] },
+      ff: { id: 'ff', partnerIds: ['pgf', 'pgm'], childIds: ['f'] },
+    };
+    project.persons.c.parentUnionIds = ['fc'];
+    project.persons.f.parentUnionIds = ['ff'];
+    project.persons.f.unionIds = ['fc'];
+    project.persons.m.unionIds = ['fc'];
+    project.persons.pgf.unionIds = ['ff'];
+    project.persons.pgm.unionIds = ['ff'];
+    project.center = { type: 'person', id: 'c' };
+    project.viewSettings = { ...project.viewSettings, generationsUp: 2, generationsDown: 0 };
+
+    const layout = buildLayout(project);
+    const byPerson = new Map(layout.nodes.filter((n) => n.personId).map((n) => [n.personId!, n]));
+    const pgf = byPerson.get('pgf')!;
+    const pgm = byPerson.get('pgm')!;
+    const f = byPerson.get('f')!;
+    const gpCenter = (nodeCenterX(pgf) + nodeCenterX(pgm)) / 2;
+    expect(Math.abs(gpCenter - nodeCenterX(f))).toBeLessThan(COUPLE_GAP + 10);
+    expect(findHorizontalOverlap(layout.nodes)).toBeNull();
+  });
+
   it('couple gap equals 2 grid cells', () => {
     const project = createEmptyProject();
     const father = createEmptyPerson({ id: 'f', gender: 'male', givenName: 'F' });
