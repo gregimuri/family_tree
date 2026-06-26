@@ -204,6 +204,80 @@ describe('ancestor layout engine', () => {
     expect(mgfCenter).toBeGreaterThan(pgfCenter);
   });
 
+  it('resolves overlapping cousin couples on descendant layer (step 5)', () => {
+    const project = createEmptyProject();
+    const ids = [
+      'c',
+      'f',
+      'm',
+      'pgf',
+      'pgm',
+      'mgf',
+      'mgm',
+      'pgf2',
+      'pgm2',
+      'mgf2',
+      'mgm2',
+      'ch1',
+      'sp1',
+      'ch2',
+      'sp2',
+    ] as const;
+    const genders: Record<string, 'male' | 'female'> = {
+      c: 'male',
+      f: 'male',
+      m: 'female',
+      pgf: 'male',
+      pgm: 'female',
+      mgf: 'male',
+      mgm: 'female',
+      pgf2: 'male',
+      pgm2: 'female',
+      mgf2: 'male',
+      mgm2: 'female',
+      ch1: 'male',
+      sp1: 'female',
+      ch2: 'male',
+      sp2: 'female',
+    };
+    for (const id of ids) {
+      project.persons[id] = createEmptyPerson({ id, gender: genders[id], givenName: id });
+    }
+    project.unions = {
+      fc: { id: 'fc', partnerIds: ['f', 'm'], childIds: ['c'] },
+      ff: { id: 'ff', partnerIds: ['pgf', 'pgm'], childIds: ['f'] },
+      fm: { id: 'fm', partnerIds: ['mgf', 'mgm'], childIds: ['m'] },
+      f2: { id: 'f2', partnerIds: ['pgf2', 'pgm2'], childIds: ['ch1'] },
+      f3: { id: 'f3', partnerIds: ['mgf2', 'mgm2'], childIds: ['ch2'] },
+      u1: { id: 'u1', partnerIds: ['ch1', 'sp1'], childIds: [] },
+      u2: { id: 'u2', partnerIds: ['ch2', 'sp2'], childIds: [] },
+    };
+    project.persons.c.parentUnionIds = ['fc'];
+    project.persons.f.parentUnionIds = ['ff'];
+    project.persons.m.parentUnionIds = ['fm'];
+    project.persons.ch1.parentUnionIds = ['f2'];
+    project.persons.ch2.parentUnionIds = ['f3'];
+    project.persons.f.unionIds = ['fc'];
+    project.persons.m.unionIds = ['fc'];
+    project.persons.pgf.unionIds = ['ff'];
+    project.persons.pgm.unionIds = ['ff'];
+    project.persons.mgf.unionIds = ['fm'];
+    project.persons.mgm.unionIds = ['fm'];
+    project.persons.pgf2.unionIds = ['f2'];
+    project.persons.pgm2.unionIds = ['f2'];
+    project.persons.mgf2.unionIds = ['f3'];
+    project.persons.mgm2.unionIds = ['f3'];
+    project.persons.ch1.unionIds = ['u1'];
+    project.persons.sp1.unionIds = ['u1'];
+    project.persons.ch2.unionIds = ['u2'];
+    project.persons.sp2.unionIds = ['u2'];
+    project.center = { type: 'person', id: 'c' };
+    project.viewSettings = { ...project.viewSettings, generationsUp: 2, generationsDown: 1 };
+
+    const layout = buildLayout(project);
+    expect(findHorizontalOverlaps(layout.nodes)).toEqual([]);
+  });
+
   it('centers children under parent marriage bond after collision shift', () => {
     const project = createEmptyProject();
     const ids = ['c', 'f', 'm', 'pgf', 'pgm', 'mgf', 'mgm'] as const;

@@ -187,27 +187,18 @@ export function shiftUnitAndBranch(
 }
 
 /**
- * Шаг 5 (документ): сдвинуть правую пару вправо; потомок с семьёй — на половину.
- * При коллизии у центра — симметрично: левая ветка влево, правая вправо.
+ * Шаг 5 (документ): сдвинуть правую пару вправо; потомок с семьёй — на фиксированную
+ * половину/четверть карточки (зависит от числа персон на слое), не симметрично.
  */
 function resolveOverlapBetweenUnits(
   ctx: LayoutContext,
-  left: LayerUnit,
+  _left: LayerUnit,
   right: LayerUnit,
   layer: number,
   totalShift: number,
+  descendantShift: number,
 ): void {
-  const descendantDelta = totalShift / 2;
-  const focus = ctx.getPlacement(ctx.focusPersonId);
-  const rowCenter = focus?.layer === layer ? focus.centerXCells : 0;
-  const boundary = (left.centerX + right.centerX) / 2;
-
-  if (boundary <= rowCenter + 0.01 && right.centerX >= rowCenter - 0.01) {
-    shiftUnitAndBranch(ctx, left, layer, -totalShift / 2, -descendantDelta / 2);
-    shiftUnitAndBranch(ctx, right, layer, totalShift / 2, descendantDelta / 2);
-  } else {
-    shiftUnitAndBranch(ctx, right, layer, totalShift, descendantDelta);
-  }
+  shiftUnitAndBranch(ctx, right, layer, totalShift, descendantShift);
 }
 
 /** Шаг 5: устранение наложений на слое. */
@@ -215,7 +206,7 @@ export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): b
   const units = buildLayerUnits(ctx, layer);
   if (units.length < 2) return false;
 
-  const { pairShift } = shiftAmountsForLayer(ctx, layer);
+  const { pairShift, descendantShift } = shiftAmountsForLayer(ctx, layer);
   let collided = false;
 
   for (let i = 1; i < units.length; i++) {
@@ -226,7 +217,7 @@ export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): b
 
     collided = true;
     const totalShift = Math.max(overlap, pairShift);
-    resolveOverlapBetweenUnits(ctx, units[i - 1], units[i], layer, totalShift);
+    resolveOverlapBetweenUnits(ctx, units[i - 1], units[i], layer, totalShift, descendantShift);
   }
 
   return collided;
@@ -285,29 +276,9 @@ export function centerLineageAncestorsOverFocus(ctx: LayoutContext): void {
   }
 }
 
-/** Точное симметричное разведение без минимального шага (мелкие зазоры). */
+/** @deprecated Использовать resolveAllLayerCollisions (шаг 5). */
 export function resolveMicroOverlaps(ctx: LayoutContext, maxRounds = 32): void {
-  const layers = [...new Set([...ctx.placements.values()].map((p) => p.layer))].sort(
-    (a, b) => a - b,
-  );
-
-  for (let round = 0; round < maxRounds; round++) {
-    let any = false;
-    for (const layer of layers) {
-      const units = buildLayerUnits(ctx, layer);
-      for (let i = 1; i < units.length; i++) {
-        Object.assign(units[i - 1], measureUnit(ctx, units[i - 1].personIds));
-        Object.assign(units[i], measureUnit(ctx, units[i].personIds));
-        const overlap = units[i - 1].rightEdge + COUPLE_GAP_CELLS - units[i].leftEdge;
-        if (overlap <= 0.01) continue;
-        any = true;
-        const half = overlap / 2;
-        shiftUnitAndBranch(ctx, units[i - 1], layer, -half, -half / 2);
-        shiftUnitAndBranch(ctx, units[i], layer, half, half / 2);
-      }
-    }
-    if (!any) break;
-  }
+  resolveAllLayerCollisions(ctx, maxRounds);
 }
 
 /** @deprecated */

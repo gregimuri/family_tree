@@ -2,6 +2,7 @@ import type { LayoutContext } from './layout-context';
 import { childCenterXCells, sortPartnersMaleLeft } from './layout-context';
 import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS } from './grid-math';
 import { placeCoupleAtCenter } from './layout-couple';
+import { resolveLayerCollisionStep5 } from './subtree-shift';
 
 const SIBLING_GAP_CELLS = COUPLE_GAP_CELLS;
 
@@ -70,6 +71,10 @@ export function buildDescendants(ctx: LayoutContext): void {
           ctx.placePerson(childId, cx, { layer: layer + 1 });
         }
       }
+    }
+
+    for (let round = 0; round < 6; round++) {
+      if (!resolveLayerCollisionStep5(ctx, layer + 1)) break;
     }
   }
 

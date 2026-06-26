@@ -10,6 +10,8 @@ import { placeCoupleAtCenter, placeParentCoupleOverChild } from './layout-couple
 import {
   centerLineageAncestorsOverFocus,
   resolveLayerCollisionStep5,
+  buildLayerUnits,
+  measureUnit,
 } from './subtree-shift';
 import type { Union } from '../../types';
 
@@ -135,18 +137,15 @@ interface BranchAnchor {
 }
 
 function findCollisionAnchors(ctx: LayoutContext, layer: number): BranchAnchor[] {
-  const onLayer = ctx.personsOnLayer(layer).sort((a, b) => a.centerXCells - b.centerXCells);
+  const units = buildLayerUnits(ctx, layer);
   const anchors: BranchAnchor[] = [];
-  for (let i = 1; i < onLayer.length; i++) {
-    const prev = onLayer[i - 1];
-    const curr = onLayer[i];
-    if (
-      prev.centerXCells + CARD_WIDTH_CELLS + COUPLE_GAP_CELLS / 2 >
-      curr.centerXCells - CARD_WIDTH_CELLS / 2
-    ) {
-      anchors.push({ personId: prev.personId, direction: 'left' });
-      anchors.push({ personId: curr.personId, direction: 'right' });
-    }
+  for (let i = 1; i < units.length; i++) {
+    Object.assign(units[i - 1], measureUnit(ctx, units[i - 1].personIds));
+    Object.assign(units[i], measureUnit(ctx, units[i].personIds));
+    const overlap = units[i - 1].rightEdge + COUPLE_GAP_CELLS - units[i].leftEdge;
+    if (overlap <= 0.01) continue;
+    anchors.push({ personId: units[i - 1].personIds[0], direction: 'left' });
+    anchors.push({ personId: units[i].personIds[0], direction: 'right' });
   }
   return anchors;
 }
