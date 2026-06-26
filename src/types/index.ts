@@ -147,10 +147,6 @@ export interface ViewSettings {
   cardFields: CardFieldSettings;
   /** Загружать медиа по http(s) URL из GEDCOM и проектов (по умолчанию выкл.) */
   allowExternalMedia?: boolean;
-  /** Умная раскладка LayoutNet (refiner + модель). */
-  smartLayoutEnabled?: boolean;
-  /** Движок автораскладки: center-out (от центра), family или legacy. */
-  layoutEngine?: 'center-out' | 'family' | 'legacy';
 }
 
 export interface ProjectCenter {

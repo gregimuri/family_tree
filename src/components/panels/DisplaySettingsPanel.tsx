@@ -114,15 +114,6 @@ export function DisplaySettingsPanel() {
         <label className="checkbox-label">
           <input
             type="checkbox"
-            checked={s.smartLayoutEnabled !== false}
-            onChange={(e) => update({ smartLayoutEnabled: e.target.checked })}
-          />
-          Умная раскладка (LayoutNet)
-          <small className="hint">Автоматически убирает нахлёсты и выравнивает карточки</small>
-        </label>
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
             checked={!!s.allowExternalMedia}
             onChange={(e) => update({ allowExternalMedia: e.target.checked })}
           />

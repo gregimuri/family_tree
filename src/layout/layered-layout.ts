@@ -1,25 +1,18 @@
 import type { LayoutEdge, LayoutNode, LayoutResult, Project } from '../types';
 import type { GraphNode, GraphResult } from './graph-builder';
+import { COUPLE_GAP, LAYER_GAP, getCardScale } from './graph-builder';
 import { getCardDimensions } from './card-dimensions';
 import { getTreeSheetBounds } from './content-bounds';
 import { computeBounds } from './layout-bounds';
-import { LAYER_GAP, getCardScale } from './graph-builder';
 import { getCenterFocusPoint } from './center-focus';
-import {
-  computeNuclearLayoutNodes,
-  mergeNuclearAndPedigreeNodes,
-} from './nuclear-tree-adapter';
-import { reconcileMergedLayout, stabilizeFamilyLayout, restoreCrossUnionParentAlignment, resolveCompactLayoutOverlaps, alignAncestryRowOverMainCouple } from './merge-layout';
-import { findLayerHorizontalOverlap } from './layout-zones';
-import { enforcePedigreeLayerY } from './layout-grid';
-import { refineLayoutSync } from './layout-refiner';
 import { routeCoupleBond, bondEdgeId } from './edge-router';
 import { pickPartnersForUnion, buildPedigreeEdges } from './pedigree-edges';
-import { nodeSize, runPedigreeLayout } from './pedigree-layout';
-import { runFamilyLayout } from './family-layout';
-import { runCenterOutLayout } from './center-out-layout';
 
 type GraphPersonNode = Extract<GraphNode, { kind: 'person' }>;
+
+function graphPersonNodes(graph: GraphResult): GraphPersonNode[] {
+  return graph.nodes.filter((n): n is GraphPersonNode => n.kind === 'person');
+}
 
 function normalizeLayoutToFocus(
   project: Project,
@@ -113,42 +106,53 @@ export function buildLayoutEdges(
 
 export { computeBounds } from './layout-bounds';
 
-function computePedigreeLayout(graph: GraphResult, project: Project): LayoutResult {
+/** Начальные координаты: один ряд на слой, слева направо, ряд по центру x=0. */
+function buildDefaultLayoutNodes(project: Project, graph: GraphResult): LayoutNode[] {
   const settings = project.viewSettings;
-  const layers = new Map<number, GraphNode[]>();
-  const nodeById = new Map<string, GraphPersonNode>();
+  const byLayer = new Map<number, GraphPersonNode[]>();
 
-  for (const node of graph.nodes) {
-    const list = layers.get(node.layer) ?? [];
+  for (const node of graphPersonNodes(graph)) {
+    const list = byLayer.get(node.layer) ?? [];
     list.push(node);
-    layers.set(node.layer, list);
-    if (node.kind === 'person') nodeById.set(node.id, node);
+    byLayer.set(node.layer, list);
   }
 
-  const positions = new Map<string, number>();
-  const sortedLayers = [...layers.keys()].sort((a, b) => a - b);
+  const nodes: LayoutNode[] = [];
 
-  runPedigreeLayout(layers, sortedLayers, graph, nodeById, positions, project);
+  for (const layer of [...byLayer.keys()].sort((a, b) => a - b)) {
+    const row = byLayer.get(layer)!;
+    row.sort(
+      (a, b) =>
+        (a.birthOrder ?? 0) - (b.birthOrder ?? 0) ||
+        a.personId.localeCompare(b.personId),
+    );
 
-  const layoutNodes: LayoutNode[] = [];
-  for (const layer of sortedLayers) {
-    const layerNodes = layers.get(layer)!;
-    for (const node of layerNodes) {
-      if (node.kind !== 'person') continue;
-      const scale = getCardScale(node.layer, node.isSideBranch, node.branchDepth, settings.cardSizeMode);
+    const sizes = row.map((node) => {
+      const scale = getCardScale(
+        node.layer,
+        node.isSideBranch,
+        node.branchDepth,
+        settings.cardSizeMode,
+      );
       const person = project.persons[node.personId];
       const { w, h } = person
         ? getCardDimensions(project, person, settings, scale)
-        : nodeSize(scale);
-      const px = positions.get(node.id) ?? 0;
-      const py = layer * LAYER_GAP;
+        : { w: 120 * scale, h: 110 * scale };
+      return { node, scale, w, h };
+    });
 
-      layoutNodes.push({
+    const rowWidth =
+      sizes.reduce((sum, s) => sum + s.w, 0) + Math.max(0, sizes.length - 1) * COUPLE_GAP;
+    let x = -rowWidth / 2;
+    const centerY = layer * LAYER_GAP;
+
+    for (const { node, scale, w, h } of sizes) {
+      nodes.push({
         id: node.id,
         kind: 'person',
         layer: node.layer,
-        x: px - w / 2,
-        y: py - h / 2,
+        x,
+        y: centerY - h / 2,
         width: w,
         height: h,
         scale,
@@ -156,86 +160,19 @@ function computePedigreeLayout(graph: GraphResult, project: Project): LayoutResu
         personId: node.personId,
         unionId: node.unionId,
       });
+      x += w + COUPLE_GAP;
     }
   }
 
-  return {
-    nodes: layoutNodes,
-    edges: buildLayoutEdges(project, layoutNodes, graph),
-    bounds: computeBounds(layoutNodes),
-  };
+  return nodes;
 }
 
-export function computeLayout(
-  graph: GraphResult,
-  project: Project,
-): LayoutResult {
-  const layoutEngine = project.viewSettings.layoutEngine ?? 'center-out';
-
-  if (layoutEngine === 'center-out') {
-    const mergedNodes = runCenterOutLayout(project, graph);
-    enforcePedigreeLayerY(mergedNodes, LAYER_GAP);
-
-    const layout: LayoutResult = {
-      nodes: mergedNodes,
-      edges: buildLayoutEdges(project, mergedNodes, graph),
-      bounds: computeBounds(mergedNodes),
-    };
-    return normalizeLayoutToFocus(project, layout, graph);
-  }
-
-  if (layoutEngine === 'family') {
-    const mergedNodes = runFamilyLayout(project, graph);
-    const pinnedPersonIds = new Set(Object.keys(project.manualLayout ?? {}));
-    const compactFamilyPost =
-      !project.viewSettings.showAllPersons || mergedNodes.length <= 30;
-
-    if (compactFamilyPost) {
-      restoreCrossUnionParentAlignment(mergedNodes, project, graph);
-      for (let pass = 0; pass < 6; pass++) {
-        if (!findLayerHorizontalOverlap(mergedNodes, 2)) break;
-        resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
-      }
-      alignAncestryRowOverMainCouple(mergedNodes, graph, project);
-      for (let pass = 0; pass < 6; pass++) {
-        if (!findLayerHorizontalOverlap(mergedNodes, 1)) break;
-        resolveCompactLayoutOverlaps(mergedNodes, graph, pinnedPersonIds);
-      }
-    } else {
-      alignAncestryRowOverMainCouple(mergedNodes, graph, project);
-    }
-    enforcePedigreeLayerY(mergedNodes, LAYER_GAP);
-
-    if (project.viewSettings.smartLayoutEnabled !== false && mergedNodes.length <= 50) {
-      refineLayoutSync(mergedNodes, graph, project, { pinnedPersonIds });
-      restoreCrossUnionParentAlignment(mergedNodes, project, graph);
-      stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds, { mode: 'compact' });
-    }
-
-    const layout: LayoutResult = {
-      nodes: mergedNodes,
-      edges: buildLayoutEdges(project, mergedNodes, graph),
-      bounds: computeBounds(mergedNodes),
-    };
-    return normalizeLayoutToFocus(project, layout, graph);
-  }
-
-  const pedigree = computePedigreeLayout(graph, project);
-  const nuclearNodes = computeNuclearLayoutNodes(project, graph);
-  const mergedNodes = mergeNuclearAndPedigreeNodes(nuclearNodes, pedigree.nodes, graph);
-  reconcileMergedLayout(mergedNodes, graph, project);
-
-  const pinnedPersonIds = new Set(Object.keys(project.manualLayout ?? {}));
-  if (project.viewSettings.smartLayoutEnabled !== false) {
-    refineLayoutSync(mergedNodes, graph, project, { pinnedPersonIds });
-  }
-  stabilizeFamilyLayout(mergedNodes, graph, project, pinnedPersonIds);
-
+export function computeLayout(graph: GraphResult, project: Project): LayoutResult {
+  const nodes = buildDefaultLayoutNodes(project, graph);
   const layout: LayoutResult = {
-    nodes: mergedNodes,
-    edges: buildLayoutEdges(project, mergedNodes, graph),
-    bounds: computeBounds(mergedNodes),
+    nodes,
+    edges: buildLayoutEdges(project, nodes, graph),
+    bounds: computeBounds(nodes),
   };
-
   return normalizeLayoutToFocus(project, layout, graph);
 }

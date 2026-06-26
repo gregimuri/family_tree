@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { buildLayout } from '../../layout';
@@ -26,7 +26,6 @@ import { MediaViewer } from '../media/MediaViewer';
 import { Icons } from '../ui/Icons';
 import './TreeView.css';
 import { snapCardCenterToGridCorners } from '../../layout/card-dimensions';
-import { preloadLayoutNet } from '../../layout/layout-net';
 import { normalizeRect, rectsIntersect, isMarqueePointerTarget, applyMarqueeSelection } from './layout-selection-utils';
 import type { LayoutNode } from '../../types';
 import type { ProjectSnapshot } from '../../store/project-history';
@@ -83,10 +82,6 @@ export function TreeView() {
   const marqueePointerIdRef = useRef<number | null>(null);
   const marqueeAdditiveRef = useRef(false);
   const ignoreNextBackgroundClickRef = useRef(false);
-
-  useEffect(() => {
-    preloadLayoutNet();
-  }, []);
 
   const treeLayout = useMemo(() => {
     if (!project) return null;
@@ -445,14 +440,14 @@ export function TreeView() {
             <button
               type="button"
               className="btn small"
-              title="Сбросить ручные позиции и пересчитать дерево"
+              title="Сбросить ручные позиции и вернуть начальную сетку"
               onClick={() => {
                 clearManualLayout();
                 setSelectedEdgeId(null);
                 resetTreeView(transformRef, frame, layout);
               }}
             >
-              Авторасположение
+              Сбросить расположение
             </button>
           )}
         </div>

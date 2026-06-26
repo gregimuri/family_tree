@@ -8,8 +8,6 @@ export function validateViewSettings(settings: ViewSettings): ViewSettings {
   if (next.sideBranchDepth < 0) next.sideBranchDepth = 0;
   if (next.showAllPersons === undefined) next.showAllPersons = false;
   if (next.allowExternalMedia === undefined) next.allowExternalMedia = false;
-  if (next.smartLayoutEnabled === undefined) next.smartLayoutEnabled = true;
-  if (next.layoutEngine === undefined) next.layoutEngine = 'center-out';
   next.cardFields = normalizeCardFields(next.cardFields);
   return next;
 }
