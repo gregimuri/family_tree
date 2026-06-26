@@ -2,7 +2,7 @@ import type { LayoutContext } from './layout-context';
 import { getCardScale } from '../graph-builder';
 import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS, cardHalfWidthCells } from './grid-math';
 
-function personHalfWidthCells(ctx: LayoutContext, personId: string): number {
+export function personHalfWidthCells(ctx: LayoutContext, personId: string): number {
   const p = ctx.getPlacement(personId);
   const gn = ctx.graphNode(personId);
   if (!p || !gn) return CARD_WIDTH_CELLS / 2;
@@ -23,7 +23,7 @@ export function shiftPersons(ctx: LayoutContext, personIds: Iterable<string>, de
   }
 }
 
-function findCoupleOnLayer(ctx: LayoutContext, personId: string, layer: number): string[] {
+export function findCoupleOnLayer(ctx: LayoutContext, personId: string, layer: number): string[] {
   for (const uid of ctx.project.persons[personId]?.unionIds ?? []) {
     const partners = ctx.project.unions[uid]?.partnerIds.filter(
       (id) => ctx.getPlacement(id)?.layer === layer && ctx.personToNode.has(id),
@@ -54,14 +54,17 @@ function childrenBelowUnit(ctx: LayoutContext, partnerIds: string[], parentLayer
   return [...new Set(result)];
 }
 
-interface LayerUnit {
+export interface LayerUnit {
   personIds: string[];
   leftEdge: number;
   rightEdge: number;
   centerX: number;
 }
 
-function measureUnit(ctx: LayoutContext, personIds: string[]): Pick<LayerUnit, 'leftEdge' | 'rightEdge' | 'centerX'> {
+export function measureUnit(
+  ctx: LayoutContext,
+  personIds: string[],
+): Pick<LayerUnit, 'leftEdge' | 'rightEdge' | 'centerX'> {
   const leftEdge = Math.min(
     ...personIds.map((id) => ctx.getPlacement(id)!.centerXCells - personHalfWidthCells(ctx, id)),
   );
@@ -71,7 +74,7 @@ function measureUnit(ctx: LayoutContext, personIds: string[]): Pick<LayerUnit, '
   return { leftEdge, rightEdge, centerX: (leftEdge + rightEdge) / 2 };
 }
 
-function buildLayerUnits(ctx: LayoutContext, layer: number): LayerUnit[] {
+export function buildLayerUnits(ctx: LayoutContext, layer: number): LayerUnit[] {
   const onLayer = ctx.personsOnLayer(layer).sort((a, b) => a.centerXCells - b.centerXCells);
   const assigned = new Set<string>();
   const units: LayerUnit[] = [];
@@ -99,7 +102,6 @@ function shiftAmountsForLayer(ctx: LayoutContext, layer: number): { pairShift: n
   };
 }
 
-/** Предки вверх (пары целиком). */
 function collectBranchAboveUnit(ctx: LayoutContext, unit: LayerUnit, layer: number): Set<string> {
   const result = new Set<string>();
   const queue = [...unit.personIds];
@@ -125,9 +127,6 @@ function collectBranchAboveUnit(ctx: LayoutContext, unit: LayerUnit, layer: numb
   return result;
 }
 
-/**
- * Потомки вниз: ребёнок пары + его супруг на слое + дети (шаг 5 документа).
- */
 function collectBranchBelowUnit(ctx: LayoutContext, unit: LayerUnit, layer: number): Set<string> {
   const result = new Set<string>();
   const seen = new Set<string>();
@@ -135,8 +134,7 @@ function collectBranchBelowUnit(ctx: LayoutContext, unit: LayerUnit, layer: numb
 
   for (const cid of childrenBelowUnit(ctx, unit.personIds, layer)) {
     const childLayer = layer + 1;
-    const couple = findCoupleOnLayer(ctx, cid, childLayer);
-    for (const id of couple) {
+    for (const id of findCoupleOnLayer(ctx, cid, childLayer)) {
       if (!seen.has(id)) {
         seen.add(id);
         result.add(id);
@@ -155,8 +153,7 @@ function collectBranchBelowUnit(ctx: LayoutContext, unit: LayerUnit, layer: numb
         if (!ctx.isPlaced(cid)) continue;
         const cp = ctx.getPlacement(cid)!;
         if (cp.layer <= layer) continue;
-        const couple = findCoupleOnLayer(ctx, cid, cp.layer);
-        for (const id of couple) {
+        for (const id of findCoupleOnLayer(ctx, cid, cp.layer)) {
           if (!seen.has(id)) {
             seen.add(id);
             result.add(id);
@@ -171,7 +168,7 @@ function collectBranchBelowUnit(ctx: LayoutContext, unit: LayerUnit, layer: numb
   return result;
 }
 
-function shiftUnitAndBranch(
+export function shiftUnitAndBranch(
   ctx: LayoutContext,
   unit: LayerUnit,
   layer: number,
@@ -189,22 +186,31 @@ function shiftUnitAndBranch(
   shiftPersons(ctx, descendants, descendantDelta);
 }
 
-function splitUnitsSymmetrically(
+/**
+ * Шаг 5 (документ): сдвинуть правую пару вправо; потомок с семьёй — на половину.
+ * При коллизии у центра — симметрично: левая ветка влево, правая вправо.
+ */
+function resolveOverlapBetweenUnits(
   ctx: LayoutContext,
   left: LayerUnit,
   right: LayerUnit,
   layer: number,
   totalShift: number,
 ): void {
-  const { descendantShift } = shiftAmountsForLayer(ctx, layer);
-  const halfPair = totalShift / 2;
-  const halfDescendant = descendantShift / 2;
+  const descendantDelta = totalShift / 2;
+  const focus = ctx.getPlacement(ctx.focusPersonId);
+  const rowCenter = focus?.layer === layer ? focus.centerXCells : 0;
+  const boundary = (left.centerX + right.centerX) / 2;
 
-  shiftUnitAndBranch(ctx, left, layer, -halfPair, -halfDescendant);
-  shiftUnitAndBranch(ctx, right, layer, halfPair, halfDescendant);
+  if (boundary <= rowCenter + 0.01 && right.centerX >= rowCenter - 0.01) {
+    shiftUnitAndBranch(ctx, left, layer, -totalShift / 2, -descendantDelta / 2);
+    shiftUnitAndBranch(ctx, right, layer, totalShift / 2, descendantDelta / 2);
+  } else {
+    shiftUnitAndBranch(ctx, right, layer, totalShift, descendantDelta);
+  }
 }
 
-/** Шаг 5: симметричный сдвиг наложившихся пар от центра между ними. */
+/** Шаг 5: устранение наложений на слое. */
 export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): boolean {
   const units = buildLayerUnits(ctx, layer);
   if (units.length < 2) return false;
@@ -220,35 +226,13 @@ export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): b
 
     collided = true;
     const totalShift = Math.max(overlap, pairShift);
-    splitUnitsSymmetrically(ctx, units[i - 1], units[i], layer, totalShift);
+    resolveOverlapBetweenUnits(ctx, units[i - 1], units[i], layer, totalShift);
   }
 
   return collided;
 }
 
-/** Гарантированно разводит юниты на слое симметрично. */
-export function spreadLayerFromCenter(ctx: LayoutContext, layer: number): boolean {
-  const units = buildLayerUnits(ctx, layer);
-  if (units.length < 2) return false;
-
-  const { pairShift } = shiftAmountsForLayer(ctx, layer);
-  let moved = false;
-
-  for (let i = 1; i < units.length; i++) {
-    Object.assign(units[i - 1], measureUnit(ctx, units[i - 1].personIds));
-    Object.assign(units[i], measureUnit(ctx, units[i].personIds));
-    const overlap = units[i - 1].rightEdge + COUPLE_GAP_CELLS - units[i].leftEdge;
-    if (overlap <= 0.01) continue;
-
-    moved = true;
-    const totalShift = Math.max(overlap, pairShift);
-    splitUnitsSymmetrically(ctx, units[i - 1], units[i], layer, totalShift);
-  }
-
-  return moved;
-}
-
-/** Итеративно устраняет наложения на всех слоях (шаг 5 + финальное разведение). */
+/** Итеративно устраняет наложения на всех слоях (шаг 5). */
 export function resolveAllLayerCollisions(ctx: LayoutContext, maxRounds = 64): void {
   const layers = [...new Set([...ctx.placements.values()].map((p) => p.layer))].sort(
     (a, b) => a - b,
@@ -258,14 +242,6 @@ export function resolveAllLayerCollisions(ctx: LayoutContext, maxRounds = 64): v
     let any = false;
     for (const layer of layers) {
       if (resolveLayerCollisionStep5(ctx, layer)) any = true;
-    }
-    if (!any) break;
-  }
-
-  for (let round = 0; round < maxRounds; round++) {
-    let any = false;
-    for (const layer of layers) {
-      if (spreadLayerFromCenter(ctx, layer)) any = true;
     }
     if (!any) break;
   }
@@ -309,7 +285,7 @@ export function centerLineageAncestorsOverFocus(ctx: LayoutContext): void {
   }
 }
 
-/** Точное разведение без минимального шага алгоритма (устраняет мелкие наложения). */
+/** Точное симметричное разведение без минимального шага (мелкие зазоры). */
 export function resolveMicroOverlaps(ctx: LayoutContext, maxRounds = 32): void {
   const layers = [...new Set([...ctx.placements.values()].map((p) => p.layer))].sort(
     (a, b) => a - b,
@@ -325,7 +301,9 @@ export function resolveMicroOverlaps(ctx: LayoutContext, maxRounds = 32): void {
         const overlap = units[i - 1].rightEdge + COUPLE_GAP_CELLS - units[i].leftEdge;
         if (overlap <= 0.01) continue;
         any = true;
-        splitUnitsSymmetrically(ctx, units[i - 1], units[i], layer, overlap);
+        const half = overlap / 2;
+        shiftUnitAndBranch(ctx, units[i - 1], layer, -half, -half / 2);
+        shiftUnitAndBranch(ctx, units[i], layer, half, half / 2);
       }
     }
     if (!any) break;

@@ -1,7 +1,7 @@
 import type { LayoutNode, Project } from '../../types';
 import type { GraphResult } from '../graph-builder';
 import { LayoutContext } from './layout-context';
-import { alignCenterLayer, buildAncestry, alignAllParentsOverChildren } from './build-ancestry';
+import { alignCenterLayer, alignAllParentsOverChildren, buildAncestry } from './build-ancestry';
 import { buildDescendants } from './build-descendants';
 import { layoutRemainingPersons } from './layout-collateral';
 import {
@@ -23,8 +23,6 @@ export function runAncestorLayout(project: Project, graph: GraphResult): LayoutN
   alignAllParentsOverChildren(ctx);
   centerLineageAncestorsOverFocus(ctx);
 
-  // Шаг 5: после выравнивания — сдвиг наложившихся пар; повторное центрирование
-  // родителей отменило бы эти сдвиги, поэтому выравнивание выше — финальное.
   resolveAllLayerCollisions(ctx);
   alignChildrenUnderParentBonds(ctx);
   resolveMicroOverlaps(ctx);
