@@ -318,12 +318,12 @@ function expandFromBranchAnchors(ctx: LayoutContext, anchors: BranchAnchor[]): v
       resolveLayerCollisionStep5(ctx, parentLayer);
       centerAncestorLayersOverFocus(ctx);
 
-      const partners = (ctx.project.persons[personId]?.parentUnionIds ?? [])
+      const partners: string[] = (ctx.project.persons[personId]?.parentUnionIds ?? [])
         .flatMap((puid) => visiblePartnersInUnion(ctx, puid))
         .filter((id) => ctx.getPlacement(id)?.layer === parentLayer);
 
       if (partners.length === 0) break;
-      const sorted = [...partners].sort(
+      const sorted: string[] = [...partners].sort(
         (a, b) =>
           (ctx.getPlacement(a)?.centerXCells ?? 0) - (ctx.getPlacement(b)?.centerXCells ?? 0),
       );
