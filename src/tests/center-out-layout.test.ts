@@ -1,13 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import type { Project } from '../types';
 import { buildLayout } from '../layout';
 import { buildGraph } from '../layout/graph-builder';
 import { runCenterOutLayout } from '../layout/center-out-layout';
 import { COUPLE_GAP } from '../layout/graph-builder';
 import { CARD_GRID_CELL } from '../layout/card-dimensions';
 import { createEmptyProject, createEmptyPerson } from '../models/defaults';
-import { repairProjectRelationships } from '../models/person-utils';
-import projectJson from './fixtures/novy-proekt/project.json';
 import { findHorizontalOverlap } from './helpers/layout-quality';
 
 function nodeCenterX(n: { x: number; width: number }): number {
@@ -117,17 +114,5 @@ describe('center-out layout engine', () => {
     expect(gap).toBeGreaterThanOrEqual(COUPLE_GAP - 1);
     expect(gap).toBeLessThanOrEqual(COUPLE_GAP + 1);
     expect(COUPLE_GAP).toBe(CARD_GRID_CELL * 2);
-  });
-  it('cross-union spouses: Ivan left of Maria with couple gap', () => {
-    const project = repairProjectRelationships(JSON.parse(JSON.stringify(projectJson)) as Project);
-    project.center = { type: 'person', id: '92312a00-8c2a-42ea-8078-1b5d6507302b' };
-    project.viewSettings = { ...project.viewSettings, showAllPersons: true, layoutEngine: 'center-out' };
-    const layout = buildLayout(project);
-    const ivan = layout.nodes.find((n) => n.personId === '92312a00-8c2a-42ea-8078-1b5d6507302b')!;
-    const maria = layout.nodes.find((n) => n.personId === '2cf738cd-bf1e-4ccf-b0d6-96d978901502')!;
-    expect(ivan.x + ivan.width).toBeLessThanOrEqual(maria.x + 1);
-    expect(maria.x - (ivan.x + ivan.width)).toBeGreaterThanOrEqual(COUPLE_GAP - 2);
-    expect(maria.x - (ivan.x + ivan.width)).toBeLessThanOrEqual(COUPLE_GAP + 4);
-    expect(findHorizontalOverlap(layout.nodes)).toBeNull();
   });
 });

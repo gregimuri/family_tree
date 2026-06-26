@@ -150,7 +150,7 @@ function repackAncestryLayersBottomUp(
 ): void {
   const ancestorLayers = layout.sortedLayers.filter((l) => l < 0).sort((a, b) => b - a);
   for (const layer of ancestorLayers) {
-    let units = [...(layout.layers.get(layer) ?? [])];
+    const units = [...(layout.layers.get(layer) ?? [])];
     if (units.length === 0) continue;
     const childLayer = layer + 1;
     units.sort((a, b) => {

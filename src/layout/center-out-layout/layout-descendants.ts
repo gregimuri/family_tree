@@ -42,7 +42,7 @@ export function layoutDescendantsDown(ctx: LayoutContext): void {
 
       const n = visibleChildren.length;
       const totalSpan = n * CARD_WIDTH_CELLS + (n - 1) * SIBLING_GAP_CELLS;
-      let startCenter =
+      const startCenter =
         parentPlacement.centerXCells - totalSpan / 2 + CARD_WIDTH_CELLS / 2;
 
       for (let i = 0; i < visibleChildren.length; i++) {
