@@ -151,5 +151,16 @@ describe('ancestor layout engine', () => {
 
     const layout = buildLayout(project);
     expect(findHorizontalOverlaps(layout.nodes)).toEqual([]);
+
+    const byId = (id: string) => layout.nodes.find((n) => n.personId === id)!;
+    const leftCoupleCenter = (nodeCenterX(byId('pgf')) + nodeCenterX(byId('pgm'))) / 2;
+    const rightCoupleCenter = (nodeCenterX(byId('mgf')) + nodeCenterX(byId('mgm'))) / 2;
+    const fCenter = nodeCenterX(byId('f'));
+    const mCenter = nodeCenterX(byId('m'));
+    const leftSpread = fCenter - leftCoupleCenter;
+    const rightSpread = rightCoupleCenter - mCenter;
+    expect(leftSpread).toBeGreaterThan(0);
+    expect(rightSpread).toBeGreaterThan(0);
+    expect(Math.abs(leftSpread - rightSpread)).toBeLessThan(5);
   });
 });

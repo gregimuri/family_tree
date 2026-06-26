@@ -134,10 +134,11 @@ function shiftUnitAndDescendants(
   ctx: LayoutContext,
   unit: LayerUnit,
   layer: number,
-  shift: number,
-  descendantShift: number,
+  unitDelta: number,
+  descendantDelta: number,
 ): void {
-  shiftPersons(ctx, unit.personIds, shift);
+  if (Math.abs(unitDelta) < 0.001) return;
+  shiftPersons(ctx, unit.personIds, unitDelta);
 
   const descendantIds = new Set<string>();
   for (const cid of childrenBelowCouple(ctx, unit.personIds, layer)) {
@@ -148,10 +149,10 @@ function shiftUnitAndDescendants(
     collectTowardCenterSubtree(ctx, pid).forEach((id) => descendantIds.add(id));
   }
   unit.personIds.forEach((id) => descendantIds.delete(id));
-  shiftPersons(ctx, descendantIds, descendantShift);
+  shiftPersons(ctx, descendantIds, descendantDelta);
 }
 
-/** Шаг 5: сдвиг правой пары и потомка на половину. */
+/** Шаг 5: симметричный сдвиг наложившихся пар от центра (влево и вправо). */
 export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): boolean {
   const units = buildLayerUnits(ctx, layer);
   if (units.length < 2) return false;
@@ -168,10 +169,16 @@ export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): b
     if (overlap <= 0.01) continue;
 
     collided = true;
-    const shift = Math.max(overlap, pairShift);
-    shiftUnitAndDescendants(ctx, curr, layer, shift, descendantShift);
-    curr.leftEdge += shift;
-    curr.rightEdge += shift;
+    const totalShift = Math.max(overlap, pairShift);
+    const halfPair = totalShift / 2;
+    const halfDescendant = descendantShift / 2;
+
+    shiftUnitAndDescendants(ctx, prev, layer, -halfPair, -halfDescendant);
+    shiftUnitAndDescendants(ctx, curr, layer, halfPair, halfDescendant);
+    prev.leftEdge -= halfPair;
+    prev.rightEdge -= halfPair;
+    curr.leftEdge += halfPair;
+    curr.rightEdge += halfPair;
   }
 
   return collided;
