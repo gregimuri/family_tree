@@ -1,71 +1,18 @@
 import type { LayoutContext } from './layout-context';
-import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS, cardLeftEdge, cardRightEdge } from './grid-math';
+import { getCardScale } from '../graph-builder';
+import { CARD_WIDTH_CELLS, COUPLE_GAP_CELLS, cardHalfWidthCells } from './grid-math';
 
-/** Все потомки вниз от personId (без супругов на том же слое). */
-export function collectDescendantBranch(
-  ctx: LayoutContext,
-  rootPersonId: string,
-  fromLayer: number,
-): Set<string> {
-  const result = new Set<string>();
-  const queue = [rootPersonId];
-  while (queue.length > 0) {
-    const pid = queue.shift()!;
-    if (result.has(pid)) continue;
-    const placement = ctx.getPlacement(pid);
-    if (!placement || placement.layer <= fromLayer) continue;
-
-    result.add(pid);
-
-    for (const uid of ctx.project.persons[pid]?.unionIds ?? []) {
-      const union = ctx.project.unions[uid];
-      if (!union) continue;
-      for (const cid of union.childIds) {
-        if (!ctx.isPlaced(cid)) continue;
-        const cp = ctx.getPlacement(cid)!;
-        if (cp.layer > fromLayer) queue.push(cid);
-      }
-    }
-  }
-  return result;
-}
-
-/** Все предки вверх от personId (слои < fromLayer). */
-export function collectAncestorBranch(
-  ctx: LayoutContext,
-  rootPersonId: string,
-  fromLayer: number,
-): Set<string> {
-  const result = new Set<string>();
-  const queue = [rootPersonId];
-  while (queue.length > 0) {
-    const pid = queue.shift()!;
-    const placement = ctx.getPlacement(pid);
-    if (!placement) continue;
-
-    for (const puid of ctx.project.persons[pid]?.parentUnionIds ?? []) {
-      for (const parentId of ctx.project.unions[puid]?.partnerIds ?? []) {
-        if (!ctx.isPlaced(parentId) || result.has(parentId)) continue;
-        const pp = ctx.getPlacement(parentId)!;
-        if (pp.layer >= fromLayer) continue;
-        result.add(parentId);
-        queue.push(parentId);
-      }
-    }
-  }
-  return result;
-}
-
-/** @deprecated используйте collectDescendantBranch */
-export function collectDescendantSubtree(ctx: LayoutContext, rootPersonId: string): Set<string> {
-  const placement = ctx.getPlacement(rootPersonId);
-  const fromLayer = placement ? placement.layer - 1 : -999;
-  return collectDescendantBranch(ctx, rootPersonId, fromLayer);
-}
-
-/** @deprecated */
-export function collectTowardCenterSubtree(ctx: LayoutContext, rootPersonId: string): Set<string> {
-  return collectDescendantBranch(ctx, rootPersonId, -999);
+function personHalfWidthCells(ctx: LayoutContext, personId: string): number {
+  const p = ctx.getPlacement(personId);
+  const gn = ctx.graphNode(personId);
+  if (!p || !gn) return CARD_WIDTH_CELLS / 2;
+  const scale = getCardScale(
+    p.layer,
+    p.isSideBranch,
+    gn.branchDepth,
+    ctx.project.viewSettings.cardSizeMode,
+  );
+  return cardHalfWidthCells(scale);
 }
 
 export function shiftPersons(ctx: LayoutContext, personIds: Iterable<string>, delta: number): void {
@@ -92,12 +39,13 @@ function findCoupleOnLayer(ctx: LayoutContext, personId: string, layer: number):
   return [personId];
 }
 
-function childrenBelowCouple(ctx: LayoutContext, partnerIds: string[], parentLayer: number): string[] {
+function childrenBelowUnit(ctx: LayoutContext, partnerIds: string[], parentLayer: number): string[] {
   const childLayer = parentLayer + 1;
+  const partnerSet = new Set(partnerIds);
   const result: string[] = [];
   for (const union of Object.values(ctx.project.unions)) {
-    if (union.partnerIds.length < 2) continue;
-    if (!union.partnerIds.every((id) => partnerIds.includes(id))) continue;
+    if (!union.childIds.some((cid) => ctx.isPlaced(cid))) continue;
+    if (!union.partnerIds.some((id) => partnerSet.has(id))) continue;
     for (const cid of union.childIds) {
       const p = ctx.getPlacement(cid);
       if (p && p.layer === childLayer) result.push(cid);
@@ -113,6 +61,16 @@ interface LayerUnit {
   centerX: number;
 }
 
+function measureUnit(ctx: LayoutContext, personIds: string[]): Pick<LayerUnit, 'leftEdge' | 'rightEdge' | 'centerX'> {
+  const leftEdge = Math.min(
+    ...personIds.map((id) => ctx.getPlacement(id)!.centerXCells - personHalfWidthCells(ctx, id)),
+  );
+  const rightEdge = Math.max(
+    ...personIds.map((id) => ctx.getPlacement(id)!.centerXCells + personHalfWidthCells(ctx, id)),
+  );
+  return { leftEdge, rightEdge, centerX: (leftEdge + rightEdge) / 2 };
+}
+
 function buildLayerUnits(ctx: LayoutContext, layer: number): LayerUnit[] {
   const onLayer = ctx.personsOnLayer(layer).sort((a, b) => a.centerXCells - b.centerXCells);
   const assigned = new Set<string>();
@@ -122,18 +80,8 @@ function buildLayerUnits(ctx: LayoutContext, layer: number): LayerUnit[] {
     if (assigned.has(placement.personId)) continue;
     const coupleIds = findCoupleOnLayer(ctx, placement.personId, layer);
     coupleIds.forEach((id) => assigned.add(id));
-    const centers = coupleIds
-      .map((id) => ctx.getPlacement(id)?.centerXCells)
-      .filter((x): x is number => x !== undefined);
-    if (centers.length === 0) continue;
-    const leftEdge = Math.min(...centers.map((c) => cardLeftEdge(c)));
-    const rightEdge = Math.max(...centers.map((c) => cardRightEdge(c)));
-    units.push({
-      personIds: coupleIds,
-      leftEdge,
-      rightEdge,
-      centerX: (leftEdge + rightEdge) / 2,
-    });
+    if (coupleIds.length === 0) continue;
+    units.push({ personIds: coupleIds, ...measureUnit(ctx, coupleIds) });
   }
 
   return units.sort((a, b) => a.leftEdge - b.leftEdge);
@@ -143,33 +91,86 @@ function countOnLayer(ctx: LayoutContext, layer: number): number {
   return ctx.personsOnLayer(layer).length;
 }
 
-function collectBranchForShift(
-  ctx: LayoutContext,
-  unit: LayerUnit,
-  layer: number,
-): { ancestors: Set<string>; descendants: Set<string> } {
-  const ancestors = new Set<string>();
-  const descendants = new Set<string>();
-  const unitIds = new Set(unit.personIds);
-
-  for (const pid of unit.personIds) {
-    collectAncestorBranch(ctx, pid, layer).forEach((id) => ancestors.add(id));
-  }
-
-  for (const cid of childrenBelowCouple(ctx, unit.personIds, layer)) {
-    collectDescendantBranch(ctx, cid, layer).forEach((id) => descendants.add(id));
-  }
-
-  unitIds.forEach((id) => {
-    ancestors.delete(id);
-    descendants.delete(id);
-  });
-  ancestors.forEach((id) => descendants.delete(id));
-
-  return { ancestors, descendants };
+function shiftAmountsForLayer(ctx: LayoutContext, layer: number): { pairShift: number; descendantShift: number } {
+  const count = countOnLayer(ctx, layer);
+  return {
+    pairShift: count >= 4 ? CARD_WIDTH_CELLS : CARD_WIDTH_CELLS / 2,
+    descendantShift: count >= 4 ? CARD_WIDTH_CELLS / 2 : CARD_WIDTH_CELLS / 4,
+  };
 }
 
-/** Сдвигает пару/юнит, всех предков вверх и потомков вниз по ветке. */
+/** Предки вверх (пары целиком). */
+function collectBranchAboveUnit(ctx: LayoutContext, unit: LayerUnit, layer: number): Set<string> {
+  const result = new Set<string>();
+  const queue = [...unit.personIds];
+  const seen = new Set(unit.personIds);
+
+  while (queue.length > 0) {
+    const pid = queue.shift()!;
+    for (const puid of ctx.project.persons[pid]?.parentUnionIds ?? []) {
+      for (const parentId of ctx.project.unions[puid]?.partnerIds ?? []) {
+        if (!ctx.isPlaced(parentId) || seen.has(parentId)) continue;
+        const pp = ctx.getPlacement(parentId)!;
+        if (pp.layer >= layer) continue;
+        const couple = findCoupleOnLayer(ctx, parentId, pp.layer);
+        for (const id of couple) {
+          if (seen.has(id)) continue;
+          seen.add(id);
+          result.add(id);
+          queue.push(id);
+        }
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Потомки вниз: ребёнок пары + его супруг на слое + дети (шаг 5 документа).
+ */
+function collectBranchBelowUnit(ctx: LayoutContext, unit: LayerUnit, layer: number): Set<string> {
+  const result = new Set<string>();
+  const seen = new Set<string>();
+  const queue: string[] = [];
+
+  for (const cid of childrenBelowUnit(ctx, unit.personIds, layer)) {
+    const childLayer = layer + 1;
+    const couple = findCoupleOnLayer(ctx, cid, childLayer);
+    for (const id of couple) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        result.add(id);
+        queue.push(id);
+      }
+    }
+  }
+
+  while (queue.length > 0) {
+    const pid = queue.shift()!;
+    const placement = ctx.getPlacement(pid);
+    if (!placement || placement.layer <= layer) continue;
+
+    for (const uid of ctx.project.persons[pid]?.unionIds ?? []) {
+      for (const cid of ctx.project.unions[uid]?.childIds ?? []) {
+        if (!ctx.isPlaced(cid)) continue;
+        const cp = ctx.getPlacement(cid)!;
+        if (cp.layer <= layer) continue;
+        const couple = findCoupleOnLayer(ctx, cid, cp.layer);
+        for (const id of couple) {
+          if (!seen.has(id)) {
+            seen.add(id);
+            result.add(id);
+            queue.push(id);
+          }
+        }
+      }
+    }
+  }
+
+  unit.personIds.forEach((id) => result.delete(id));
+  return result;
+}
+
 function shiftUnitAndBranch(
   ctx: LayoutContext,
   unit: LayerUnit,
@@ -177,76 +178,94 @@ function shiftUnitAndBranch(
   unitDelta: number,
   descendantDelta: number,
 ): void {
-  if (Math.abs(unitDelta) < 0.001) return;
+  if (Math.abs(unitDelta) < 0.001 && Math.abs(descendantDelta) < 0.001) return;
 
   shiftPersons(ctx, unit.personIds, unitDelta);
 
-  const { ancestors, descendants } = collectBranchForShift(ctx, unit, layer);
+  const ancestors = collectBranchAboveUnit(ctx, unit, layer);
   shiftPersons(ctx, ancestors, unitDelta);
+
+  const descendants = collectBranchBelowUnit(ctx, unit, layer);
   shiftPersons(ctx, descendants, descendantDelta);
 }
 
-/** Шаг 5: симметричный сдвиг наложившихся пар от центра (влево и вправо). */
+function splitUnitsSymmetrically(
+  ctx: LayoutContext,
+  left: LayerUnit,
+  right: LayerUnit,
+  layer: number,
+  totalShift: number,
+): void {
+  const { descendantShift } = shiftAmountsForLayer(ctx, layer);
+  const halfPair = totalShift / 2;
+  const halfDescendant = descendantShift / 2;
+
+  shiftUnitAndBranch(ctx, left, layer, -halfPair, -halfDescendant);
+  shiftUnitAndBranch(ctx, right, layer, halfPair, halfDescendant);
+}
+
+/** Шаг 5: симметричный сдвиг наложившихся пар от центра между ними. */
 export function resolveLayerCollisionStep5(ctx: LayoutContext, layer: number): boolean {
   const units = buildLayerUnits(ctx, layer);
   if (units.length < 2) return false;
 
-  const focus = ctx.getPlacement(ctx.focusPersonId);
-  const layerCenter = focus?.layer === layer ? focus.centerXCells : 0;
-
-  const count = countOnLayer(ctx, layer);
-  const pairShift = count >= 4 ? CARD_WIDTH_CELLS : CARD_WIDTH_CELLS / 2;
-  const descendantShift = count >= 4 ? CARD_WIDTH_CELLS / 2 : CARD_WIDTH_CELLS / 4;
-
+  const { pairShift } = shiftAmountsForLayer(ctx, layer);
   let collided = false;
+
   for (let i = 1; i < units.length; i++) {
-    const prev = units[i - 1];
-    const curr = units[i];
-    const overlap = prev.rightEdge + COUPLE_GAP_CELLS - curr.leftEdge;
+    Object.assign(units[i - 1], measureUnit(ctx, units[i - 1].personIds));
+    Object.assign(units[i], measureUnit(ctx, units[i].personIds));
+    const overlap = units[i - 1].rightEdge + COUPLE_GAP_CELLS - units[i].leftEdge;
     if (overlap <= 0.01) continue;
 
     collided = true;
     const totalShift = Math.max(overlap, pairShift);
-    const halfPair = totalShift / 2;
-    const halfDescendant = descendantShift / 2;
-
-    const boundary = (prev.centerX + curr.centerX) / 2;
-    const prevIsLeft = prev.centerX <= layerCenter + 0.01 || prev.centerX <= boundary;
-    const currIsRight = curr.centerX >= layerCenter - 0.01 || curr.centerX >= boundary;
-
-    if (prevIsLeft && currIsRight) {
-      shiftUnitAndBranch(ctx, prev, layer, -halfPair, -halfDescendant);
-      shiftUnitAndBranch(ctx, curr, layer, halfPair, halfDescendant);
-      prev.leftEdge -= halfPair;
-      prev.rightEdge -= halfPair;
-      prev.centerX -= halfPair;
-      curr.leftEdge += halfPair;
-      curr.rightEdge += halfPair;
-      curr.centerX += halfPair;
-    } else if (prev.centerX <= curr.centerX) {
-      shiftUnitAndBranch(ctx, prev, layer, -halfPair, -halfDescendant);
-      shiftUnitAndBranch(ctx, curr, layer, halfPair, halfDescendant);
-      prev.leftEdge -= halfPair;
-      prev.rightEdge -= halfPair;
-      prev.centerX -= halfPair;
-      curr.leftEdge += halfPair;
-      curr.rightEdge += halfPair;
-      curr.centerX += halfPair;
-    }
+    splitUnitsSymmetrically(ctx, units[i - 1], units[i], layer, totalShift);
   }
 
   return collided;
 }
 
-/** Итеративно устраняет наложения на всех слоях (шаг 5). */
-export function resolveAllLayerCollisions(ctx: LayoutContext, maxRounds = 48): void {
+/** Гарантированно разводит юниты на слое симметрично. */
+export function spreadLayerFromCenter(ctx: LayoutContext, layer: number): boolean {
+  const units = buildLayerUnits(ctx, layer);
+  if (units.length < 2) return false;
+
+  const { pairShift } = shiftAmountsForLayer(ctx, layer);
+  let moved = false;
+
+  for (let i = 1; i < units.length; i++) {
+    Object.assign(units[i - 1], measureUnit(ctx, units[i - 1].personIds));
+    Object.assign(units[i], measureUnit(ctx, units[i].personIds));
+    const overlap = units[i - 1].rightEdge + COUPLE_GAP_CELLS - units[i].leftEdge;
+    if (overlap <= 0.01) continue;
+
+    moved = true;
+    const totalShift = Math.max(overlap, pairShift);
+    splitUnitsSymmetrically(ctx, units[i - 1], units[i], layer, totalShift);
+  }
+
+  return moved;
+}
+
+/** Итеративно устраняет наложения на всех слоях (шаг 5 + финальное разведение). */
+export function resolveAllLayerCollisions(ctx: LayoutContext, maxRounds = 64): void {
   const layers = [...new Set([...ctx.placements.values()].map((p) => p.layer))].sort(
     (a, b) => a - b,
   );
+
   for (let round = 0; round < maxRounds; round++) {
     let any = false;
     for (const layer of layers) {
       if (resolveLayerCollisionStep5(ctx, layer)) any = true;
+    }
+    if (!any) break;
+  }
+
+  for (let round = 0; round < maxRounds; round++) {
+    let any = false;
+    for (const layer of layers) {
+      if (spreadLayerFromCenter(ctx, layer)) any = true;
     }
     if (!any) break;
   }
@@ -276,8 +295,12 @@ export function centerLineageAncestorsOverFocus(ctx: LayoutContext): void {
   );
   if (ancestors.length === 0) return;
 
-  const min = Math.min(...ancestors.map((p) => cardLeftEdge(p.centerXCells)));
-  const max = Math.max(...ancestors.map((p) => cardRightEdge(p.centerXCells)));
+  const min = Math.min(
+    ...ancestors.map((p) => p.centerXCells - personHalfWidthCells(ctx, p.personId)),
+  );
+  const max = Math.max(
+    ...ancestors.map((p) => p.centerXCells + personHalfWidthCells(ctx, p.personId)),
+  );
   const delta = focus.centerXCells - (min + max) / 2;
   if (Math.abs(delta) < 0.01) return;
 
@@ -285,4 +308,42 @@ export function centerLineageAncestorsOverFocus(ctx: LayoutContext): void {
   for (const p of ctx.placements.values()) {
     if (p.layer < 0 && layers.has(p.layer)) p.centerXCells += delta;
   }
+}
+
+/** @deprecated */
+export function collectDescendantBranch(
+  ctx: LayoutContext,
+  rootPersonId: string,
+  fromLayer: number,
+): Set<string> {
+  const unit: LayerUnit = {
+    personIds: [rootPersonId],
+    ...measureUnit(ctx, [rootPersonId]),
+  };
+  return collectBranchBelowUnit(ctx, unit, fromLayer);
+}
+
+/** @deprecated */
+export function collectAncestorBranch(
+  ctx: LayoutContext,
+  rootPersonId: string,
+  fromLayer: number,
+): Set<string> {
+  const unit: LayerUnit = {
+    personIds: [rootPersonId],
+    ...measureUnit(ctx, [rootPersonId]),
+  };
+  return collectBranchAboveUnit(ctx, unit, fromLayer);
+}
+
+/** @deprecated */
+export function collectDescendantSubtree(ctx: LayoutContext, rootPersonId: string): Set<string> {
+  const placement = ctx.getPlacement(rootPersonId);
+  const fromLayer = placement ? placement.layer - 1 : -999;
+  return collectDescendantBranch(ctx, rootPersonId, fromLayer);
+}
+
+/** @deprecated */
+export function collectTowardCenterSubtree(ctx: LayoutContext, rootPersonId: string): Set<string> {
+  return collectDescendantBranch(ctx, rootPersonId, -999);
 }

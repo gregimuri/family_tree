@@ -25,6 +25,8 @@ export function runAncestorLayout(project: Project, graph: GraphResult): LayoutN
   // родителей отменило бы эти сдвиги, поэтому выравнивание выше — финальное.
   resolveAllLayerCollisions(ctx);
 
+  centerLineageAncestorsOverFocus(ctx);
+
   const focus = ctx.getPlacement(ctx.focusPersonId);
   if (focus && Math.abs(focus.centerXCells) > 0.01) {
     const delta = focus.centerXCells;
